@@ -1,0 +1,291 @@
+import React, { useEffect, useRef, useState, useCallback } from 'react';
+import { useAdminConfigStore, useEditorStore } from '../store';
+import { useGridStore } from '../store/gridStore';
+import BaseLayer from './layers/BaseLayer';
+import FixedGridLayer from './layers/FixedGridLayer';
+import DrawLayer from './layers/DrawLayer';
+import GridLayer from './layers/GridLayer';
+
+interface CanvasProps {
+  isViewPage?: boolean;
+}
+
+// 2160x3840 4K 세로형 고정 해상도
+const CANVAS_WIDTH = 2160;
+const CANVAS_HEIGHT = 3840;
+
+const Canvas: React.FC<CanvasProps> = ({ isViewPage = false }) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const canvasRef = useRef<HTMLDivElement>(null);
+  const [autoScale, setAutoScale] = useState(0.3); // 초기 로딩용 임시값
+  const { zoom, viewOffset, setZoom, zoomAtPoint } = useEditorStore();
+  const { floorImage, initializeFirebaseListeners } = useAdminConfigStore();
+  const { gridEnabled, gridSize } = useGridStore();
+
+  // 마우스 휠 이벤트 핸들러
+  const handleWheel = useCallback((e: React.WheelEvent) => {
+    if (!containerRef.current || !canvasRef.current) return;
+    
+    // 마우스 위치 계산
+    const containerRect = containerRef.current.getBoundingClientRect();
+    const canvasRect = canvasRef.current.getBoundingClientRect();
+    
+    const mouseX = e.clientX;
+    const mouseY = e.clientY;
+    
+    // 마우스가 캔버스 영역 안에 있는지 확인
+    const isMouseOverCanvas = (
+      mouseX >= canvasRect.left &&
+      mouseX <= canvasRect.right &&
+      mouseY >= canvasRect.top &&
+      mouseY <= canvasRect.bottom
+    );
+    
+    // 캔버스 안에 있을 때만 확대/축소, 바깥쪽에서는 기본 스크롤 허용
+    if (isMouseOverCanvas) {
+      e.preventDefault(); // 기본 스크롤 동작 방지
+      
+      const mouseXRelative = e.clientX - containerRect.left;
+      const mouseYRelative = e.clientY - containerRect.top;
+      
+      // wheelDelta는 양수면 위로(확대), 음수면 아래로(축소)
+      const delta = -e.deltaY;
+      
+      zoomAtPoint(delta, mouseXRelative, mouseYRelative, containerRect);
+    }
+    // 캔버스 바깥쪽에서는 preventDefault를 호출하지 않아 기본 스크롤 동작 허용
+  }, [zoomAtPoint]);
+
+  // zoom이 비정상적으로 작으면 1.0으로 리셋
+  useEffect(() => {
+    if (zoom < 0.5) {
+      setZoom(1.0);
+    }
+  }, [zoom, setZoom]);
+
+  // Firebase 리스너 초기화
+  useEffect(() => {
+    initializeFirebaseListeners();
+    
+    // 컴포넌트 언마운트 시 Firebase 리스너 정리
+    return () => {
+      if (typeof initializeFirebaseListeners === 'function') {
+        // adminConfigStore에서 cleanupFirebaseListeners 함수 호출
+        const { cleanupFirebaseListeners } = useAdminConfigStore.getState();
+        cleanupFirebaseListeners();
+      }
+    };
+  }, [initializeFirebaseListeners]);
+
+  // 창 크기에 맞는 자동 스케일 계산
+  useEffect(() => {
+    const updateAutoScale = () => {
+      if (containerRef.current) {
+        const container = containerRef.current;
+        const containerWidth = container.clientWidth;
+        const containerHeight = container.clientHeight;
+        
+        // 컨테이너가 너무 작으면 최소값 사용
+        if (containerWidth <= 0 || containerHeight <= 0) {
+          setAutoScale(0.3);
+          return;
+        }
+        
+        // 여백 없이 창에 딱 맞게 맞춤
+        const scaleX = containerWidth / CANVAS_WIDTH;
+        const scaleY = containerHeight / CANVAS_HEIGHT;
+        
+        // 두 스케일 중 작은 값을 사용하여 캔버스가 완전히 들어가도록 함
+        const newAutoScale = Math.min(scaleX, scaleY);
+        
+        setAutoScale(Math.max(0.2, newAutoScale)); // 최소 0.2 보장
+      }
+    };
+
+    // 약간의 지연을 두어 DOM이 완전히 렌더링된 후 계산
+    const timeoutId = setTimeout(updateAutoScale, 100);
+    
+    window.addEventListener('resize', updateAutoScale);
+    
+    return () => {
+      clearTimeout(timeoutId);
+      window.removeEventListener('resize', updateAutoScale);
+    };
+  }, [zoom]);
+
+  const finalScale = autoScale * zoom;
+  const scaledWidth = CANVAS_WIDTH * finalScale;
+  const scaledHeight = CANVAS_HEIGHT * finalScale;
+
+  // 스크롤 필요 여부 계산
+  const containerWidth = containerRef.current?.clientWidth || 0;
+  const containerHeight = containerRef.current?.clientHeight || 0;
+  const needsHorizontalScroll = scaledWidth > containerWidth;
+  const needsVerticalScroll = scaledHeight > containerHeight;
+
+  // 스케일에 따른 그리드 표시 여부 결정
+  const shouldShowGrid = gridEnabled && finalScale > 0.3;
+
+  // 컨텍스트 메뉴 방지 (우클릭, 터치 길게 누르기)
+  const handleContextMenu = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    return false;
+  };
+
+  // 터치 길게 누르기 방지
+  const handleTouchStart = (e: React.TouchEvent) => {
+    // 길게 누르기 타이머 설정 (브라우저의 기본 컨텍스트 메뉴보다 빠르게)
+    if (e.touches.length === 1) {
+      const longPressTimer = setTimeout(() => {
+        // 길게 누르기가 감지되면 이벤트 취소
+        e.preventDefault();
+      }, 300); // 300ms 후 취소 (브라우저 기본값보다 빠름)
+      
+      // 터치가 끝나거나 이동하면 타이머 취소
+      const clearTimer = () => {
+        clearTimeout(longPressTimer);
+        document.removeEventListener('touchend', clearTimer);
+        document.removeEventListener('touchmove', clearTimer);
+      };
+      
+      document.addEventListener('touchend', clearTimer, { once: true });
+      document.addEventListener('touchmove', clearTimer, { once: true });
+    }
+  };
+
+  return (
+    <div 
+      ref={containerRef}
+      onWheel={handleWheel}
+      style={{
+        position: 'relative',
+        width: '100%',
+        height: '100%',
+        overflowX: needsHorizontalScroll ? 'auto' : 'hidden',
+        overflowY: needsVerticalScroll ? 'auto' : 'hidden',
+        backgroundColor: '#ffffff',
+        cursor: isViewPage ? 'crosshair' : 'default',
+      }}
+    >
+      {/* 캔버스 컨테이너 - 2160x3840 고정 크기, 가용 영역 중앙 배치 */}
+      <div
+        ref={canvasRef}
+        data-canvas-container
+        style={{
+          position: 'absolute',
+          backgroundColor: '#ffffff',
+          border: '1px solid #d1d5db',
+          boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+          width: CANVAS_WIDTH,
+          height: CANVAS_HEIGHT,
+          transform: `translate(${viewOffset.x}px, ${viewOffset.y}px) scale(${finalScale})`,
+          transformOrigin: 'center center',
+          left: '50%', // 가용 영역(툴바 제외)의 가로 중앙
+          top: '50%',  // 세로 중앙
+          marginLeft: `-${CANVAS_WIDTH / 2}px`,
+          marginTop: `-${CANVAS_HEIGHT / 2}px`,
+          zIndex: 10,
+        }}
+        onContextMenu={handleContextMenu}
+        onTouchStart={handleTouchStart}
+      >
+
+        {/* 최하단: Background (floor.png) */}
+        {floorImage ? (
+          <div
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundImage: `url(${floorImage.path})`,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+              backgroundRepeat: 'no-repeat',
+            }}
+          />
+        ) : (
+          <div style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: '#f9fafb',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}>
+            <div style={{
+              color: '#9ca3af',
+              fontSize: '24px',
+              textAlign: 'center'
+            }}>
+              Board7 Canvas<br/>
+              <span style={{ fontSize: '16px' }}>2160 x 3840</span>
+            </div>
+          </div>
+        )}
+
+        {/* 그리드 레이어: 배경 위에 표시 */}
+        <GridLayer 
+          gridEnabled={gridEnabled}
+          gridSize={gridSize}
+          canvasWidth={CANVAS_WIDTH}
+          canvasHeight={CANVAS_HEIGHT}
+        />
+
+        {/* FixedGridLayer: 엑셀 붙여넣기용 셀, 배경 위 고정 */}
+        <FixedGridLayer />
+
+        {/* BaseLayer: 텍스트, 체크박스, 사각형, 이미지 포함 모든 객체 */}
+        <BaseLayer isViewPage={isViewPage} />
+      </div>
+
+      {/* 최상단: DrawLayer (필기/지우개 도구) - Canvas 컨테이너 밖에 독립적으로 배치 */}
+      <div style={{ 
+        position: 'absolute', 
+        top: 0, 
+        left: 0, 
+        right: 0, 
+        bottom: 0, 
+        zIndex: 999999,
+        pointerEvents: 'none',
+        overflow: 'hidden'
+      }}>
+        <div style={{
+          position: 'absolute',
+          width: CANVAS_WIDTH,
+          height: CANVAS_HEIGHT,
+          transform: `translate(${viewOffset.x}px, ${viewOffset.y}px) scale(${finalScale})`,
+          transformOrigin: 'center center',
+          left: '50%',
+          top: '50%',
+          marginLeft: `-${CANVAS_WIDTH / 2}px`,
+          marginTop: `-${CANVAS_HEIGHT / 2}px`,
+        }}>
+          <DrawLayer isViewPage={isViewPage} />
+        </div>
+      </div>
+
+      {/* 줌 레벨 표시 */}
+      <div style={{
+        position: 'absolute',
+        bottom: '16px',
+        left: '16px',
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        color: '#ffffff',
+        padding: '4px 12px',
+        borderRadius: '4px',
+        fontSize: '14px',
+        zIndex: 1000000 // DrawLayer보다도 위에
+      }}>
+        {Math.round(autoScale * zoom * 100)}%
+      </div>
+    </div>
+  );
+};
+
+export default Canvas;
