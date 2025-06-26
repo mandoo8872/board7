@@ -236,6 +236,9 @@ const DrawLayer: React.FC<DrawLayerProps> = ({ /* isViewPage = false */ }) => {
       pressure: e.pressure 
     });
     
+    // 터치 이벤트가 별도로 처리되므로 터치 타입 포인터는 무시
+    if (e.pointerType === 'touch') return;
+    
     // pen이나 eraser 도구가 선택되었을 때만 작동
     if (currentTool !== 'pen' && currentTool !== 'eraser') return;
 
@@ -262,6 +265,9 @@ const DrawLayer: React.FC<DrawLayerProps> = ({ /* isViewPage = false */ }) => {
   }, [currentTool, startStroke, addPoint, getCanvasCoordinates, eraseAtPoint]);
 
   const handlePointerMove = useCallback((e: React.PointerEvent) => {
+    // 터치 이벤트가 별도로 처리되므로 터치 타입 포인터는 무시
+    if (e.pointerType === 'touch') return;
+    
     // pen이나 eraser 도구가 선택되고 그리는 중일 때만 작동
     if (currentTool !== 'pen' && currentTool !== 'eraser') return;
 
@@ -285,6 +291,9 @@ const DrawLayer: React.FC<DrawLayerProps> = ({ /* isViewPage = false */ }) => {
       currentTool, 
       pointerType: e.pointerType 
     });
+    
+    // 터치 이벤트가 별도로 처리되므로 터치 타입 포인터는 무시
+    if (e.pointerType === 'touch') return;
     
     // 액션 완료 시간 업데이트
     updateLastActionTime();
@@ -323,13 +332,14 @@ const DrawLayer: React.FC<DrawLayerProps> = ({ /* isViewPage = false */ }) => {
     }
   }, [isDrawing, currentStroke, currentTool, penColor, penWidth, endStroke, clearCurrentStroke, updateLastActionTime, scheduleAutoSwitch]);
 
-  // 터치 이벤트 핸들러 (추가 지원)
+  // 터치 이벤트 핸들러 (터치 전용)
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
     console.log('DrawLayer: TouchStart event triggered', currentTool);
     
     // pen이나 eraser 도구가 선택되었을 때만 작동
     if (currentTool !== 'pen' && currentTool !== 'eraser') return;
 
+    // 터치 이벤트를 강력하게 차단하여 중복 방지
     e.preventDefault();
     e.stopPropagation();
 
@@ -371,15 +381,19 @@ const DrawLayer: React.FC<DrawLayerProps> = ({ /* isViewPage = false */ }) => {
     }
   }, [isDrawing, currentTool, addPoint, getCanvasCoordinates, eraseAtPoint]);
 
-  const handleTouchEnd = useCallback(async (/* e: React.TouchEvent */) => {
-    if (!isDrawing) return;
+  const handleTouchEnd = useCallback(async (e: React.TouchEvent) => {
     console.log('DrawLayer: TouchEnd event triggered', { isDrawing, currentTool });
     
+    e.preventDefault();
+    e.stopPropagation();
+    
+    // 액션 완료 시간 업데이트
     updateLastActionTime();
     
     if (currentTool === 'pen' && isDrawing) {
       endStroke();
 
+      // touchend 시점에 Firebase에 저장 (필기만) - LWW 사용
       if (currentStroke.length >= 4) {
         const drawObject = {
           points: currentStroke,
@@ -404,6 +418,7 @@ const DrawLayer: React.FC<DrawLayerProps> = ({ /* isViewPage = false */ }) => {
       clearCurrentStroke();
     }
     
+    // 액션 완료 후 자동 전환 스케줄링 (필기나 지우개 모든 액션 완료 시)
     if (currentTool === 'pen' || currentTool === 'eraser') {
       scheduleAutoSwitch();
     }
