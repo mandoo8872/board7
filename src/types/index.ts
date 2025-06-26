@@ -133,7 +133,20 @@ export interface AdminSettings {
   autoToolSwitch: boolean;
   gridVisible: boolean;
   gridSize: number;
+  gridSnapEnabled: boolean;
   defaultFontSize: number;
+  objectCreationPosition: {
+    x: number;
+    y: number;
+  };
+  defaultCheckboxSettings: {
+    checkedColor: string;
+    uncheckedColor: string;
+    checkedBackgroundColor: string;
+    uncheckedBackgroundColor: string;
+    checkedBackgroundOpacity: number;
+    uncheckedBackgroundOpacity: number;
+  };
 }
 
 export interface ViewSettings {

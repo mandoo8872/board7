@@ -6,7 +6,10 @@ import DrawToolSettings from '../components/toolbar/DrawToolSettings';
 import { useAdminConfigStore } from '../store/adminConfigStore';
 
 const ViewPage: React.FC = () => {
-  const { initializeFirebaseListeners } = useAdminConfigStore();
+  const { initializeFirebaseListeners, settings } = useAdminConfigStore();
+
+  // 설정이 로드되지 않았을 때 기본값 제공
+  const virtualKeyboardEnabled = settings?.view?.virtualKeyboardEnabled ?? true;
 
   useEffect(() => {
     // ViewPage에서도 Firebase 리스너 초기화
@@ -32,8 +35,8 @@ const ViewPage: React.FC = () => {
       {/* 필기/지우개 도구 설정 */}
       <DrawToolSettings />
       
-      {/* 가상 키보드 (필요시 표시) */}
-      <VirtualKeyboard />
+      {/* 가상 키보드 (설정에 따라 표시) */}
+      {virtualKeyboardEnabled && <VirtualKeyboard />}
     </div>
   );
 };

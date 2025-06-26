@@ -53,7 +53,20 @@ export const useAdminConfigStore = create<AdminConfigStore>((set, get) => {
         autoToolSwitch: true,
         gridVisible: true,
         gridSize: 32,
+        gridSnapEnabled: false,
         defaultFontSize: 16,
+        objectCreationPosition: {
+          x: 260,
+          y: 950
+        },
+        defaultCheckboxSettings: {
+          checkedColor: '#22c55e',
+          uncheckedColor: '#f3f4f6',
+          checkedBackgroundColor: '#ffffff',
+          uncheckedBackgroundColor: '#ffffff',
+          checkedBackgroundOpacity: 1,
+          uncheckedBackgroundOpacity: 1
+        }
       },
       view: {
         virtualKeyboardEnabled: true,

@@ -12,13 +12,13 @@ interface DrawLayerProps {
 const DrawLayer: React.FC<DrawLayerProps> = ({ /* isViewPage = false */ }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const autoSwitchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const autoSwitchDelay = 2000; // 2초
   
   const { 
     currentStroke, 
     isDrawing, 
     penColor,
     penWidth,
-    autoSwitchDelay,
     addPoint, 
     startStroke, 
     endStroke, 
@@ -26,11 +26,19 @@ const DrawLayer: React.FC<DrawLayerProps> = ({ /* isViewPage = false */ }) => {
     updateLastActionTime
   } = useDrawStore();
   
-  const { drawObjects } = useAdminConfigStore();
+  const { drawObjects, settings } = useAdminConfigStore();
   const { currentTool, setCurrentTool } = useEditorStore();
+
+  // 설정이 로드되지 않았을 때 기본값 제공
+  const autoToolSwitchEnabled = settings?.admin?.autoToolSwitch ?? true;
 
   // 자동 도구 전환 함수
   const scheduleAutoSwitch = useCallback(() => {
+    // 자동 도구 전환이 비활성화되어 있으면 실행하지 않음
+    if (!autoToolSwitchEnabled) {
+      return;
+    }
+    
     // 터치 기기에서 연속 필기를 위해 자동 전환 지연시간을 늘림
     const extendedDelay = autoSwitchDelay * 3; // 기본 2초 → 6초로 연장
     
@@ -46,7 +54,7 @@ const DrawLayer: React.FC<DrawLayerProps> = ({ /* isViewPage = false */ }) => {
         setCurrentTool('select');
       }
     }, extendedDelay);
-  }, [autoSwitchDelay, currentTool, setCurrentTool]);
+  }, [autoSwitchDelay, currentTool, setCurrentTool, autoToolSwitchEnabled]);
 
   // 컴포넌트 언마운트 시 타이머 정리
   useEffect(() => {
@@ -279,7 +287,8 @@ const DrawLayer: React.FC<DrawLayerProps> = ({ /* isViewPage = false */ }) => {
     updateLastActionTime();
     
     if (currentTool === 'eraser') {
-      // 지우개 모드: 해당 위치의 스트로크 삭제
+      // 지우개 모드: 지우개 시작 (필기와 동일한 방식)
+      startStroke(); // 지우개 시작 상태 설정
       eraseAtPoint(coords.x, coords.y);
     } else {
       // 필기 모드: 새 스트로크 시작
@@ -313,8 +322,10 @@ const DrawLayer: React.FC<DrawLayerProps> = ({ /* isViewPage = false */ }) => {
     }
     
     if (currentTool === 'eraser') {
-      // 지우개 모드: 계속 지우기
-      eraseAtPoint(coords.x, coords.y);
+      // 지우개 모드: 드래그 중일 때만 지우기 (필기와 동일한 방식)
+      if (isDrawing) {
+        eraseAtPoint(coords.x, coords.y);
+      }
     } else if (isDrawing) {
       // 필기 모드: 점 추가
       console.log('DrawLayer: Adding point to stroke', coords);
@@ -370,6 +381,10 @@ const DrawLayer: React.FC<DrawLayerProps> = ({ /* isViewPage = false */ }) => {
         console.log('DrawLayer: Stroke too short, not saving');
         clearCurrentStroke(); // 너무 짧은 스트로크는 바로 정리
       }
+    } else if (currentTool === 'eraser' && isDrawing) {
+      // 지우개 모드: 드래그 상태만 종료 (Firebase 저장 없음)
+      endStroke();
+      clearCurrentStroke(); // 지우개는 즉시 상태 정리
     }
     
     // 액션 완료 후 자동 전환 스케줄링 (필기나 지우개 모든 액션 완료 시)

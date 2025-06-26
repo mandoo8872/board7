@@ -44,7 +44,7 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
     zoom: Math.max(0.1, state.zoom - 0.1) 
   })),
   
-  zoomAtPoint: (delta, pointX, pointY, canvasRect) => {
+  zoomAtPoint: (delta, _pointX, pointY, canvasRect) => {
     const state = get();
     const zoomFactor = 1.1;
     const newZoom = delta > 0 
@@ -54,19 +54,18 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
     if (newZoom === state.zoom) return; // 줌이 변경되지 않으면 리턴
     
     // 가용 영역(툴바 제외)의 중심점 계산
-    const availableAreaCenterX = canvasRect.width / 2;
     const availableAreaCenterY = canvasRect.height / 2;
     
-    // 마우스 위치에서 가용 영역 중심까지의 거리
-    const offsetFromCenterX = pointX - availableAreaCenterX;
+    // 마우스 세로 위치에서 가용 영역 중심까지의 거리만 고려
+    // 가로는 항상 중앙값 유지
     const offsetFromCenterY = pointY - availableAreaCenterY;
     
     // 줌 변경 비율
     const zoomRatio = newZoom / state.zoom;
     
-    // 새로운 오프셋 계산: 마우스 위치가 고정되도록 조정
-    // 가용 영역의 중심을 기준으로 계산하여 캔버스가 가로 중앙을 유지하도록 함
-    const newOffsetX = state.viewOffset.x + offsetFromCenterX * (1 - zoomRatio);
+    // 새로운 오프셋 계산: 마우스의 세로 위치만 고정되도록 조정
+    // 가로는 기존 오프셋 유지 (중앙값 유지)
+    const newOffsetX = state.viewOffset.x;
     const newOffsetY = state.viewOffset.y + offsetFromCenterY * (1 - zoomRatio);
     
     set({ 

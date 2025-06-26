@@ -1,10 +1,9 @@
 import React, { useState, useCallback, useRef } from 'react';
 import { useEditorStore, useAdminConfigStore } from '../../store';
 import { Tool, TextObject, ImageObject } from '../../types';
-import { useGridStore } from '../../store/gridStore';
-import { useCheckboxStore } from '../../store/checkboxStore';
 
 const Toolbar: React.FC = () => {
+  // 모든 hooks를 최상단에 배치
   const { 
     textObjects, 
     imageObjects,
@@ -14,39 +13,47 @@ const Toolbar: React.FC = () => {
     updateImageObject,
     setFloorImage,
     deleteTextObject,
-    deleteImageObject
+    deleteImageObject,
+    settings,
+    updateSettings,
+    isLoading
   } = useAdminConfigStore();
   const { currentTool, setCurrentTool, selectedObjectId, setSelectedObjectId } = useEditorStore();
-  const { 
-    gridEnabled, 
-    gridSize, 
-    snapEnabled,
-    setGridEnabled, 
-    setGridSize, 
-    setSnapEnabled 
-  } = useGridStore();
-  const {
-    defaultCheckedColor,
-    defaultUncheckedColor,
-    setDefaultCheckedColor,
-    setDefaultUncheckedColor,
-    checkedBackgroundColor,
-    uncheckedBackgroundColor,
-    checkedBackgroundOpacity,
-    uncheckedBackgroundOpacity,
-    setCheckedBackgroundColor,
-    setUncheckedBackgroundColor,
-    setCheckedBackgroundOpacity,
-    setUncheckedBackgroundOpacity
-  } = useCheckboxStore();
   
   // 설정 메뉴 접기/펼치기 상태
   const [isSettingsExpanded, setIsSettingsExpanded] = useState(false);
+
+  // 디바운싱을 위한 타이머 ref
+  const updateTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // 선택된 객체 가져오기
   const selectedObject = selectedObjectId 
     ? textObjects.find(obj => obj.id === selectedObjectId) || imageObjects.find(obj => obj.id === selectedObjectId)
     : null;
+
+  // 설정이 로드되지 않았거나 기본값이 없을 때 기본값 제공
+  const safeSettings = {
+    admin: {
+      autoToolSwitch: settings?.admin?.autoToolSwitch ?? true,
+      gridVisible: settings?.admin?.gridVisible ?? true,
+      gridSize: settings?.admin?.gridSize ?? 32,
+      gridSnapEnabled: settings?.admin?.gridSnapEnabled ?? false,
+      defaultFontSize: settings?.admin?.defaultFontSize ?? 16,
+      objectCreationPosition: settings?.admin?.objectCreationPosition ?? { x: 260, y: 950 },
+      defaultCheckboxSettings: settings?.admin?.defaultCheckboxSettings ?? {
+        checkedColor: '#22c55e',
+        uncheckedColor: '#f3f4f6',
+        checkedBackgroundColor: '#ffffff',
+        uncheckedBackgroundColor: '#ffffff',
+        checkedBackgroundOpacity: 1,
+        uncheckedBackgroundOpacity: 1
+      }
+    },
+    view: {
+      virtualKeyboardEnabled: settings?.view?.virtualKeyboardEnabled ?? true,
+      touchMode: settings?.view?.touchMode ?? true
+    }
+  };
 
   // 타입 가드 함수들
   const isTextObject = (obj: any): obj is TextObject => {
@@ -56,9 +63,6 @@ const Toolbar: React.FC = () => {
   const isImageObject = (obj: any): obj is ImageObject => {
     return obj && typeof obj.src !== 'undefined';
   };
-
-  // 디바운싱을 위한 타이머 ref
-  const updateTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // 속성 업데이트 함수들 (debounced 함수들보다 먼저 정의)
   const updateTextStyle = useCallback(async (updates: any) => {
@@ -92,21 +96,6 @@ const Toolbar: React.FC = () => {
     }
   }, [selectedObject, updateTextObject]);
 
-  // 권한 업데이트 함수 (현재 사용하지 않음)
-  // const updatePermissions = useCallback(async (updates: any) => {
-  //   if (selectedObject) {
-  //     if ('text' in selectedObject) {
-  //       await updateTextObject(selectedObject.id, {
-  //         permissions: { ...selectedObject.permissions, ...updates }
-  //       });
-  //     } else {
-  //       await updateImageObject(selectedObject.id, {
-  //         permissions: { ...selectedObject.permissions, ...updates }
-  //       });
-  //     }
-  //   }
-  // }, [selectedObject, updateTextObject, updateImageObject]);
-
   // 텍스트 스타일 디바운싱 업데이트
   const debouncedUpdateTextStyle = useCallback((updates: any) => {
     if (!selectedObject) return;
@@ -129,17 +118,6 @@ const Toolbar: React.FC = () => {
     }, 300);
   }, [selectedObject, updateBoxStyle]);
 
-  // 권한 디바운싱 업데이트 (현재 사용하지 않음)
-  // const debouncedUpdatePermissions = useCallback((updates: any) => {
-  //   if (!selectedObject) return;
-  //   if (updateTimerRef.current) {
-  //     clearTimeout(updateTimerRef.current);
-  //   }
-  //   updateTimerRef.current = setTimeout(() => {
-  //     updatePermissions(updates);
-  //   }, 300);
-  // }, [selectedObject, updatePermissions]);
-
   // 이미지 객체 디바운싱 업데이트
   const debouncedUpdateImageObject = useCallback((id: string, updates: any) => {
     if (updateTimerRef.current) {
@@ -149,15 +127,6 @@ const Toolbar: React.FC = () => {
       updateImageObject(id, updates);
     }, 300);
   }, [updateImageObject]);
-
-  // 컴포넌트 언마운트 시 타이머 정리
-  React.useEffect(() => {
-    return () => {
-      if (updateTimerRef.current) {
-        clearTimeout(updateTimerRef.current);
-      }
-    };
-  }, []);
 
   // 디바운싱된 업데이트 함수
   const debouncedUpdateTextObject = useCallback((id: string, updates: any) => {
@@ -169,10 +138,20 @@ const Toolbar: React.FC = () => {
     }, 300); // 300ms 지연
   }, [updateTextObject]);
 
+  // 컴포넌트 언마운트 시 타이머 정리
+  React.useEffect(() => {
+    return () => {
+      if (updateTimerRef.current) {
+        clearTimeout(updateTimerRef.current);
+      }
+    };
+  }, []);
+
   const handleCreateText = useCallback(async () => {
+    const { x, y } = safeSettings.admin.objectCreationPosition;
     const newTextObject: Omit<TextObject, 'id'> = {
-      x: 200,
-      y: 200,
+      x,
+      y,
       width: 200,
       height: 60,
       text: '새 텍스트',
@@ -215,12 +194,14 @@ const Toolbar: React.FC = () => {
     } catch (error) {
       console.error('텍스트 객체 생성 실패:', error);
     }
-  }, [addTextObject]);
+  }, [addTextObject, safeSettings.admin.objectCreationPosition]);
 
   const handleCreateCheckbox = useCallback(async () => {
+    const { x, y } = safeSettings.admin.objectCreationPosition;
+    const { checkedColor, uncheckedColor } = safeSettings.admin.defaultCheckboxSettings;
     const newCheckboxObject: Omit<TextObject, 'id'> = {
-      x: 200,
-      y: 200,
+      x,
+      y,
       width: 200,
       height: 60,
       text: '새 체크박스',
@@ -252,8 +233,8 @@ const Toolbar: React.FC = () => {
       opacity: 1,
       hasCheckbox: true,
       checkboxChecked: false,
-      checkboxCheckedColor: defaultCheckedColor,
-      checkboxUncheckedColor: defaultUncheckedColor,
+      checkboxCheckedColor: checkedColor,
+      checkboxUncheckedColor: uncheckedColor,
       isEditing: false,
       lastModified: Date.now()
     };
@@ -263,7 +244,7 @@ const Toolbar: React.FC = () => {
     } catch (error) {
       console.error('체크박스 객체 생성 실패:', error);
     }
-  }, [addTextObject, defaultCheckedColor, defaultUncheckedColor]);
+  }, [addTextObject, safeSettings.admin.objectCreationPosition, safeSettings.admin.defaultCheckboxSettings]);
 
   const handleCreateImage = useCallback(async () => {
     const input = document.createElement('input');
@@ -484,6 +465,15 @@ const Toolbar: React.FC = () => {
     { id: 'pen', label: '필기', icon: '✏️' },
     { id: 'eraser', label: '지우개', icon: '🧽' },
   ];
+
+  // 로딩 중이거나 설정이 없으면 로딩 표시 (모든 hooks 이후에 배치)
+  if (isLoading || !settings) {
+    return (
+      <div className="w-64 h-full bg-white border-r border-gray-200 p-4 flex items-center justify-center">
+        <div className="text-gray-500">설정 로드 중...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full h-full p-4 flex flex-col gap-4 overflow-y-auto">
@@ -776,7 +766,7 @@ const Toolbar: React.FC = () => {
                         <label className="text-xs text-gray-500">체크됨 색상</label>
                         <input 
                           type="color" 
-                          value={(selectedObject as TextObject).checkboxCheckedColor || defaultCheckedColor}
+                          value={(selectedObject as TextObject).checkboxCheckedColor || '#22c55e'}
                           onChange={(e) => debouncedUpdateTextObject(selectedObject.id, { checkboxCheckedColor: e.target.value })}
                           className="w-full h-8 rounded border" 
                         />
@@ -785,7 +775,7 @@ const Toolbar: React.FC = () => {
                         <label className="text-xs text-gray-500">체크안됨 색상</label>
                         <input 
                           type="color" 
-                          value={(selectedObject as TextObject).checkboxUncheckedColor || defaultUncheckedColor}
+                          value={(selectedObject as TextObject).checkboxUncheckedColor || '#f3f4f6'}
                           onChange={(e) => debouncedUpdateTextObject(selectedObject.id, { checkboxUncheckedColor: e.target.value })}
                           className="w-full h-8 rounded border" 
                         />
@@ -1064,26 +1054,212 @@ const Toolbar: React.FC = () => {
       <div className="h-px bg-gray-300" />
 
       {/* 3. 설정 */}
-      <div className="flex flex-col gap-2">
+      <div className="p-4 border-b border-gray-200">
         <button
           onClick={() => setIsSettingsExpanded(!isSettingsExpanded)}
-          className="w-full px-4 py-3 bg-gray-200 text-gray-700 rounded-lg text-sm hover:bg-gray-300 transition-colors flex items-center justify-between"
+          className="w-full flex items-center justify-between text-left"
         >
-          <div className="flex items-center gap-2">
-            <span>⚙️</span>
-            <span>설정</span>
-          </div>
+          <h2 className="text-lg font-semibold text-gray-800">설정</h2>
           <span className={`transform transition-transform ${isSettingsExpanded ? 'rotate-180' : ''}`}>
             ▼
           </span>
         </button>
-
-        {/* 설정 메뉴 내용 */}
+        
         {isSettingsExpanded && (
-          <div className="bg-gray-50 rounded-lg p-3 space-y-4">
+          <div className="mt-4 space-y-4">
+            {/* 객체 생성 위치 설정 */}
+            <div className="bg-gray-50 rounded-lg p-3">
+              <h4 className="text-xs font-semibold text-gray-500 mb-2">객체 생성 위치</h4>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-xs text-gray-500">X 좌표</label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="2160"
+                    value={safeSettings.admin.objectCreationPosition.x}
+                    onChange={(e) => {
+                      const x = parseInt(e.target.value) || 0;
+                      updateSettings('admin', {
+                        objectCreationPosition: {
+                          ...safeSettings.admin.objectCreationPosition,
+                          x
+                        }
+                      });
+                    }}
+                    className="w-full px-2 py-1 text-xs border border-gray-300 rounded"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500">Y 좌표</label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="3840"
+                    value={safeSettings.admin.objectCreationPosition.y}
+                    onChange={(e) => {
+                      const y = parseInt(e.target.value) || 0;
+                      updateSettings('admin', {
+                        objectCreationPosition: {
+                          ...safeSettings.admin.objectCreationPosition,
+                          y
+                        }
+                      });
+                    }}
+                    className="w-full px-2 py-1 text-xs border border-gray-300 rounded"
+                  />
+                </div>
+              </div>
+              <div className="text-xs text-gray-400 mt-1">
+                캔버스 크기: 2160 × 3840px
+              </div>
+            </div>
+
+            {/* 그리드 설정 */}
+            <div className="bg-gray-50 rounded-lg p-3">
+              <h4 className="text-xs font-semibold text-gray-500 mb-2">그리드</h4>
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 text-xs">
+                  <input 
+                    type="checkbox" 
+                    checked={safeSettings.admin.gridVisible}
+                    onChange={(e) => updateSettings('admin', { gridVisible: e.target.checked })}
+                    className="rounded" 
+                  />
+                  <span>그리드 표시</span>
+                </label>
+                <div>
+                  <label className="text-xs text-gray-500">그리드 크기</label>
+                  <input 
+                    type="range" 
+                    min="16" 
+                    max="64" 
+                    value={safeSettings.admin.gridSize}
+                    onChange={(e) => updateSettings('admin', { gridSize: parseInt(e.target.value) })}
+                    className="w-full" 
+                  />
+                  <div className="text-xs text-gray-400">{safeSettings.admin.gridSize}px</div>
+                </div>
+                <label className="flex items-center gap-2 text-xs">
+                  <input 
+                    type="checkbox" 
+                    checked={safeSettings.admin.gridSnapEnabled}
+                    onChange={(e) => updateSettings('admin', { gridSnapEnabled: e.target.checked })}
+                    className="rounded" 
+                  />
+                  <span>그리드에 스냅</span>
+                </label>
+              </div>
+            </div>
+
+            {/* 체크박스 기본 설정 */}
+            <div className="bg-gray-50 rounded-lg p-3">
+              <h4 className="text-xs font-semibold text-gray-500 mb-2">체크박스 기본값</h4>
+              <div className="space-y-2">
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-xs text-gray-500">체크 색상</label>
+                    <input
+                      type="color"
+                      value={safeSettings.admin.defaultCheckboxSettings.checkedColor}
+                      onChange={(e) => updateSettings('admin', {
+                        defaultCheckboxSettings: {
+                          ...safeSettings.admin.defaultCheckboxSettings,
+                          checkedColor: e.target.value
+                        }
+                      })}
+                      className="w-full h-8 rounded border"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-500">미체크 색상</label>
+                    <input
+                      type="color"
+                      value={safeSettings.admin.defaultCheckboxSettings.uncheckedColor}
+                      onChange={(e) => updateSettings('admin', {
+                        defaultCheckboxSettings: {
+                          ...safeSettings.admin.defaultCheckboxSettings,
+                          uncheckedColor: e.target.value
+                        }
+                      })}
+                      className="w-full h-8 rounded border"
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-xs text-gray-500">체크 배경</label>
+                    <input
+                      type="color"
+                      value={safeSettings.admin.defaultCheckboxSettings.checkedBackgroundColor}
+                      onChange={(e) => updateSettings('admin', {
+                        defaultCheckboxSettings: {
+                          ...safeSettings.admin.defaultCheckboxSettings,
+                          checkedBackgroundColor: e.target.value
+                        }
+                      })}
+                      className="w-full h-8 rounded border"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-500">미체크 배경</label>
+                    <input
+                      type="color"
+                      value={safeSettings.admin.defaultCheckboxSettings.uncheckedBackgroundColor}
+                      onChange={(e) => updateSettings('admin', {
+                        defaultCheckboxSettings: {
+                          ...safeSettings.admin.defaultCheckboxSettings,
+                          uncheckedBackgroundColor: e.target.value
+                        }
+                      })}
+                      className="w-full h-8 rounded border"
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-xs text-gray-500">체크 투명도</label>
+                    <input
+                      type="range"
+                      min="0"
+                      max="1"
+                      step="0.1"
+                      value={safeSettings.admin.defaultCheckboxSettings.checkedBackgroundOpacity}
+                      onChange={(e) => updateSettings('admin', {
+                        defaultCheckboxSettings: {
+                          ...safeSettings.admin.defaultCheckboxSettings,
+                          checkedBackgroundOpacity: parseFloat(e.target.value)
+                        }
+                      })}
+                      className="w-full"
+                    />
+                    <div className="text-xs text-gray-400">{Math.round(safeSettings.admin.defaultCheckboxSettings.checkedBackgroundOpacity * 100)}%</div>
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-500">미체크 투명도</label>
+                    <input
+                      type="range"
+                      min="0"
+                      max="1"
+                      step="0.1"
+                      value={safeSettings.admin.defaultCheckboxSettings.uncheckedBackgroundOpacity}
+                      onChange={(e) => updateSettings('admin', {
+                        defaultCheckboxSettings: {
+                          ...safeSettings.admin.defaultCheckboxSettings,
+                          uncheckedBackgroundOpacity: parseFloat(e.target.value)
+                        }
+                      })}
+                      className="w-full"
+                    />
+                    <div className="text-xs text-gray-400">{Math.round(safeSettings.admin.defaultCheckboxSettings.uncheckedBackgroundOpacity * 100)}%</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             {/* 배경 설정 */}
-            <div>
-              <h4 className="text-xs font-semibold text-gray-500 mb-2">배경 설정</h4>
+            <div className="bg-gray-50 rounded-lg p-3">
+              <h4 className="text-xs font-semibold text-gray-500 mb-2">배경 이미지</h4>
               <label className="w-full px-3 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors cursor-pointer text-xs flex items-center gap-2">
                 <span>🖼️</span>
                 <span>배경 업로드</span>
@@ -1096,125 +1272,56 @@ const Toolbar: React.FC = () => {
               </label>
             </div>
 
-            {/* 그리드 설정 */}
-            <div>
-              <h4 className="text-xs font-semibold text-gray-500 mb-2">그리드 설정</h4>
-              
+            {/* 기타 설정 */}
+            <div className="bg-gray-50 rounded-lg p-3">
+              <h4 className="text-xs font-semibold text-gray-500 mb-2">기타</h4>
               <div className="space-y-2">
                 <label className="flex items-center gap-2 text-xs">
                   <input 
                     type="checkbox" 
-                    checked={gridEnabled}
-                    onChange={(e) => setGridEnabled(e.target.checked)}
+                    checked={safeSettings.admin.autoToolSwitch}
+                    onChange={(e) => updateSettings('admin', { autoToolSwitch: e.target.checked })}
                     className="rounded" 
                   />
-                  <span>그리드 표시</span>
+                  <span>자동 도구 전환</span>
                 </label>
+                <div>
+                  <label className="text-xs text-gray-500">기본 폰트 크기</label>
+                  <input 
+                    type="range" 
+                    min="12" 
+                    max="48" 
+                    value={safeSettings.admin.defaultFontSize}
+                    onChange={(e) => updateSettings('admin', { defaultFontSize: parseInt(e.target.value) })}
+                    className="w-full" 
+                  />
+                  <div className="text-xs text-gray-400">{safeSettings.admin.defaultFontSize}px</div>
+                </div>
+              </div>
+            </div>
 
+            {/* 뷰 페이지 설정 */}
+            <div className="bg-gray-50 rounded-lg p-3">
+              <h4 className="text-xs font-semibold text-gray-500 mb-2">뷰 페이지</h4>
+              <div className="space-y-2">
                 <label className="flex items-center gap-2 text-xs">
                   <input 
                     type="checkbox" 
-                    checked={snapEnabled}
-                    onChange={(e) => setSnapEnabled(e.target.checked)}
+                    checked={safeSettings.view.virtualKeyboardEnabled}
+                    onChange={(e) => updateSettings('view', { virtualKeyboardEnabled: e.target.checked })}
                     className="rounded" 
                   />
-                  <span>그리드 스냅</span>
+                  <span>가상 키보드 사용</span>
                 </label>
-
-                <div className="text-xs text-gray-600 mb-1">그리드 크기</div>
-                <div className="grid grid-cols-2 gap-1">
-                  {[10, 20, 25, 50].map(size => (
-                    <button
-                      key={size}
-                      onClick={() => setGridSize(size)}
-                      className={`px-2 py-1 text-xs rounded border transition-colors
-                        ${gridSize === size 
-                          ? 'bg-blue-500 text-white border-blue-500' 
-                          : 'bg-white hover:bg-gray-100 border-gray-300'
-                        }`}
-                    >
-                      {size}px
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            {/* 체크박스 색상 설정 */}
-            <div>
-              <h4 className="text-xs font-semibold text-gray-500 mb-2">체크박스 기본 색상</h4>
-              
-              <div className="space-y-2">
-                <div>
-                  <label className="text-xs text-gray-600 mb-1 block">체크된 색상</label>
+                <label className="flex items-center gap-2 text-xs">
                   <input 
-                    type="color" 
-                    value={defaultCheckedColor}
-                    onChange={(e) => setDefaultCheckedColor(e.target.value)}
-                    className="w-full h-8 rounded border cursor-pointer" 
-                    title="체크된 상태 색상" 
+                    type="checkbox" 
+                    checked={safeSettings.view.touchMode}
+                    onChange={(e) => updateSettings('view', { touchMode: e.target.checked })}
+                    className="rounded" 
                   />
-                </div>
-                
-                <div>
-                  <label className="text-xs text-gray-600 mb-1 block">체크 안된 색상</label>
-                  <input 
-                    type="color" 
-                    value={defaultUncheckedColor}
-                    onChange={(e) => setDefaultUncheckedColor(e.target.value)}
-                    className="w-full h-8 rounded border cursor-pointer" 
-                    title="체크 안된 상태 색상" 
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* 체크박스 배경 설정 */}
-            <div>
-              <h4 className="text-xs font-semibold text-gray-500 mb-2">체크박스 배경 설정</h4>
-              
-              <div className="space-y-3">
-                <div>
-                  <label className="text-xs text-gray-600 mb-1 block">체크시 배경색</label>
-                  <input 
-                    type="color" 
-                    value={checkedBackgroundColor}
-                    onChange={(e) => setCheckedBackgroundColor(e.target.value)}
-                    className="w-full h-8 rounded border cursor-pointer" 
-                    title="체크된 상태 배경색" 
-                  />
-                  <label className="text-xs text-gray-600 mb-1 block mt-2">투명도</label>
-                  <input 
-                    type="range" 
-                    min="0" 
-                    max="100" 
-                    value={checkedBackgroundOpacity * 100}
-                    onChange={(e) => setCheckedBackgroundOpacity(parseInt(e.target.value) / 100)}
-                    className="w-full" 
-                  />
-                  <span className="text-xs text-gray-500">{Math.round(checkedBackgroundOpacity * 100)}%</span>
-                </div>
-                
-                <div>
-                  <label className="text-xs text-gray-600 mb-1 block">해제시 배경색</label>
-                  <input 
-                    type="color" 
-                    value={uncheckedBackgroundColor}
-                    onChange={(e) => setUncheckedBackgroundColor(e.target.value)}
-                    className="w-full h-8 rounded border cursor-pointer" 
-                    title="체크 해제된 상태 배경색" 
-                  />
-                  <label className="text-xs text-gray-600 mb-1 block mt-2">투명도</label>
-                  <input 
-                    type="range" 
-                    min="0" 
-                    max="100" 
-                    value={uncheckedBackgroundOpacity * 100}
-                    onChange={(e) => setUncheckedBackgroundOpacity(parseInt(e.target.value) / 100)}
-                    className="w-full" 
-                  />
-                  <span className="text-xs text-gray-500">{Math.round(uncheckedBackgroundOpacity * 100)}%</span>
-                </div>
+                  <span>터치 모드</span>
+                </label>
               </div>
             </div>
           </div>

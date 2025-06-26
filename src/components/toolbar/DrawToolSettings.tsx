@@ -8,10 +8,8 @@ const DrawToolSettings: React.FC = () => {
     penColor, 
     penWidth, 
     defaultColors,
-    autoSwitchDelay,
     setPenColor, 
-    setPenWidth,
-    setAutoSwitchDelay
+    setPenWidth
   } = useDrawStore();
 
   // 필기나 지우개 도구가 선택되지 않으면 렌더링하지 않음
@@ -75,24 +73,6 @@ const DrawToolSettings: React.FC = () => {
             </div>
           </div>
         )}
-
-        {/* 자동 전환 설정 */}
-        <div>
-          <div className="text-xs text-gray-600 mb-2">자동 전환 (ms)</div>
-          <input
-            type="number"
-            value={autoSwitchDelay}
-            onChange={(e) => setAutoSwitchDelay(Number(e.target.value))}
-            min="500"
-            max="10000"
-            step="500"
-            className="w-full px-2 py-1 text-sm border border-gray-300 rounded"
-            placeholder="2000"
-          />
-          <div className="text-xs text-gray-500 mt-1">
-            마지막 액션 후 이 시간이 지나면 선택 도구로 전환
-          </div>
-        </div>
       </div>
     </div>
   );

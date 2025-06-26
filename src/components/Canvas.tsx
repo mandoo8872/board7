@@ -1,6 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { useAdminConfigStore, useEditorStore } from '../store';
-import { useGridStore } from '../store/gridStore';
 import BaseLayer from './layers/BaseLayer';
 import FixedGridLayer from './layers/FixedGridLayer';
 import DrawLayer from './layers/DrawLayer';
@@ -19,8 +18,13 @@ const Canvas: React.FC<CanvasProps> = ({ isViewPage = false }) => {
   const canvasRef = useRef<HTMLDivElement>(null);
   const [autoScale, setAutoScale] = useState(0.3); // 초기 로딩용 임시값
   const { zoom, viewOffset, setZoom, zoomAtPoint } = useEditorStore();
-  const { floorImage, initializeFirebaseListeners } = useAdminConfigStore();
-  const { gridEnabled, gridSize } = useGridStore();
+  const { floorImage, initializeFirebaseListeners, settings } = useAdminConfigStore();
+
+  // 설정이 로드되지 않았을 때 기본값 제공
+  const safeGridSettings = {
+    gridVisible: settings?.admin?.gridVisible ?? true,
+    gridSize: settings?.admin?.gridSize ?? 32
+  };
 
   // 마우스 휠 이벤트 핸들러
   const handleWheel = useCallback((e: React.WheelEvent) => {
@@ -120,8 +124,20 @@ const Canvas: React.FC<CanvasProps> = ({ isViewPage = false }) => {
   // 스크롤 필요 여부 계산
   const containerWidth = containerRef.current?.clientWidth || 0;
   const containerHeight = containerRef.current?.clientHeight || 0;
+
+  // 스크롤 영역 계산 - 확대된 캔버스 전체를 스크롤할 수 있도록 여백 추가
+  const scrollPadding = 200; // 캔버스 주변 여백
+  
+  // 캔버스가 컨테이너보다 클 때만 여백 추가, 작을 때는 컨테이너 크기 사용
   const needsHorizontalScroll = scaledWidth > containerWidth;
   const needsVerticalScroll = scaledHeight > containerHeight;
+  
+  const scrollAreaWidth = needsHorizontalScroll 
+    ? scaledWidth + scrollPadding * 2 
+    : containerWidth;
+  const scrollAreaHeight = needsVerticalScroll 
+    ? scaledHeight + scrollPadding * 2 
+    : containerHeight;
 
   // 스케일에 따른 그리드 표시 여부 결정
   // const shouldShowGrid = gridEnabled && finalScale > 0.3; // 현재 사용하지 않음
@@ -168,6 +184,21 @@ const Canvas: React.FC<CanvasProps> = ({ isViewPage = false }) => {
         cursor: isViewPage ? 'crosshair' : 'default',
       }}
     >
+      {/* 가상 스크롤 영역 - 실제 스케일된 캔버스 크기를 반영 (스크롤이 필요할 때만) */}
+      {(needsHorizontalScroll || needsVerticalScroll) && (
+        <div
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            width: scrollAreaWidth,
+            height: scrollAreaHeight,
+            pointerEvents: 'none', // 클릭 이벤트 무시
+            zIndex: 1,
+          }}
+        />
+      )}
+
       {/* 캔버스 컨테이너 - 2160x3840 고정 크기, 가용 영역 중앙 배치 */}
       <div
         ref={canvasRef}
@@ -181,8 +212,12 @@ const Canvas: React.FC<CanvasProps> = ({ isViewPage = false }) => {
           height: CANVAS_HEIGHT,
           transform: `translate(${viewOffset.x}px, ${viewOffset.y}px) scale(${finalScale})`,
           transformOrigin: 'center center',
-          left: '50%', // 가용 영역(툴바 제외)의 가로 중앙
-          top: '50%',  // 세로 중앙
+          left: (needsHorizontalScroll || needsVerticalScroll) 
+            ? scrollAreaWidth / 2 
+            : '50%', // 스크롤이 없으면 컨테이너 중앙
+          top: (needsHorizontalScroll || needsVerticalScroll) 
+            ? scrollAreaHeight / 2 
+            : '50%', // 스크롤이 없으면 컨테이너 중앙
           marginLeft: `-${CANVAS_WIDTH / 2}px`,
           marginTop: `-${CANVAS_HEIGHT / 2}px`,
           zIndex: 10,
@@ -231,8 +266,8 @@ const Canvas: React.FC<CanvasProps> = ({ isViewPage = false }) => {
 
         {/* 그리드 레이어: 배경 위에 표시 */}
         <GridLayer 
-          gridEnabled={gridEnabled}
-          gridSize={gridSize}
+          gridEnabled={safeGridSettings.gridVisible}
+          gridSize={safeGridSettings.gridSize}
           canvasWidth={CANVAS_WIDTH}
           canvasHeight={CANVAS_HEIGHT}
         />
@@ -261,8 +296,12 @@ const Canvas: React.FC<CanvasProps> = ({ isViewPage = false }) => {
           height: CANVAS_HEIGHT,
           transform: `translate(${viewOffset.x}px, ${viewOffset.y}px) scale(${finalScale})`,
           transformOrigin: 'center center',
-          left: '50%',
-          top: '50%',
+          left: (needsHorizontalScroll || needsVerticalScroll) 
+            ? scrollAreaWidth / 2 
+            : '50%', // 스크롤이 없으면 컨테이너 중앙
+          top: (needsHorizontalScroll || needsVerticalScroll) 
+            ? scrollAreaHeight / 2 
+            : '50%', // 스크롤이 없으면 컨테이너 중앙
           marginLeft: `-${CANVAS_WIDTH / 2}px`,
           marginTop: `-${CANVAS_HEIGHT / 2}px`,
         }}>

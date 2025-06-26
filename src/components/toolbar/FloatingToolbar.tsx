@@ -10,7 +10,16 @@ interface FloatingToolbarProps {
 
 const FloatingToolbar: React.FC<FloatingToolbarProps> = () => {
   const { currentTool, setCurrentTool } = useEditorStore();
-  const { addTextObject } = useAdminConfigStore();
+  const { addTextObject, settings } = useAdminConfigStore();
+
+  // 설정이 로드되지 않았을 때 기본값 제공
+  const safeSettings = {
+    objectCreationPosition: settings?.admin?.objectCreationPosition ?? { x: 260, y: 950 },
+    defaultCheckboxSettings: settings?.admin?.defaultCheckboxSettings ?? {
+      checkedColor: '#22c55e',
+      uncheckedColor: '#f3f4f6'
+    }
+  };
 
   const handleToolChange = (tool: Tool) => {
     setCurrentTool(tool);
@@ -18,14 +27,18 @@ const FloatingToolbar: React.FC<FloatingToolbarProps> = () => {
 
   const handleTTCreate = async () => {
     // T/T (체크박스 + 텍스트) 객체 생성
+    const { x, y } = safeSettings.objectCreationPosition;
+    const { checkedColor, uncheckedColor } = safeSettings.defaultCheckboxSettings;
     const newCheckboxObject: Omit<TextObject, 'id'> = {
-      x: 300,
-      y: 300,
+      x,
+      y,
       width: 200,
       height: 60,
       text: '새 체크박스',
       hasCheckbox: true,
       checkboxChecked: false,
+      checkboxCheckedColor: checkedColor,
+      checkboxUncheckedColor: uncheckedColor,
       boxStyle: {
         backgroundColor: '#ffffff',
         backgroundOpacity: 1,

@@ -8,8 +8,7 @@ export interface DrawStore {
   penColor: string;
   penWidth: number;
   
-  // 자동 도구 전환 설정
-  autoSwitchDelay: number; // ms
+  // 액션 추적
   lastActionTime: number;
   
   // 기본 색상 팔레트
@@ -24,7 +23,6 @@ export interface DrawStore {
   // 설정 관련
   setPenColor: (color: string) => void;
   setPenWidth: (width: number) => void;
-  setAutoSwitchDelay: (delay: number) => void;
   updateLastActionTime: () => void;
 }
 
@@ -36,8 +34,7 @@ export const useDrawStore = create<DrawStore>((set) => ({
   penColor: '#000000', // 기본 검은색
   penWidth: 4,
   
-  // 자동 도구 전환 설정
-  autoSwitchDelay: 2000, // 2초
+  // 액션 추적
   lastActionTime: 0,
   
   // 기본 색상 팔레트 (2x5)
@@ -65,6 +62,5 @@ export const useDrawStore = create<DrawStore>((set) => ({
   
   setPenColor: (color) => set({ penColor: color }),
   setPenWidth: (width) => set({ penWidth: width }),
-  setAutoSwitchDelay: (delay) => set({ autoSwitchDelay: delay }),
   updateLastActionTime: () => set({ lastActionTime: Date.now() }),
 })); 
