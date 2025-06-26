@@ -17,7 +17,7 @@ interface GridCell {
 const FixedGridLayer: React.FC<FixedGridLayerProps> = ({ isViewPage = false }) => {
   const [cells, setCells] = useState<GridCell[]>([]);
   const [selectedCells, setSelectedCells] = useState<Set<string>>(new Set());
-  const [isDragging, setIsDragging] = useState(false);
+  // const [isDragging, setIsDragging] = useState(false); // 현재 사용하지 않음
 
   // 엑셀 데이터 붙여넣기 핸들러
   const handlePaste = useCallback((e: React.ClipboardEvent) => {

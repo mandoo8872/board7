@@ -1,15 +1,15 @@
 import React, { useRef, useEffect, useCallback } from 'react';
-import { ref, push, set as firebaseSet, remove } from 'firebase/database';
+import { ref, remove } from 'firebase/database';
 import { database } from '../../config/firebase';
 import { useDrawStore, useAdminConfigStore, useEditorStore } from '../../store';
-import { DrawObject } from '../../types';
+// import { DrawObject } from '../../types';
 import { lwwCreateDrawObject } from '../../utils/lww';
 
 interface DrawLayerProps {
   isViewPage?: boolean;
 }
 
-const DrawLayer: React.FC<DrawLayerProps> = ({ isViewPage = false }) => {
+const DrawLayer: React.FC<DrawLayerProps> = ({ /* isViewPage = false */ }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const autoSwitchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
@@ -299,6 +299,7 @@ const DrawLayer: React.FC<DrawLayerProps> = ({ isViewPage = false }) => {
           color: penColor,
           width: penWidth,
           createdAt: new Date().toISOString(),
+          lastModified: Date.now()
         };
 
         try {
@@ -370,7 +371,8 @@ const DrawLayer: React.FC<DrawLayerProps> = ({ isViewPage = false }) => {
     }
   }, [isDrawing, currentTool, addPoint, getCanvasCoordinates, eraseAtPoint]);
 
-  const handleTouchEnd = useCallback(async (e: React.TouchEvent) => {
+  const handleTouchEnd = useCallback(async (/* e: React.TouchEvent */) => {
+    if (!isDrawing) return;
     console.log('DrawLayer: TouchEnd event triggered', { isDrawing, currentTool });
     
     updateLastActionTime();
@@ -384,6 +386,7 @@ const DrawLayer: React.FC<DrawLayerProps> = ({ isViewPage = false }) => {
           color: penColor,
           width: penWidth,
           createdAt: new Date().toISOString(),
+          lastModified: Date.now()
         };
 
         try {

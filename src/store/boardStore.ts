@@ -1,5 +1,7 @@
 import { create } from 'zustand';
-import { BoardObject, Stroke } from '../types';
+import { TextObject, ImageObject, Stroke } from '../types';
+
+type BoardObject = TextObject | ImageObject;
 
 interface BoardState {
   objects: BoardObject[];

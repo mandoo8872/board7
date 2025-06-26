@@ -1,9 +1,11 @@
 import { create } from 'zustand';
-import { ref, onValue, set as firebaseSet, push, remove, update, Unsubscribe } from 'firebase/database';
+import { ref, onValue, set as firebaseSet, push, remove, Unsubscribe } from 'firebase/database';
+// import { update } from 'firebase/database'; // 현재 사용하지 않음
 import { database } from '../config/firebase';
 import { TextObject, ImageObject, DrawObject, FloorImage, Settings, AdminSettings, ViewSettings } from '../types';
 import { validateFirebaseUpdate } from '../utils/validation';
-import { lwwUpdateTextObject, lwwUpdateImageObject, lwwCreateDrawObject, getCurrentSessionId } from '../utils/lww';
+import { lwwUpdateTextObject, lwwUpdateImageObject, getCurrentSessionId } from '../utils/lww';
+// import { lwwCreateDrawObject } from '../utils/lww'; // 현재 사용하지 않음
 
 export interface AdminConfigStore {
   textObjects: TextObject[];

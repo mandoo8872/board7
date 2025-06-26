@@ -1,5 +1,7 @@
-import { ref, get, set as firebaseSet, update as firebaseUpdate } from 'firebase/database';
+import { ref, get, set as firebaseSet, update as firebaseUpdate, push } from 'firebase/database';
 import { database } from '../config/firebase';
+import { DrawObject } from '../types';
+// import { TextObject, ImageObject } from '../types'; // 현재 사용하지 않음
 
 // 사용자 세션 ID 생성 (브라우저별 고유 식별자)
 export const generateSessionId = (): string => {
@@ -122,28 +124,27 @@ export const lwwUpdateImageObject = async (
 };
 
 // LWW 생성 함수 - 필기 객체
-export const lwwCreateDrawObject = async (
-  drawObject: Omit<any, 'id' | 'lastModified' | 'modifiedBy'>,
-  sessionId: string = getCurrentSessionId()
-): Promise<string | null> => {
+export const lwwCreateDrawObject = async (drawObject: Omit<DrawObject, 'id'>): Promise<string> => {
   try {
-    const drawObjectsRef = ref(database, 'drawObjects');
-    const newRef = ref(database, `drawObjects/${Date.now()}_${sessionId}`);
+    // const drawObjectsRef = ref(database, 'drawObjects'); // 현재 사용하지 않음
+    const newObjectRef = push(ref(database, 'drawObjects'));
     
-    const newObject = {
+    if (!newObjectRef.key) {
+      throw new Error('Failed to generate object ID');
+    }
+
+    const lwwObject: DrawObject = {
       ...drawObject,
-      id: newRef.key || `${Date.now()}_${sessionId}`,
+      id: newObjectRef.key,
       lastModified: Date.now(),
-      modifiedBy: sessionId
+      modifiedBy: getCurrentSessionId()
     };
-    
-    await firebaseSet(newRef, newObject);
-    console.log(`LWW: Draw object created successfully by ${sessionId}`);
-    return newRef.key || newObject.id;
-    
+
+    await firebaseSet(newObjectRef, lwwObject);
+    return newObjectRef.key;
   } catch (error) {
-    console.error('LWW create failed:', error);
-    return null;
+    console.error('Error creating draw object:', error);
+    throw error;
   }
 };
 

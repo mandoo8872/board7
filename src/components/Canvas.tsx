@@ -124,7 +124,7 @@ const Canvas: React.FC<CanvasProps> = ({ isViewPage = false }) => {
   const needsVerticalScroll = scaledHeight > containerHeight;
 
   // 스케일에 따른 그리드 표시 여부 결정
-  const shouldShowGrid = gridEnabled && finalScale > 0.3;
+  // const shouldShowGrid = gridEnabled && finalScale > 0.3; // 현재 사용하지 않음
 
   // 컨텍스트 메뉴 방지 (우클릭, 터치 길게 누르기)
   const handleContextMenu = (e: React.MouseEvent) => {

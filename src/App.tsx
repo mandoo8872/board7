@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { 
   BrowserRouter as Router, 
   Routes, 
@@ -9,8 +9,9 @@ import AdminPage from './pages/AdminPage';
 import ViewPage from './pages/ViewPage';
 
 const App: React.FC = () => {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [password, setPassword] = useState('');
+  // 인증 관련 상태 (현재 사용하지 않음)
+  // const [isAuthenticated, setIsAuthenticated] = useState(false);
+  // const [password, setPassword] = useState('');
 
   // 전역 컨텍스트 메뉴 방지 및 터치 길게 누르기 방지
   useEffect(() => {
@@ -23,7 +24,7 @@ const App: React.FC = () => {
     // 터치 길게 누르기 방지 (모바일)
     const handleTouchStart = (e: TouchEvent) => {
       if (e.touches.length === 1) {
-        let touchStartTime = Date.now();
+        // let touchStartTime = Date.now(); // 현재 사용하지 않음
         let longPressTimer: NodeJS.Timeout;
 
         const preventLongPress = () => {

@@ -5,7 +5,7 @@ import { useGridStore } from '../../store/gridStore';
 import { useCheckboxStore } from '../../store/checkboxStore';
 import { TextObject } from '../../types';
 import { snapPositionToGrid, snapSizeToGrid } from '../../utils/gridUtils';
-import { safePosition, safeSize, isValidPosition, isValidSize } from '../../utils/validation';
+import { isValidPosition, isValidSize } from '../../utils/validation';
 
 interface BaseLayerProps {
   isViewPage?: boolean;
@@ -23,14 +23,11 @@ const BaseLayer: React.FC<BaseLayerProps> = ({ isViewPage = false }) => {
     addImageObject
   } = useAdminConfigStore();
   const { 
-    selectedObjectId, 
-    setSelectedObjectId, 
-    currentTool, 
-    creationMode,
-    setCreationMode,
-    setCurrentTool,
+    selectedObjectId,
     hoveredObjectId,
-    setHoveredObjectId
+    currentTool,
+    setSelectedObjectId,
+    setHoveredObjectId,
   } = useEditorStore();
   const { 
     gridSize,
@@ -221,11 +218,6 @@ const BaseLayer: React.FC<BaseLayerProps> = ({ isViewPage = false }) => {
   const handleMouseDown = useCallback((e: React.MouseEvent, id: string) => {
     handlePointerDown(e as any, id);
   }, [handlePointerDown]);
-
-  // 크기조절 핸들 클릭 방지
-  const handleResizeHandleClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
-  };
 
   // 크기조절 핸들 포인터 다운 - 마우스, 터치, 펜 모두 지원
   const handleResizePointerDown = useCallback((e: React.PointerEvent, handle: string, objectId: string) => {
@@ -547,31 +539,22 @@ const BaseLayer: React.FC<BaseLayerProps> = ({ isViewPage = false }) => {
     }
   }, [editingObjectId, finishInlineEdit, setSelectedObjectId, isViewPage, currentTool]);
 
-  // 체크박스 토글 핸들러 (모든 페이지에서 가능)
-  const handleCheckboxToggle = async (obj: TextObject) => {
-    if (obj.hasCheckbox) {
-      await updateTextObject(obj.id, {
-        checkboxChecked: !obj.checkboxChecked
-      });
-    }
-  };
-
   // 텍스트 편집 시작 (ViewPage에서만)
-  const handleTextEdit = async (obj: TextObject) => {
-    if (isViewPage) {
-      await updateTextObject(obj.id, {
-        isEditing: true
-      });
-    }
-  };
+  // const handleTextEdit = async (obj: TextObject) => {
+  //   if (isViewPage) {
+  //     await updateTextObject(obj.id, {
+  //       isEditing: true
+  //     });
+  //   }
+  // };
 
   // 텍스트 편집 완료
-  const handleTextBlur = async (obj: TextObject, newText: string) => {
-    await updateTextObject(obj.id, {
-      text: newText,
-      isEditing: false
-    });
-  };
+  // const handleTextBlur = async (obj: TextObject, newText: string) => {
+  //   await updateTextObject(obj.id, {
+  //     text: newText,
+  //     isEditing: false
+  //   });
+  // };
 
   // 트리플 클릭 감지 및 인라인 편집 시작
   const handleTextClick = (obj: TextObject, e: React.MouseEvent) => {

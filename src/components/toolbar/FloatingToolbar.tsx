@@ -1,6 +1,6 @@
 import React from 'react';
 import { useEditorStore, useAdminConfigStore } from '../../store';
-import { Tool } from '../../types';
+import { Tool, TextObject } from '../../types';
 
 interface FloatingToolbarProps {
   currentTool?: Tool;
@@ -18,27 +18,44 @@ const FloatingToolbar: React.FC<FloatingToolbarProps> = () => {
 
   const handleTTCreate = async () => {
     // T/T (체크박스 + 텍스트) 객체 생성
-    await addTextObject({
+    const newCheckboxObject: Omit<TextObject, 'id'> = {
       x: 300,
       y: 300,
-      width: 300,
-      height: 100,
-      text: '새 T/T 항목',
+      width: 200,
+      height: 60,
+      text: '새 체크박스',
       hasCheckbox: true,
       checkboxChecked: false,
       boxStyle: {
-        backgroundColor: '#f9f9f9',
-        borderColor: '#333333',
-        borderWidth: 2,
-        borderRadius: 8,
+        backgroundColor: '#ffffff',
+        backgroundOpacity: 1,
+        borderColor: '#000000',
+        borderWidth: 1,
+        borderRadius: 0,
       },
       fontSize: 18,
+      textStyle: {
+        color: '#000000',
+        fontFamily: 'Arial, sans-serif',
+        bold: false,
+        italic: false,
+        horizontalAlign: 'left',
+        verticalAlign: 'middle'
+      },
+      permissions: {
+        movable: true,
+        resizable: true,
+        deletable: true
+      },
       zIndex: Date.now(),
       locked: false,
       visible: true,
       opacity: 1,
       isEditing: false,
-    });
+      lastModified: Date.now()
+    };
+
+    await addTextObject(newCheckboxObject);
   };
 
   const getToolButtonClass = (tool: Tool) => {
