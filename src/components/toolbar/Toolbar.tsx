@@ -840,7 +840,17 @@ const Toolbar: React.FC = () => {
                   <input 
                     type="checkbox" 
                     checked={(selectedObject as any).permissions?.movable || false}
-                    onChange={(e) => debouncedUpdateImageObject((selectedObject as any).id, { permissions: { ...(selectedObject as any).permissions, movable: e.target.checked } })}
+                    onChange={(e) => {
+                      if (selectedObject && isTextObject(selectedObject)) {
+                        debouncedUpdateTextObject((selectedObject as TextObject).id, { 
+                          permissions: { ...(selectedObject as TextObject).permissions, movable: e.target.checked } 
+                        });
+                      } else if (selectedObject && isImageObject(selectedObject)) {
+                        debouncedUpdateImageObject((selectedObject as ImageObject).id, { 
+                          permissions: { ...(selectedObject as ImageObject).permissions, movable: e.target.checked } 
+                        });
+                      }
+                    }}
                     className="rounded" 
                   />
                   <span>이동가능</span>
@@ -849,7 +859,17 @@ const Toolbar: React.FC = () => {
                   <input 
                     type="checkbox" 
                     checked={(selectedObject as any).permissions?.deletable || false}
-                    onChange={(e) => debouncedUpdateImageObject((selectedObject as any).id, { permissions: { ...(selectedObject as any).permissions, deletable: e.target.checked } })}
+                    onChange={(e) => {
+                      if (selectedObject && isTextObject(selectedObject)) {
+                        debouncedUpdateTextObject((selectedObject as TextObject).id, { 
+                          permissions: { ...(selectedObject as TextObject).permissions, deletable: e.target.checked } 
+                        });
+                      } else if (selectedObject && isImageObject(selectedObject)) {
+                        debouncedUpdateImageObject((selectedObject as ImageObject).id, { 
+                          permissions: { ...(selectedObject as ImageObject).permissions, deletable: e.target.checked } 
+                        });
+                      }
+                    }}
                     className="rounded" 
                   />
                   <span>삭제가능</span>
@@ -858,7 +878,17 @@ const Toolbar: React.FC = () => {
                   <input 
                     type="checkbox" 
                     checked={(selectedObject as any).permissions?.resizable || false}
-                    onChange={(e) => debouncedUpdateImageObject((selectedObject as any).id, { permissions: { ...(selectedObject as any).permissions, resizable: e.target.checked } })}
+                    onChange={(e) => {
+                      if (selectedObject && isTextObject(selectedObject)) {
+                        debouncedUpdateTextObject((selectedObject as TextObject).id, { 
+                          permissions: { ...(selectedObject as TextObject).permissions, resizable: e.target.checked } 
+                        });
+                      } else if (selectedObject && isImageObject(selectedObject)) {
+                        debouncedUpdateImageObject((selectedObject as ImageObject).id, { 
+                          permissions: { ...(selectedObject as ImageObject).permissions, resizable: e.target.checked } 
+                        });
+                      }
+                    }}
                     className="rounded" 
                   />
                   <span>크기조절 가능</span>
@@ -968,7 +998,17 @@ const Toolbar: React.FC = () => {
                   <input 
                     type="checkbox" 
                     checked={(selectedObject as any).permissions?.movable || false}
-                    onChange={(e) => debouncedUpdateImageObject((selectedObject as any).id, { permissions: { ...(selectedObject as any).permissions, movable: e.target.checked } })}
+                    onChange={(e) => {
+                      if (selectedObject && isTextObject(selectedObject)) {
+                        debouncedUpdateTextObject((selectedObject as TextObject).id, { 
+                          permissions: { ...(selectedObject as TextObject).permissions, movable: e.target.checked } 
+                        });
+                      } else if (selectedObject && isImageObject(selectedObject)) {
+                        debouncedUpdateImageObject((selectedObject as ImageObject).id, { 
+                          permissions: { ...(selectedObject as ImageObject).permissions, movable: e.target.checked } 
+                        });
+                      }
+                    }}
                     className="rounded" 
                   />
                   <span>이동가능</span>
@@ -977,7 +1017,17 @@ const Toolbar: React.FC = () => {
                   <input 
                     type="checkbox" 
                     checked={(selectedObject as any).permissions?.deletable || false}
-                    onChange={(e) => debouncedUpdateImageObject((selectedObject as any).id, { permissions: { ...(selectedObject as any).permissions, deletable: e.target.checked } })}
+                    onChange={(e) => {
+                      if (selectedObject && isTextObject(selectedObject)) {
+                        debouncedUpdateTextObject((selectedObject as TextObject).id, { 
+                          permissions: { ...(selectedObject as TextObject).permissions, deletable: e.target.checked } 
+                        });
+                      } else if (selectedObject && isImageObject(selectedObject)) {
+                        debouncedUpdateImageObject((selectedObject as ImageObject).id, { 
+                          permissions: { ...(selectedObject as ImageObject).permissions, deletable: e.target.checked } 
+                        });
+                      }
+                    }}
                     className="rounded" 
                   />
                   <span>삭제가능</span>
@@ -986,7 +1036,17 @@ const Toolbar: React.FC = () => {
                   <input 
                     type="checkbox" 
                     checked={(selectedObject as any).permissions?.resizable || false}
-                    onChange={(e) => debouncedUpdateImageObject((selectedObject as any).id, { permissions: { ...(selectedObject as any).permissions, resizable: e.target.checked } })}
+                    onChange={(e) => {
+                      if (selectedObject && isTextObject(selectedObject)) {
+                        debouncedUpdateTextObject((selectedObject as TextObject).id, { 
+                          permissions: { ...(selectedObject as TextObject).permissions, resizable: e.target.checked } 
+                        });
+                      } else if (selectedObject && isImageObject(selectedObject)) {
+                        debouncedUpdateImageObject((selectedObject as ImageObject).id, { 
+                          permissions: { ...(selectedObject as ImageObject).permissions, resizable: e.target.checked } 
+                        });
+                      }
+                    }}
                     className="rounded" 
                   />
                   <span>크기조절 가능</span>

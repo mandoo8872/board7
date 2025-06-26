@@ -202,6 +202,12 @@ const BaseLayer: React.FC<BaseLayerProps> = ({ isViewPage = false }) => {
     setSelectedObjectId(id);
     setHoveredObjectId(null);
 
+    // 이동 권한이 없는 경우 드래그 시작하지 않음
+    if (!obj.permissions?.movable) {
+      console.log('Object not movable, skipping drag:', id);
+      return;
+    }
+
     const rect = e.currentTarget.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
@@ -226,6 +232,12 @@ const BaseLayer: React.FC<BaseLayerProps> = ({ isViewPage = false }) => {
 
     const obj = textObjects.find(o => o.id === objectId) || imageObjects.find(o => o.id === objectId);
     if (!obj) return;
+
+    // 크기 조절 권한이 없는 경우 리사이즈 시작하지 않음
+    if (!obj.permissions?.resizable) {
+      console.log('Object not resizable, skipping resize:', objectId);
+      return;
+    }
 
     setResizeState({
       isResizing: true,

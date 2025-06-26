@@ -31,17 +31,21 @@ const DrawLayer: React.FC<DrawLayerProps> = ({ /* isViewPage = false */ }) => {
 
   // 자동 도구 전환 함수
   const scheduleAutoSwitch = useCallback(() => {
+    // 터치 기기에서 연속 필기를 위해 자동 전환 지연시간을 늘림
+    const extendedDelay = autoSwitchDelay * 3; // 기본 2초 → 6초로 연장
+    
     // 기존 타이머 취소
     if (autoSwitchTimeoutRef.current) {
       clearTimeout(autoSwitchTimeoutRef.current);
     }
     
-    // 새 타이머 설정
+    // 새 타이머 설정 (더 긴 지연시간)
     autoSwitchTimeoutRef.current = setTimeout(() => {
       if (currentTool === 'pen' || currentTool === 'eraser') {
+        console.log('DrawLayer: Auto-switching to select tool after extended delay');
         setCurrentTool('select');
       }
-    }, autoSwitchDelay);
+    }, extendedDelay);
   }, [autoSwitchDelay, currentTool, setCurrentTool]);
 
   // 컴포넌트 언마운트 시 타이머 정리
@@ -163,7 +167,7 @@ const DrawLayer: React.FC<DrawLayerProps> = ({ /* isViewPage = false */ }) => {
     console.log('DrawLayer: All stored strokes rendered');
   }, [drawObjects]);
 
-  // 현재 그리는 중인 stroke 렌더링
+  // 현재 그리는 중인 stroke 렌더링 (최적화)
   const renderCurrentStroke = useCallback(() => {
     console.log('DrawLayer: renderCurrentStroke called', { isDrawing, currentStrokeLength: currentStroke.length, currentTool });
     
@@ -176,26 +180,45 @@ const DrawLayer: React.FC<DrawLayerProps> = ({ /* isViewPage = false */ }) => {
       return;
     }
 
-    // 기존 저장된 strokes 다시 그리기
-    renderStoredStrokes();
+    // 처음 호출이거나 점이 적을 때만 전체 다시 그리기
+    if (currentStroke.length <= 4) {
+      // 기존 저장된 strokes 다시 그리기 (처음에만)
+      renderStoredStrokes();
+      
+      console.log('DrawLayer: Drawing initial current stroke with', currentStroke.length / 2, 'points');
 
-    console.log('DrawLayer: Drawing current stroke with', currentStroke.length / 2, 'points');
+      // 현재 stroke 그리기 (필기만) - 설정된 색상과 굵기 사용
+      ctx.beginPath();
+      ctx.moveTo(currentStroke[0], currentStroke[1]);
 
-    // 현재 stroke 그리기 (필기만) - 설정된 색상과 굵기 사용
-    ctx.beginPath();
-    ctx.moveTo(currentStroke[0], currentStroke[1]);
+      for (let i = 2; i < currentStroke.length; i += 2) {
+        ctx.lineTo(currentStroke[i], currentStroke[i + 1]);
+      }
 
-    for (let i = 2; i < currentStroke.length; i += 2) {
-      ctx.lineTo(currentStroke[i], currentStroke[i + 1]);
+      ctx.strokeStyle = penColor;
+      ctx.lineWidth = penWidth;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.stroke();
+    } else {
+      // 점진적 렌더링: 마지막 선분만 추가로 그리기
+      const len = currentStroke.length;
+      if (len >= 4) {
+        console.log('DrawLayer: Adding incremental line segment');
+        
+        ctx.beginPath();
+        ctx.moveTo(currentStroke[len - 4], currentStroke[len - 3]);
+        ctx.lineTo(currentStroke[len - 2], currentStroke[len - 1]);
+        
+        ctx.strokeStyle = penColor;
+        ctx.lineWidth = penWidth;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.stroke();
+      }
     }
-
-    ctx.strokeStyle = penColor;
-    ctx.lineWidth = penWidth;
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-    ctx.stroke();
     
-    console.log('DrawLayer: Current stroke rendered');
+    console.log('DrawLayer: Current stroke rendered (optimized)');
   }, [currentStroke, isDrawing, currentTool, penColor, penWidth, renderStoredStrokes]);
 
   // DrawObjects 변경 시 캔버스 재렌더링
@@ -245,11 +268,15 @@ const DrawLayer: React.FC<DrawLayerProps> = ({ /* isViewPage = false */ }) => {
     const coords = getCanvasCoordinates(e.clientX, e.clientY);
     console.log('DrawLayer: Coordinates', coords, 'PointerType:', e.pointerType);
     
-    // 기존 자동 전환 타이머 취소 (새로운 액션 시작)
+    // 기존 자동 전환 타이머 취소 (새로운 액션 시작 - 연속 필기 지원)
     if (autoSwitchTimeoutRef.current) {
+      console.log('DrawLayer: Cancelling auto-switch timer - continuous drawing detected');
       clearTimeout(autoSwitchTimeoutRef.current);
       autoSwitchTimeoutRef.current = null;
     }
+    
+    // 액션 시작 시간 업데이트 (연속 필기 감지용)
+    updateLastActionTime();
     
     if (currentTool === 'eraser') {
       // 지우개 모드: 해당 위치의 스트로크 삭제
@@ -259,31 +286,50 @@ const DrawLayer: React.FC<DrawLayerProps> = ({ /* isViewPage = false */ }) => {
       startStroke();
       addPoint(coords.x, coords.y);
     }
-  }, [currentTool, startStroke, addPoint, getCanvasCoordinates, eraseAtPoint]);
+  }, [currentTool, startStroke, addPoint, getCanvasCoordinates, eraseAtPoint, updateLastActionTime]);
 
   const handlePointerMove = useCallback((e: React.PointerEvent) => {
     // pen이나 eraser 도구가 선택되고 그리는 중일 때만 작동
     if (currentTool !== 'pen' && currentTool !== 'eraser') return;
+
+    // 터치 디버깅을 위한 상세 로그
+    console.log('DrawLayer: PointerMove event', { 
+      pointerType: e.pointerType, 
+      currentTool, 
+      isDrawing, 
+      currentStrokeLength: currentStroke.length,
+      isPrimary: e.isPrimary 
+    });
 
     e.preventDefault();
     e.stopPropagation();
 
     const coords = getCanvasCoordinates(e.clientX, e.clientY);
     
+    // 필기 중일 때는 자동 전환 타이머 취소 (연속 필기 보장)
+    if (isDrawing && autoSwitchTimeoutRef.current) {
+      clearTimeout(autoSwitchTimeoutRef.current);
+      autoSwitchTimeoutRef.current = null;
+    }
+    
     if (currentTool === 'eraser') {
       // 지우개 모드: 계속 지우기
       eraseAtPoint(coords.x, coords.y);
     } else if (isDrawing) {
       // 필기 모드: 점 추가
+      console.log('DrawLayer: Adding point to stroke', coords);
       addPoint(coords.x, coords.y);
+    } else {
+      console.log('DrawLayer: PointerMove ignored - not drawing', { isDrawing, currentTool });
     }
-  }, [isDrawing, currentTool, addPoint, getCanvasCoordinates, eraseAtPoint]);
+  }, [isDrawing, currentTool, addPoint, getCanvasCoordinates, eraseAtPoint, currentStroke.length]);
 
   const handlePointerUp = useCallback(async (e: React.PointerEvent) => {
     console.log('DrawLayer: PointerUp event triggered', { 
       isDrawing, 
       currentTool, 
-      pointerType: e.pointerType 
+      pointerType: e.pointerType,
+      currentStrokeLength: currentStroke.length
     });
     
     // 액션 완료 시간 업데이트
@@ -306,15 +352,24 @@ const DrawLayer: React.FC<DrawLayerProps> = ({ /* isViewPage = false */ }) => {
           const objectId = await lwwCreateDrawObject(drawObject);
           if (objectId) {
             console.log('DrawLayer: Stroke saved to Firebase with LWW'); // 디버그 로그
+            
+            // Firebase 저장 성공 후에만 currentStroke 지우기
+            setTimeout(() => {
+              clearCurrentStroke();
+              console.log('DrawLayer: Current stroke cleared after Firebase save');
+            }, 100); // 100ms 지연으로 확실한 저장 후 정리
           } else {
             console.error('Failed to save draw object with LWW');
+            clearCurrentStroke(); // 실패 시에도 정리
           }
         } catch (error) {
           console.error('Failed to save draw object:', error);
+          clearCurrentStroke(); // 에러 시에도 정리
         }
+      } else {
+        console.log('DrawLayer: Stroke too short, not saving');
+        clearCurrentStroke(); // 너무 짧은 스트로크는 바로 정리
       }
-
-      clearCurrentStroke();
     }
     
     // 액션 완료 후 자동 전환 스케줄링 (필기나 지우개 모든 액션 완료 시)
@@ -322,6 +377,25 @@ const DrawLayer: React.FC<DrawLayerProps> = ({ /* isViewPage = false */ }) => {
       scheduleAutoSwitch();
     }
   }, [isDrawing, currentStroke, currentTool, penColor, penWidth, endStroke, clearCurrentStroke, updateLastActionTime, scheduleAutoSwitch]);
+
+  // 포인터 이탈/취소 이벤트 핸들러 (터치 최적화)
+  const handlePointerLeaveOrCancel = useCallback((e: React.PointerEvent) => {
+    console.log('DrawLayer: PointerLeave/Cancel event triggered', { 
+      eventType: e.type,
+      pointerType: e.pointerType, 
+      isDrawing, 
+      currentTool 
+    });
+    
+    // 터치 타입이고 실제로 필기 중이라면 이벤트 무시 (Surface 터치 최적화)
+    if (e.pointerType === 'touch' && isDrawing && currentTool === 'pen') {
+      console.log('DrawLayer: Ignoring pointer leave/cancel for touch during drawing');
+      return;
+    }
+    
+    // 마우스나 펜 타입, 또는 실제로 필기가 끝난 경우에만 처리
+    handlePointerUp(e);
+  }, [isDrawing, currentTool, handlePointerUp]);
 
   // 컨텍스트 메뉴 방지 (우클릭, 터치 길게 누르기)
   const handleContextMenu = (e: React.MouseEvent) => {
@@ -341,8 +415,8 @@ const DrawLayer: React.FC<DrawLayerProps> = ({ /* isViewPage = false */ }) => {
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
-      onPointerLeave={handlePointerUp}
-      onPointerCancel={handlePointerUp}
+      onPointerLeave={handlePointerLeaveOrCancel}
+      onPointerCancel={handlePointerLeaveOrCancel}
       // 컨텍스트 메뉴 방지
       onContextMenu={handleContextMenu}
       style={{
