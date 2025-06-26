@@ -236,9 +236,6 @@ const DrawLayer: React.FC<DrawLayerProps> = ({ /* isViewPage = false */ }) => {
       pressure: e.pressure 
     });
     
-    // 터치 이벤트가 별도로 처리되므로 터치 타입 포인터는 무시
-    if (e.pointerType === 'touch') return;
-    
     // pen이나 eraser 도구가 선택되었을 때만 작동
     if (currentTool !== 'pen' && currentTool !== 'eraser') return;
 
@@ -265,9 +262,6 @@ const DrawLayer: React.FC<DrawLayerProps> = ({ /* isViewPage = false */ }) => {
   }, [currentTool, startStroke, addPoint, getCanvasCoordinates, eraseAtPoint]);
 
   const handlePointerMove = useCallback((e: React.PointerEvent) => {
-    // 터치 이벤트가 별도로 처리되므로 터치 타입 포인터는 무시
-    if (e.pointerType === 'touch') return;
-    
     // pen이나 eraser 도구가 선택되고 그리는 중일 때만 작동
     if (currentTool !== 'pen' && currentTool !== 'eraser') return;
 
@@ -292,16 +286,13 @@ const DrawLayer: React.FC<DrawLayerProps> = ({ /* isViewPage = false */ }) => {
       pointerType: e.pointerType 
     });
     
-    // 터치 이벤트가 별도로 처리되므로 터치 타입 포인터는 무시
-    if (e.pointerType === 'touch') return;
-    
     // 액션 완료 시간 업데이트
     updateLastActionTime();
     
     if (currentTool === 'pen' && isDrawing) {
       endStroke();
 
-      // mouseup 시점에 Firebase에 저장 (필기만) - LWW 사용
+      // pointerup 시점에 Firebase에 저장 (필기만) - LWW 사용
       if (currentStroke.length >= 4) {
         const drawObject = {
           points: currentStroke,
@@ -332,98 +323,6 @@ const DrawLayer: React.FC<DrawLayerProps> = ({ /* isViewPage = false */ }) => {
     }
   }, [isDrawing, currentStroke, currentTool, penColor, penWidth, endStroke, clearCurrentStroke, updateLastActionTime, scheduleAutoSwitch]);
 
-  // 터치 이벤트 핸들러 (터치 전용)
-  const handleTouchStart = useCallback((e: React.TouchEvent) => {
-    console.log('DrawLayer: TouchStart event triggered', currentTool);
-    
-    // pen이나 eraser 도구가 선택되었을 때만 작동
-    if (currentTool !== 'pen' && currentTool !== 'eraser') return;
-
-    // 터치 이벤트를 강력하게 차단하여 중복 방지
-    e.preventDefault();
-    e.stopPropagation();
-
-    const touch = e.touches[0];
-    if (!touch) return;
-
-    const coords = getCanvasCoordinates(touch.clientX, touch.clientY);
-    console.log('DrawLayer: Touch Coordinates', coords);
-    
-    // 기존 자동 전환 타이머 취소
-    if (autoSwitchTimeoutRef.current) {
-      clearTimeout(autoSwitchTimeoutRef.current);
-      autoSwitchTimeoutRef.current = null;
-    }
-    
-    if (currentTool === 'eraser') {
-      eraseAtPoint(coords.x, coords.y);
-    } else {
-      startStroke();
-      addPoint(coords.x, coords.y);
-    }
-  }, [currentTool, startStroke, addPoint, getCanvasCoordinates, eraseAtPoint]);
-
-  const handleTouchMove = useCallback((e: React.TouchEvent) => {
-    if (currentTool !== 'pen' && currentTool !== 'eraser') return;
-
-    e.preventDefault();
-    e.stopPropagation();
-
-    const touch = e.touches[0];
-    if (!touch) return;
-
-    const coords = getCanvasCoordinates(touch.clientX, touch.clientY);
-    
-    if (currentTool === 'eraser') {
-      eraseAtPoint(coords.x, coords.y);
-    } else if (isDrawing) {
-      addPoint(coords.x, coords.y);
-    }
-  }, [isDrawing, currentTool, addPoint, getCanvasCoordinates, eraseAtPoint]);
-
-  const handleTouchEnd = useCallback(async (e: React.TouchEvent) => {
-    console.log('DrawLayer: TouchEnd event triggered', { isDrawing, currentTool });
-    
-    e.preventDefault();
-    e.stopPropagation();
-    
-    // 액션 완료 시간 업데이트
-    updateLastActionTime();
-    
-    if (currentTool === 'pen' && isDrawing) {
-      endStroke();
-
-      // touchend 시점에 Firebase에 저장 (필기만) - LWW 사용
-      if (currentStroke.length >= 4) {
-        const drawObject = {
-          points: currentStroke,
-          color: penColor,
-          width: penWidth,
-          createdAt: new Date().toISOString(),
-          lastModified: Date.now()
-        };
-
-        try {
-          const objectId = await lwwCreateDrawObject(drawObject);
-          if (objectId) {
-            console.log('DrawLayer: Touch stroke saved to Firebase with LWW');
-          } else {
-            console.error('Failed to save touch draw object with LWW');
-          }
-        } catch (error) {
-          console.error('Failed to save touch draw object:', error);
-        }
-      }
-
-      clearCurrentStroke();
-    }
-    
-    // 액션 완료 후 자동 전환 스케줄링 (필기나 지우개 모든 액션 완료 시)
-    if (currentTool === 'pen' || currentTool === 'eraser') {
-      scheduleAutoSwitch();
-    }
-  }, [isDrawing, currentStroke, currentTool, penColor, penWidth, endStroke, clearCurrentStroke, updateLastActionTime, scheduleAutoSwitch]);
-
   // 컨텍스트 메뉴 방지 (우클릭, 터치 길게 누르기)
   const handleContextMenu = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -438,15 +337,12 @@ const DrawLayer: React.FC<DrawLayerProps> = ({ /* isViewPage = false */ }) => {
       className="absolute top-0 left-0 w-full h-full"
       width={2160}
       height={3840}
-      // Pointer Events (마우스, 터치, 펜 모두 지원)
+      // Pointer Events (마우스, 터치, 펜 모두 지원 - Surface 최적화)
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
       onPointerLeave={handlePointerUp}
-      // Touch Events (추가 지원)
-      onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
-      onTouchEnd={handleTouchEnd}
+      onPointerCancel={handlePointerUp}
       // 컨텍스트 메뉴 방지
       onContextMenu={handleContextMenu}
       style={{
