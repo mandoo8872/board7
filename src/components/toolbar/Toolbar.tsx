@@ -155,7 +155,7 @@ const Toolbar: React.FC = () => {
       width: 200,
       height: 60,
       text: '새 텍스트',
-      fontSize: 16,
+      fontSize: safeSettings.admin.defaultFontSize,
       textStyle: {
         color: '#000000',
         bold: false,
@@ -194,7 +194,7 @@ const Toolbar: React.FC = () => {
     } catch (error) {
       console.error('텍스트 객체 생성 실패:', error);
     }
-  }, [addTextObject, safeSettings.admin.objectCreationPosition]);
+  }, [addTextObject, safeSettings.admin.objectCreationPosition, safeSettings.admin.defaultFontSize]);
 
   const handleCreateCheckbox = useCallback(async () => {
     const { x, y } = safeSettings.admin.objectCreationPosition;
@@ -205,7 +205,7 @@ const Toolbar: React.FC = () => {
       width: 200,
       height: 60,
       text: '새 체크박스',
-      fontSize: 16,
+      fontSize: safeSettings.admin.defaultFontSize,
       textStyle: {
         color: '#000000',
         bold: false,
@@ -244,7 +244,7 @@ const Toolbar: React.FC = () => {
     } catch (error) {
       console.error('체크박스 객체 생성 실패:', error);
     }
-  }, [addTextObject, safeSettings.admin.objectCreationPosition, safeSettings.admin.defaultCheckboxSettings]);
+  }, [addTextObject, safeSettings.admin.objectCreationPosition, safeSettings.admin.defaultCheckboxSettings, safeSettings.admin.defaultFontSize]);
 
   const handleCreateImage = useCallback(async () => {
     const input = document.createElement('input');
