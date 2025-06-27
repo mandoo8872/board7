@@ -12,6 +12,13 @@ interface DrawLayerProps {
 const DrawLayer: React.FC<DrawLayerProps> = ({ /* isViewPage = false */ }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const autoSwitchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // 성능 최적화를 위한 ref들
+  const animationFrameRef = useRef<number | null>(null);
+  const pendingPointsRef = useRef<number[]>([]);
+  const lastRenderTimeRef = useRef<number>(0);
+  const isRenderingRef = useRef<boolean>(false);
+  
   const autoSwitchDelay = 2000; // 2초
   
   const { 
@@ -19,7 +26,7 @@ const DrawLayer: React.FC<DrawLayerProps> = ({ /* isViewPage = false */ }) => {
     isDrawing, 
     penColor,
     penWidth,
-    addPoint, 
+    addPoint: originalAddPoint, 
     startStroke, 
     endStroke, 
     clearCurrentStroke,
@@ -59,6 +66,9 @@ const DrawLayer: React.FC<DrawLayerProps> = ({ /* isViewPage = false */ }) => {
       if (autoSwitchTimeoutRef.current) {
         clearTimeout(autoSwitchTimeoutRef.current);
       }
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
     };
   }, []);
 
@@ -95,6 +105,39 @@ const DrawLayer: React.FC<DrawLayerProps> = ({ /* isViewPage = false */ }) => {
     return coords;
   }, []);
 
+  // 쓰로틀된 addPoint 함수 (16ms = 60fps)
+  const throttledAddPoint = useCallback((x: number, y: number) => {
+    pendingPointsRef.current.push(x, y);
+    
+    if (!isRenderingRef.current) {
+      isRenderingRef.current = true;
+      
+      const render = (currentTime: number) => {
+        // 16ms (60fps) 간격으로 렌더링 제한
+        if (currentTime - lastRenderTimeRef.current >= 16) {
+          if (pendingPointsRef.current.length > 0) {
+            // 대기 중인 모든 점들을 한 번에 추가
+            const points = [...pendingPointsRef.current];
+            pendingPointsRef.current = [];
+            
+            // 상태 업데이트는 한 번만
+            for (let i = 0; i < points.length; i += 2) {
+              originalAddPoint(points[i], points[i + 1]);
+            }
+          }
+          
+          lastRenderTimeRef.current = currentTime;
+          isRenderingRef.current = false;
+        } else {
+          // 다음 프레임에서 다시 시도
+          animationFrameRef.current = requestAnimationFrame(render);
+        }
+      };
+      
+      animationFrameRef.current = requestAnimationFrame(render);
+    }
+  }, [originalAddPoint]);
+
   // 지우개 기능: 해당 위치의 스트로크 삭제
   const eraseAtPoint = useCallback((x: number, y: number) => {
     const eraserRadius = 20; // 지우개 크기
@@ -121,121 +164,40 @@ const DrawLayer: React.FC<DrawLayerProps> = ({ /* isViewPage = false */ }) => {
     });
   }, [drawObjects]);
 
-  // 캔버스에 저장된 stroke들을 렌더링
-  const renderStoredStrokes = useCallback(() => {
-    console.log('DrawLayer: renderStoredStrokes called', { drawObjectsCount: drawObjects.length });
-    
-    const canvas = canvasRef.current;
-    if (!canvas) {
-      console.log('DrawLayer: Canvas ref not found for stored strokes');
-      return;
-    }
-
-    const ctx = canvas.getContext('2d');
-    if (!ctx) {
-      console.log('DrawLayer: Canvas context not found for stored strokes');
-      return;
-    }
-
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    console.log('DrawLayer: Canvas cleared', { width: canvas.width, height: canvas.height });
-
-    // 저장된 DrawObjects 렌더링
-    drawObjects.forEach((stroke, index) => {
-      if (stroke.points.length < 4) {
-        console.log(`DrawLayer: Skipping stroke ${index} - not enough points`, stroke.points.length);
-        return; // 최소 2개 점 필요 (x,y,x,y)
-      }
-
-      console.log(`DrawLayer: Rendering stroke ${index}`, { 
-        pointCount: stroke.points.length / 2, 
-        color: stroke.color, 
-        width: stroke.width,
-        firstPoint: [stroke.points[0], stroke.points[1]]
-      });
-
-      ctx.beginPath();
-      ctx.moveTo(stroke.points[0], stroke.points[1]);
-
-      for (let i = 2; i < stroke.points.length; i += 2) {
-        ctx.lineTo(stroke.points[i], stroke.points[i + 1]);
-      }
-
-      ctx.strokeStyle = stroke.color;
-      ctx.lineWidth = stroke.width;
-      ctx.lineCap = 'round';
-      ctx.lineJoin = 'round';
-      ctx.stroke();
-    });
-    
-    console.log('DrawLayer: All stored strokes rendered');
-  }, [drawObjects]);
-
-  // 현재 그리는 중인 stroke 렌더링 (최적화)
-  const renderCurrentStroke = useCallback(() => {
-    console.log('DrawLayer: renderCurrentStroke called', { isDrawing, currentStrokeLength: currentStroke.length, currentTool });
-    
+  // 최적화된 현재 스트로크 렌더링 (requestAnimationFrame 기반)
+  const renderCurrentStrokeOptimized = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas || !isDrawing || currentStroke.length < 4 || currentTool !== 'pen') return;
 
     const ctx = canvas.getContext('2d');
-    if (!ctx) {
-      console.log('DrawLayer: Canvas context not found');
-      return;
-    }
+    if (!ctx) return;
 
-    // 처음 호출이거나 점이 적을 때만 전체 다시 그리기
-    if (currentStroke.length <= 4) {
-      // 기존 저장된 strokes 다시 그리기 (처음에만)
-      renderStoredStrokes();
-      
-      console.log('DrawLayer: Drawing initial current stroke with', currentStroke.length / 2, 'points');
-
-      // 현재 stroke 그리기 (필기만) - 설정된 색상과 굵기 사용
+    // 점진적 렌더링: 마지막 선분만 추가로 그리기
+    const len = currentStroke.length;
+    if (len >= 4) {
       ctx.beginPath();
-      ctx.moveTo(currentStroke[0], currentStroke[1]);
-
-      for (let i = 2; i < currentStroke.length; i += 2) {
-        ctx.lineTo(currentStroke[i], currentStroke[i + 1]);
-      }
-
+      ctx.moveTo(currentStroke[len - 4], currentStroke[len - 3]);
+      ctx.lineTo(currentStroke[len - 2], currentStroke[len - 1]);
+      
       ctx.strokeStyle = penColor;
       ctx.lineWidth = penWidth;
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
       ctx.stroke();
-    } else {
-      // 점진적 렌더링: 마지막 선분만 추가로 그리기
-      const len = currentStroke.length;
-      if (len >= 4) {
-        console.log('DrawLayer: Adding incremental line segment');
-        
-        ctx.beginPath();
-        ctx.moveTo(currentStroke[len - 4], currentStroke[len - 3]);
-        ctx.lineTo(currentStroke[len - 2], currentStroke[len - 1]);
-        
-        ctx.strokeStyle = penColor;
-        ctx.lineWidth = penWidth;
-        ctx.lineCap = 'round';
-        ctx.lineJoin = 'round';
-        ctx.stroke();
-      }
     }
-    
-    console.log('DrawLayer: Current stroke rendered (optimized)');
-  }, [currentStroke, isDrawing, currentTool, penColor, penWidth, renderStoredStrokes]);
+  }, [currentStroke, isDrawing, currentTool, penColor, penWidth]);
 
   // DrawObjects 변경 시 캔버스 재렌더링
   useEffect(() => {
-    renderStoredStrokes();
-  }, [renderStoredStrokes]);
+    renderCurrentStrokeOptimized();
+  }, [renderCurrentStrokeOptimized]);
 
   // 현재 stroke 변경 시 캔버스 재렌더링
   useEffect(() => {
     if (isDrawing) {
-      renderCurrentStroke();
+      renderCurrentStrokeOptimized();
     }
-  }, [currentStroke, isDrawing, renderCurrentStroke]);
+  }, [currentStroke, isDrawing, renderCurrentStrokeOptimized]);
 
   // Canvas 위치 및 크기 디버깅
   useEffect(() => {
@@ -307,22 +269,13 @@ const DrawLayer: React.FC<DrawLayerProps> = ({ /* isViewPage = false */ }) => {
       // 필기 모드: 새 스트로크 시작
       console.log('DrawLayer: Starting pen stroke at', coords);
       startStroke();
-      addPoint(coords.x, coords.y);
+      originalAddPoint(coords.x, coords.y);
     }
-  }, [currentTool, startStroke, addPoint, getCanvasCoordinates, eraseAtPoint, updateLastActionTime]);
+  }, [currentTool, startStroke, originalAddPoint, getCanvasCoordinates, eraseAtPoint, updateLastActionTime]);
 
   const handlePointerMove = useCallback((e: React.PointerEvent) => {
     // pen이나 eraser 도구가 선택되고 그리는 중일 때만 작동
     if (currentTool !== 'pen' && currentTool !== 'eraser') return;
-
-    // 필요한 경우에만 로그 출력 (성능 최적화)
-    if (isDrawing && currentStroke.length % 10 === 0) {
-      console.log('DrawLayer: PointerMove progress', { 
-        pointerType: e.pointerType, 
-        currentTool, 
-        currentStrokeLength: currentStroke.length,
-      });
-    }
 
     e.preventDefault();
     e.stopPropagation();
@@ -336,15 +289,15 @@ const DrawLayer: React.FC<DrawLayerProps> = ({ /* isViewPage = false */ }) => {
     }
     
     if (currentTool === 'eraser') {
-      // 지우개 모드: 드래그 중일 때만 지우기 (필기와 동일한 방식)
+      // 지우개 모드: 드래그 중일 때만 지우기
       if (isDrawing) {
         eraseAtPoint(coords.x, coords.y);
       }
     } else if (isDrawing) {
-      // 필기 모드: 점 추가 (모든 포인터 타입 허용)
-      addPoint(coords.x, coords.y);
+      // 필기 모드: 쓰로틀된 점 추가 (성능 최적화)
+      throttledAddPoint(coords.x, coords.y);
     }
-  }, [isDrawing, currentTool, addPoint, getCanvasCoordinates, eraseAtPoint, currentStroke.length]);
+  }, [isDrawing, currentTool, throttledAddPoint, getCanvasCoordinates, eraseAtPoint]);
 
   const handlePointerUp = useCallback(async (e: React.PointerEvent) => {
     console.log('DrawLayer: PointerUp event triggered', { 
@@ -446,14 +399,79 @@ const DrawLayer: React.FC<DrawLayerProps> = ({ /* isViewPage = false */ }) => {
     return false;
   };
 
+  // 캔버스 초기화 및 고해상도 설정
+  const initializeCanvas = useCallback(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    // devicePixelRatio 고려한 고해상도 설정
+    const devicePixelRatio = window.devicePixelRatio || 1;
+    const rect = canvas.getBoundingClientRect();
+    
+    // 실제 캔버스 크기는 고정 (2160x3840)
+    canvas.width = 2160 * devicePixelRatio;
+    canvas.height = 3840 * devicePixelRatio;
+    
+    // CSS 크기는 원래대로
+    canvas.style.width = '2160px';
+    canvas.style.height = '3840px';
+    
+    // 컨텍스트 스케일 조정
+    ctx.scale(devicePixelRatio, devicePixelRatio);
+    
+    console.log('DrawLayer: Canvas initialized with devicePixelRatio', devicePixelRatio);
+  }, []);
+
+  // 저장된 스트로크들을 효율적으로 렌더링
+  const renderStoredStrokes = useCallback(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    // 캔버스 클리어
+    ctx.clearRect(0, 0, 2160, 3840);
+
+    // 저장된 DrawObjects 렌더링 (배치 처리)
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    
+    drawObjects.forEach((stroke) => {
+      if (stroke.points.length < 4) return;
+
+      ctx.beginPath();
+      ctx.moveTo(stroke.points[0], stroke.points[1]);
+
+      for (let i = 2; i < stroke.points.length; i += 2) {
+        ctx.lineTo(stroke.points[i], stroke.points[i + 1]);
+      }
+
+      ctx.strokeStyle = stroke.color;
+      ctx.lineWidth = stroke.width;
+      ctx.stroke();
+    });
+  }, [drawObjects]);
+
+  // 캔버스 초기화
+  useEffect(() => {
+    initializeCanvas();
+  }, [initializeCanvas]);
+
+  // DrawObjects 변경 시 캔버스 재렌더링
+  useEffect(() => {
+    renderStoredStrokes();
+  }, [renderStoredStrokes]);
+
   // DrawLayer는 항상 렌더링하되, 이벤트만 조건부로 처리
   return (
     <canvas
       ref={canvasRef}
       className="absolute top-0 left-0 w-full h-full"
-      width={2160}
-      height={3840}
-      // Pointer Events (마우스, 터치, 펜 모두 지원 - Surface 최적화)
+      // Pointer Events (마우스, 터치, 펜 모두 지원 - 성능 최적화)
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
