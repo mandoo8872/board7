@@ -277,33 +277,16 @@ const Canvas: React.FC<CanvasProps> = ({ isViewPage = false }) => {
 
         {/* BaseLayer: 텍스트, 체크박스, 사각형, 이미지 포함 모든 객체 */}
         <BaseLayer isViewPage={isViewPage} />
-      </div>
 
-      {/* 최상단: DrawLayer (필기/지우개 도구) - Canvas 컨테이너 밖에 독립적으로 배치 */}
-      <div style={{ 
-        position: 'absolute', 
-        top: 0, 
-        left: 0, 
-        right: 0, 
-        bottom: 0, 
-        zIndex: 999999,
-        pointerEvents: 'none', // 컨테이너는 이벤트 차단, DrawLayer에서 조건부 처리
-        overflow: 'hidden'
-      }}>
+        {/* DrawLayer: 필기/지우개 도구 - BaseLayer 위에 배치 */}
         <div style={{
           position: 'absolute',
-          width: CANVAS_WIDTH,
-          height: CANVAS_HEIGHT,
-          transform: `translate(${viewOffset.x}px, ${viewOffset.y}px) scale(${finalScale})`,
-          transformOrigin: 'center center',
-          left: (needsHorizontalScroll || needsVerticalScroll) 
-            ? scrollAreaWidth / 2 
-            : '50%', // 스크롤이 없으면 컨테이너 중앙
-          top: (needsHorizontalScroll || needsVerticalScroll) 
-            ? scrollAreaHeight / 2 
-            : '50%', // 스크롤이 없으면 컨테이너 중앙
-          marginLeft: `-${CANVAS_WIDTH / 2}px`,
-          marginTop: `-${CANVAS_HEIGHT / 2}px`,
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          zIndex: 20, // BaseLayer보다 위에, 하지만 과도하게 높지 않게
+          pointerEvents: 'none', // 컨테이너는 이벤트 차단하지 않음
         }}>
           <DrawLayer key={`${finalScale}-${viewOffset.x}-${viewOffset.y}`} isViewPage={isViewPage} />
         </div>
@@ -319,7 +302,7 @@ const Canvas: React.FC<CanvasProps> = ({ isViewPage = false }) => {
         padding: '4px 12px',
         borderRadius: '4px',
         fontSize: '14px',
-        zIndex: 1000000 // DrawLayer보다도 위에
+        zIndex: 1000 // 적절한 z-index로 조정
       }}>
         {Math.round(autoScale * zoom * 100)}%
       </div>

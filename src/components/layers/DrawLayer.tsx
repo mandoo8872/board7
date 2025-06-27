@@ -601,11 +601,11 @@ const DrawLayer: React.FC<DrawLayerProps> = ({ /* isViewPage = false */ }) => {
       ref={canvasRef}
       className="absolute top-0 left-0 w-full h-full"
       // Pointer Events (마우스, 터치, 펜 모두 지원 - 성능 최적화)
-      onPointerDown={handlePointerDown}
-      onPointerMove={handlePointerMove}
-      onPointerUp={handlePointerUp}
-      onPointerLeave={handlePointerLeaveOrCancel}
-      onPointerCancel={handlePointerLeaveOrCancel}
+      onPointerDown={currentTool === 'pen' || currentTool === 'eraser' ? handlePointerDown : undefined}
+      onPointerMove={currentTool === 'pen' || currentTool === 'eraser' ? handlePointerMove : undefined}
+      onPointerUp={currentTool === 'pen' || currentTool === 'eraser' ? handlePointerUp : undefined}
+      onPointerLeave={currentTool === 'pen' || currentTool === 'eraser' ? handlePointerLeaveOrCancel : undefined}
+      onPointerCancel={currentTool === 'pen' || currentTool === 'eraser' ? handlePointerLeaveOrCancel : undefined}
       // 컨텍스트 메뉴 방지
       onContextMenu={handleContextMenu}
       style={{
