@@ -24,6 +24,7 @@ const Toolbar: React.FC = () => {
   const [isSettingsExpanded, setIsSettingsExpanded] = useState(false);
   const [isExcelPasteExpanded, setIsExcelPasteExpanded] = useState(false);
   const [excelPasteData, setExcelPasteData] = useState('');
+  const [showPreview, setShowPreview] = useState(false);
 
   // 디바운싱을 위한 타이머 ref
   const updateTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -56,9 +57,9 @@ const Toolbar: React.FC = () => {
         cellHeight: 40,
         fontSize: 14,
         fontColor: '#000000',
-        backgroundColor: '#ffffff',
-        maxRows: 22,
-        maxCols: 7
+        backgroundColor: 'transparent',
+        maxRows: 50,
+        maxCols: 50
       }
     },
     view: {
@@ -401,11 +402,42 @@ const Toolbar: React.FC = () => {
       // 성공 메시지
       alert(`${actualRows}x${actualCols} 셀이 생성되었습니다.`);
       setExcelPasteData(''); // 입력창 초기화
+    setShowPreview(false); // 미리보기 숨기기
+    
+    // 미리보기 숨기기 이벤트 발생
+    const event = new CustomEvent('excel-preview-update', {
+      detail: {
+        data: '',
+        show: false
+      }
+    });
+    window.dispatchEvent(event);
     } catch (error) {
       console.error('엑셀 셀 생성 실패:', error);
       alert('셀 생성 중 오류가 발생했습니다.');
     }
   }, [excelPasteData, parseExcelData, addTextObject, safeSettings.admin.excelPasteSettings]);
+
+  // 미리보기 업데이트를 위한 useEffect
+  React.useEffect(() => {
+    if (showPreview && excelPasteData.trim()) {
+      const event = new CustomEvent('excel-preview-update', {
+        detail: {
+          data: excelPasteData,
+          show: true
+        }
+      });
+      window.dispatchEvent(event);
+    } else {
+      const event = new CustomEvent('excel-preview-update', {
+        detail: {
+          data: '',
+          show: false
+        }
+      });
+      window.dispatchEvent(event);
+    }
+  }, [showPreview, excelPasteData, safeSettings.admin.excelPasteSettings.startPosition, safeSettings.admin.excelPasteSettings.cellWidth, safeSettings.admin.excelPasteSettings.cellHeight]);
 
   // 엑셀 셀 그룹 삭제 함수
   const handleDeleteExcelGroup = useCallback(async (groupId: string) => {
@@ -676,7 +708,18 @@ const Toolbar: React.FC = () => {
               <label className="text-xs text-gray-500 mb-1 block">붙여넣기 데이터</label>
               <textarea
                 value={excelPasteData}
-                onChange={(e) => setExcelPasteData(e.target.value)}
+                onChange={(e) => {
+                  setExcelPasteData(e.target.value);
+                  setShowPreview(!!e.target.value.trim());
+                  // 미리보기 이벤트 발생
+                  const event = new CustomEvent('excel-preview-update', {
+                    detail: {
+                      data: e.target.value,
+                      show: !!e.target.value.trim()
+                    }
+                  });
+                  window.dispatchEvent(event);
+                }}
                 placeholder="엑셀에서 복사한 데이터를 여기에 붙여넣으세요 (Ctrl+V)"
                 className="w-full px-2 py-2 border rounded text-xs resize-none"
                 rows={4}
@@ -693,103 +736,40 @@ const Toolbar: React.FC = () => {
             </div>
 
             {/* 시작 위치 조정 */}
-            <div>
-              <label className="text-xs text-gray-500 mb-1 block">시작 위치</label>
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <div className="text-xs text-gray-400">X 좌표</div>
-                  <div className="flex items-center gap-1">
-                    <button
-                      onClick={() => updateSettings('admin', {
-                        excelPasteSettings: {
-                          ...safeSettings.admin.excelPasteSettings,
-                          startPosition: {
-                            ...safeSettings.admin.excelPasteSettings.startPosition,
-                            x: safeSettings.admin.excelPasteSettings.startPosition.x - 1
-                          }
-                        }
-                      })}
-                      className="px-2 py-1 bg-gray-200 hover:bg-gray-300 rounded text-xs"
-                    >
-                      ←
-                    </button>
-                    <input
-                      type="number"
-                      value={safeSettings.admin.excelPasteSettings.startPosition.x}
-                      onChange={(e) => updateSettings('admin', {
-                        excelPasteSettings: {
-                          ...safeSettings.admin.excelPasteSettings,
-                          startPosition: {
-                            ...safeSettings.admin.excelPasteSettings.startPosition,
-                            x: parseInt(e.target.value) || 0
-                          }
-                        }
-                      })}
-                      className="flex-1 px-2 py-1 border rounded text-xs text-center"
-                    />
-                    <button
-                      onClick={() => updateSettings('admin', {
-                        excelPasteSettings: {
-                          ...safeSettings.admin.excelPasteSettings,
-                          startPosition: {
-                            ...safeSettings.admin.excelPasteSettings.startPosition,
-                            x: safeSettings.admin.excelPasteSettings.startPosition.x + 1
-                          }
-                        }
-                      })}
-                      className="px-2 py-1 bg-gray-200 hover:bg-gray-300 rounded text-xs"
-                    >
-                      →
-                    </button>
-                  </div>
-                </div>
-                <div>
-                  <div className="text-xs text-gray-400">Y 좌표</div>
-                  <div className="flex items-center gap-1">
-                    <button
-                      onClick={() => updateSettings('admin', {
-                        excelPasteSettings: {
-                          ...safeSettings.admin.excelPasteSettings,
-                          startPosition: {
-                            ...safeSettings.admin.excelPasteSettings.startPosition,
-                            y: safeSettings.admin.excelPasteSettings.startPosition.y - 1
-                          }
-                        }
-                      })}
-                      className="px-2 py-1 bg-gray-200 hover:bg-gray-300 rounded text-xs"
-                    >
-                      ↑
-                    </button>
-                    <input
-                      type="number"
-                      value={safeSettings.admin.excelPasteSettings.startPosition.y}
-                      onChange={(e) => updateSettings('admin', {
-                        excelPasteSettings: {
-                          ...safeSettings.admin.excelPasteSettings,
-                          startPosition: {
-                            ...safeSettings.admin.excelPasteSettings.startPosition,
-                            y: parseInt(e.target.value) || 0
-                          }
-                        }
-                      })}
-                      className="flex-1 px-2 py-1 border rounded text-xs text-center"
-                    />
-                    <button
-                      onClick={() => updateSettings('admin', {
-                        excelPasteSettings: {
-                          ...safeSettings.admin.excelPasteSettings,
-                          startPosition: {
-                            ...safeSettings.admin.excelPasteSettings.startPosition,
-                            y: safeSettings.admin.excelPasteSettings.startPosition.y + 1
-                          }
-                        }
-                      })}
-                      className="px-2 py-1 bg-gray-200 hover:bg-gray-300 rounded text-xs"
-                    >
-                      ↓
-                    </button>
-                  </div>
-                </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="text-xs text-gray-500">X 좌표</label>
+                <input
+                  type="number"
+                  value={safeSettings.admin.excelPasteSettings.startPosition.x}
+                  onChange={(e) => updateSettings('admin', {
+                    excelPasteSettings: {
+                      ...safeSettings.admin.excelPasteSettings,
+                      startPosition: {
+                        ...safeSettings.admin.excelPasteSettings.startPosition,
+                        x: parseInt(e.target.value) || 0
+                      }
+                    }
+                  })}
+                  className="w-full px-2 py-1 border rounded text-xs"
+                />
+              </div>
+              <div>
+                <label className="text-xs text-gray-500">Y 좌표</label>
+                <input
+                  type="number"
+                  value={safeSettings.admin.excelPasteSettings.startPosition.y}
+                  onChange={(e) => updateSettings('admin', {
+                    excelPasteSettings: {
+                      ...safeSettings.admin.excelPasteSettings,
+                      startPosition: {
+                        ...safeSettings.admin.excelPasteSettings.startPosition,
+                        y: parseInt(e.target.value) || 0
+                      }
+                    }
+                  })}
+                  className="w-full px-2 py-1 border rounded text-xs"
+                />
               </div>
             </div>
 
@@ -865,284 +845,41 @@ const Toolbar: React.FC = () => {
 
             {/* 배경 색상 */}
             <div>
-              <label className="text-xs text-gray-500">배경 색상</label>
-              <input
-                type="color"
-                value={safeSettings.admin.excelPasteSettings.backgroundColor}
-                onChange={(e) => updateSettings('admin', {
-                  excelPasteSettings: {
-                    ...safeSettings.admin.excelPasteSettings,
-                    backgroundColor: e.target.value
-                  }
-                })}
-                className="w-full h-8 rounded border"
-              />
-            </div>
-
-            {/* 적용 버튼 */}
-            <button
-              onClick={handleCreateExcelCells}
-              disabled={!excelPasteData.trim()}
-              className={`w-full px-3 py-2 rounded-lg text-xs font-semibold transition-colors ${
-                excelPasteData.trim()
-                  ? 'bg-green-500 text-white hover:bg-green-600'
-                  : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-              }`}
-            >
-              📊 셀 생성
-            </button>
-
-            {/* 기존 셀 그룹 관리 */}
-            {(() => {
-              const excelGroups = [...new Set(textObjects.filter(obj => obj.cellType === 'cell').map(obj => obj.groupId))].filter(Boolean);
-              return excelGroups.length > 0 && (
-                <div className="border-t border-gray-200 pt-2">
-                  <div className="text-xs text-gray-500 mb-2">기존 셀 그룹</div>
-                  {excelGroups.map(groupId => {
-                    const cellCount = textObjects.filter(obj => obj.groupId === groupId).length;
-                    return (
-                      <div key={groupId} className="flex items-center justify-between bg-white p-2 rounded border mb-1">
-                        <span className="text-xs text-gray-600">
-                          {groupId?.replace('excel-input-', '')} ({cellCount}개)
-                        </span>
-                        <button
-                          onClick={() => handleDeleteExcelGroup(groupId!)}
-                          className="px-2 py-1 bg-red-500 text-white rounded text-xs hover:bg-red-600"
-                        >
-                          삭제
-                        </button>
-                      </div>
-                    );
-                  })}
-                </div>
-              );
-            })()}
-          </div>
-        )}
-      </div>
-
-      <div className="h-px bg-gray-300" />
-
-      {/* 2. 엑셀 셀 입력 */}
-      <div className="bg-gray-50 rounded-lg">
-        <button
-          onClick={() => setIsExcelPasteExpanded(!isExcelPasteExpanded)}
-          className="w-full px-3 py-2 flex items-center justify-between text-sm font-semibold text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-        >
-          <span>📊 엑셀 셀 입력</span>
-          <span className={`transition-transform ${isExcelPasteExpanded ? 'rotate-180' : ''}`}>
-            ▼
-          </span>
-        </button>
-        
-        {isExcelPasteExpanded && (
-          <div className="p-3 border-t border-gray-200 space-y-3">
-            {/* 붙여넣기 입력창 */}
-            <div>
-              <label className="text-xs text-gray-500 mb-1 block">붙여넣기 데이터</label>
-              <textarea
-                value={excelPasteData}
-                onChange={(e) => setExcelPasteData(e.target.value)}
-                placeholder="엑셀에서 복사한 데이터를 여기에 붙여넣으세요 (Ctrl+V)"
-                className="w-full px-2 py-2 border rounded text-xs resize-none"
-                rows={4}
-                onKeyDown={(e) => {
-                  if (e.ctrlKey && e.key === 'v') {
-                    // Ctrl+V는 기본 동작으로 처리
-                    e.stopPropagation();
-                  }
-                }}
-              />
-              <div className="text-xs text-gray-400 mt-1">
-                {excelPasteData ? `${parseExcelData(excelPasteData).length}행 × ${Math.max(...parseExcelData(excelPasteData).map(row => row.length))}열` : '데이터 없음'}
+              <label className="text-xs text-gray-500 mb-1 block">배경 색상</label>
+              <div className="grid grid-cols-5 gap-0">
+                {[
+                  { color: 'transparent', label: '투명', className: 'bg-white border-2 border-dashed border-gray-300' },
+                  { color: '#ffffff', label: '흰색', className: 'bg-white border border-gray-300' },
+                  { color: '#f3f4f6', label: '회색', className: 'bg-gray-100' },
+                  { color: '#fee2e2', label: '빨강', className: 'bg-red-100' },
+                  { color: '#fef3c7', label: '노랑', className: 'bg-yellow-100' },
+                  { color: '#d1fae5', label: '초록', className: 'bg-green-100' },
+                  { color: '#dbeafe', label: '파랑', className: 'bg-blue-100' },
+                  { color: '#e0e7ff', label: '인디고', className: 'bg-indigo-100' },
+                  { color: '#f3e8ff', label: '보라', className: 'bg-purple-100' },
+                  { color: '#fce7f3', label: '핑크', className: 'bg-pink-100' }
+                ].map(({ color, label, className }, index) => (
+                  <button
+                    key={color}
+                    onClick={() => updateSettings('admin', {
+                      excelPasteSettings: {
+                        ...safeSettings.admin.excelPasteSettings,
+                        backgroundColor: color
+                      }
+                    })}
+                    className={`w-6 h-6 ${className} ${
+                      safeSettings.admin.excelPasteSettings.backgroundColor === color 
+                        ? 'ring-2 ring-blue-500' 
+                        : 'hover:ring-1 hover:ring-gray-400'
+                    } transition-all`}
+                    title={label}
+                  >
+                    {color === 'transparent' && (
+                      <div className="w-full h-full flex items-center justify-center text-xs text-gray-400">×</div>
+                    )}
+                  </button>
+                ))}
               </div>
-            </div>
-
-            {/* 시작 위치 조정 */}
-            <div>
-              <label className="text-xs text-gray-500 mb-1 block">시작 위치</label>
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <div className="text-xs text-gray-400">X 좌표</div>
-                  <div className="flex items-center gap-1">
-                    <button
-                      onClick={() => updateSettings('admin', {
-                        excelPasteSettings: {
-                          ...safeSettings.admin.excelPasteSettings,
-                          startPosition: {
-                            ...safeSettings.admin.excelPasteSettings.startPosition,
-                            x: safeSettings.admin.excelPasteSettings.startPosition.x - 1
-                          }
-                        }
-                      })}
-                      className="px-2 py-1 bg-gray-200 hover:bg-gray-300 rounded text-xs"
-                    >
-                      ←
-                    </button>
-                    <input
-                      type="number"
-                      value={safeSettings.admin.excelPasteSettings.startPosition.x}
-                      onChange={(e) => updateSettings('admin', {
-                        excelPasteSettings: {
-                          ...safeSettings.admin.excelPasteSettings,
-                          startPosition: {
-                            ...safeSettings.admin.excelPasteSettings.startPosition,
-                            x: parseInt(e.target.value) || 0
-                          }
-                        }
-                      })}
-                      className="flex-1 px-2 py-1 border rounded text-xs text-center"
-                    />
-                    <button
-                      onClick={() => updateSettings('admin', {
-                        excelPasteSettings: {
-                          ...safeSettings.admin.excelPasteSettings,
-                          startPosition: {
-                            ...safeSettings.admin.excelPasteSettings.startPosition,
-                            x: safeSettings.admin.excelPasteSettings.startPosition.x + 1
-                          }
-                        }
-                      })}
-                      className="px-2 py-1 bg-gray-200 hover:bg-gray-300 rounded text-xs"
-                    >
-                      →
-                    </button>
-                  </div>
-                </div>
-                <div>
-                  <div className="text-xs text-gray-400">Y 좌표</div>
-                  <div className="flex items-center gap-1">
-                    <button
-                      onClick={() => updateSettings('admin', {
-                        excelPasteSettings: {
-                          ...safeSettings.admin.excelPasteSettings,
-                          startPosition: {
-                            ...safeSettings.admin.excelPasteSettings.startPosition,
-                            y: safeSettings.admin.excelPasteSettings.startPosition.y - 1
-                          }
-                        }
-                      })}
-                      className="px-2 py-1 bg-gray-200 hover:bg-gray-300 rounded text-xs"
-                    >
-                      ↑
-                    </button>
-                    <input
-                      type="number"
-                      value={safeSettings.admin.excelPasteSettings.startPosition.y}
-                      onChange={(e) => updateSettings('admin', {
-                        excelPasteSettings: {
-                          ...safeSettings.admin.excelPasteSettings,
-                          startPosition: {
-                            ...safeSettings.admin.excelPasteSettings.startPosition,
-                            y: parseInt(e.target.value) || 0
-                          }
-                        }
-                      })}
-                      className="flex-1 px-2 py-1 border rounded text-xs text-center"
-                    />
-                    <button
-                      onClick={() => updateSettings('admin', {
-                        excelPasteSettings: {
-                          ...safeSettings.admin.excelPasteSettings,
-                          startPosition: {
-                            ...safeSettings.admin.excelPasteSettings.startPosition,
-                            y: safeSettings.admin.excelPasteSettings.startPosition.y + 1
-                          }
-                        }
-                      })}
-                      className="px-2 py-1 bg-gray-200 hover:bg-gray-300 rounded text-xs"
-                    >
-                      ↓
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* 셀 크기 설정 */}
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className="text-xs text-gray-500">셀 너비</label>
-                <input
-                  type="number"
-                  min="20"
-                  max="300"
-                  value={safeSettings.admin.excelPasteSettings.cellWidth}
-                  onChange={(e) => updateSettings('admin', {
-                    excelPasteSettings: {
-                      ...safeSettings.admin.excelPasteSettings,
-                      cellWidth: parseInt(e.target.value) || 120
-                    }
-                  })}
-                  className="w-full px-2 py-1 border rounded text-xs"
-                />
-              </div>
-              <div>
-                <label className="text-xs text-gray-500">셀 높이</label>
-                <input
-                  type="number"
-                  min="20"
-                  max="100"
-                  value={safeSettings.admin.excelPasteSettings.cellHeight}
-                  onChange={(e) => updateSettings('admin', {
-                    excelPasteSettings: {
-                      ...safeSettings.admin.excelPasteSettings,
-                      cellHeight: parseInt(e.target.value) || 40
-                    }
-                  })}
-                  className="w-full px-2 py-1 border rounded text-xs"
-                />
-              </div>
-            </div>
-
-            {/* 폰트 설정 */}
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className="text-xs text-gray-500">폰트 크기</label>
-                <input
-                  type="number"
-                  min="8"
-                  max="24"
-                  value={safeSettings.admin.excelPasteSettings.fontSize}
-                  onChange={(e) => updateSettings('admin', {
-                    excelPasteSettings: {
-                      ...safeSettings.admin.excelPasteSettings,
-                      fontSize: parseInt(e.target.value) || 14
-                    }
-                  })}
-                  className="w-full px-2 py-1 border rounded text-xs"
-                />
-              </div>
-              <div>
-                <label className="text-xs text-gray-500">폰트 색상</label>
-                <input
-                  type="color"
-                  value={safeSettings.admin.excelPasteSettings.fontColor}
-                  onChange={(e) => updateSettings('admin', {
-                    excelPasteSettings: {
-                      ...safeSettings.admin.excelPasteSettings,
-                      fontColor: e.target.value
-                    }
-                  })}
-                  className="w-full h-8 rounded border"
-                />
-              </div>
-            </div>
-
-            {/* 배경 색상 */}
-            <div>
-              <label className="text-xs text-gray-500">배경 색상</label>
-              <input
-                type="color"
-                value={safeSettings.admin.excelPasteSettings.backgroundColor}
-                onChange={(e) => updateSettings('admin', {
-                  excelPasteSettings: {
-                    ...safeSettings.admin.excelPasteSettings,
-                    backgroundColor: e.target.value
-                  }
-                })}
-                className="w-full h-8 rounded border"
-              />
             </div>
 
             {/* 적용 버튼 */}

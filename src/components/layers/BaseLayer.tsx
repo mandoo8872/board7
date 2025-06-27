@@ -848,7 +848,7 @@ const BaseLayer: React.FC<BaseLayerProps> = ({ isViewPage = false }) => {
                           )}
                         </div>
                       )}
-                      {textObj.text || '텍스트를 입력하세요'}
+                      {textObj.text}
                     </span>
                   )}
                 </div>

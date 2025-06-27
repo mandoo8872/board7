@@ -4,6 +4,7 @@ import BaseLayer from './layers/BaseLayer';
 import FixedGridLayer from './layers/FixedGridLayer';
 import DrawLayer from './layers/DrawLayer';
 import GridLayer from './layers/GridLayer';
+import ExcelPreviewLayer from './layers/ExcelPreviewLayer';
 
 interface CanvasProps {
   isViewPage?: boolean;
@@ -277,6 +278,9 @@ const Canvas: React.FC<CanvasProps> = ({ isViewPage = false }) => {
 
         {/* BaseLayer: 텍스트, 체크박스, 사각형, 이미지 포함 모든 객체 */}
         <BaseLayer isViewPage={isViewPage} />
+
+        {/* 엑셀 미리보기 레이어: BaseLayer 위에 배치 */}
+        <ExcelPreviewLayer />
 
         {/* DrawLayer: 필기/지우개 도구 - BaseLayer 위에 배치 */}
         <div style={{
