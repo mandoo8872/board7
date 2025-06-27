@@ -598,14 +598,14 @@ const BaseLayer: React.FC<BaseLayerProps> = ({ isViewPage = false }) => {
   const handleTextBoxClick = (obj: TextObject, e: React.MouseEvent) => {
     e.stopPropagation();
     
-    // 체크박스가 있는 텍스트박스의 좌상단 40px 영역 클릭 시 체크박스 토글
+    // 체크박스가 있는 텍스트박스의 좌상단 35px 영역 클릭 시 체크박스 토글
     if (obj.hasCheckbox) {
       const rect = e.currentTarget.getBoundingClientRect();
       const clickX = e.clientX - rect.left;
       const clickY = e.clientY - rect.top;
       
-      // 좌상단 40x40px 영역 클릭 시 체크박스 토글
-      if (clickX <= 40 && clickY <= 40) {
+      // 좌상단 35x35px 영역 클릭 시 체크박스 토글 (체크박스 30px + 여백 5px)
+      if (clickX <= 35 && clickY <= 35) {
         console.log('Checkbox area clicked, toggling checkbox for:', obj.id);
         const isChecked = !obj.checkboxChecked;
         updateTextObject(obj.id, { 
