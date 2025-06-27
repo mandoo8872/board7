@@ -274,6 +274,17 @@ const DrawLayer: React.FC<DrawLayerProps> = ({ /* isViewPage = false */ }) => {
     e.preventDefault();
     e.stopPropagation();
 
+    // 포인터 캡처 설정 (마우스 필기 연속성 보장)
+    const canvas = canvasRef.current;
+    if (canvas && e.pointerType === 'mouse') {
+      try {
+        canvas.setPointerCapture(e.pointerId);
+        console.log('DrawLayer: Pointer capture set for mouse', e.pointerId);
+      } catch (error) {
+        console.log('DrawLayer: Failed to set pointer capture', error);
+      }
+    }
+
     const coords = getCanvasCoordinates(e.clientX, e.clientY);
     console.log('DrawLayer: Calculated coordinates', coords, 'from client', { x: e.clientX, y: e.clientY });
     
@@ -345,6 +356,17 @@ const DrawLayer: React.FC<DrawLayerProps> = ({ /* isViewPage = false */ }) => {
       clientY: e.clientY
     });
     
+    // 포인터 캡처 해제
+    const canvas = canvasRef.current;
+    if (canvas && e.pointerType === 'mouse') {
+      try {
+        canvas.releasePointerCapture(e.pointerId);
+        console.log('DrawLayer: Pointer capture released for mouse', e.pointerId);
+      } catch (error) {
+        console.log('DrawLayer: Failed to release pointer capture', error);
+      }
+    }
+    
     // 액션 완료 시간 업데이트
     updateLastActionTime();
     
@@ -398,7 +420,7 @@ const DrawLayer: React.FC<DrawLayerProps> = ({ /* isViewPage = false */ }) => {
     }
   }, [isDrawing, currentStroke, currentTool, penColor, penWidth, endStroke, clearCurrentStroke, updateLastActionTime, scheduleAutoSwitch]);
 
-  // 포인터 이탈/취소 이벤트 핸들러 (모든 포인터 타입 지원)
+  // 포인터 이탈/취소 이벤트 핸들러 (포인터 캡처로 마우스 연속 필기 지원)
   const handlePointerLeaveOrCancel = useCallback((e: React.PointerEvent) => {
     console.log('DrawLayer: PointerLeave/Cancel event triggered', { 
       eventType: e.type,
@@ -407,9 +429,14 @@ const DrawLayer: React.FC<DrawLayerProps> = ({ /* isViewPage = false */ }) => {
       currentTool 
     });
     
-    // 모든 포인터 타입에 대해 동일하게 처리
-    console.log('DrawLayer: Processing pointer leave/cancel for', e.pointerType);
-    handlePointerUp(e);
+    // 포인터 캡처를 사용하므로 마우스는 자연스럽게 pointerup에서 처리됨
+    // 터치나 펜 타입에 대해서만 즉시 처리
+    if (e.pointerType !== 'mouse') {
+      console.log('DrawLayer: Processing pointer leave/cancel for', e.pointerType);
+      handlePointerUp(e);
+    } else {
+      console.log('DrawLayer: Ignoring pointer leave/cancel for mouse - using pointer capture');
+    }
   }, [isDrawing, currentTool, handlePointerUp]);
 
   // 컨텍스트 메뉴 방지 (우클릭, 터치 길게 누르기)
