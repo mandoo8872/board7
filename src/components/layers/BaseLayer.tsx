@@ -214,9 +214,8 @@ const BaseLayer: React.FC<BaseLayerProps> = ({ isViewPage = false }) => {
     // 포인터 캡처 설정 (빠른 드래그 시에도 마우스에서 떨어지지 않도록)
     try {
       e.currentTarget.setPointerCapture(e.pointerId);
-      console.log('BaseLayer: Pointer capture set for drag', e.pointerId);
     } catch (error) {
-      console.log('BaseLayer: Failed to set pointer capture', error);
+      // 포인터 캡처 실패는 무시
     }
 
     const rect = e.currentTarget.getBoundingClientRect();
@@ -246,7 +245,6 @@ const BaseLayer: React.FC<BaseLayerProps> = ({ isViewPage = false }) => {
 
     // 크기 조절 권한이 없는 경우 리사이즈 시작하지 않음
     if (!obj.permissions?.resizable) {
-      console.log('Object not resizable, skipping resize:', objectId);
       return;
     }
 
@@ -299,7 +297,6 @@ const BaseLayer: React.FC<BaseLayerProps> = ({ isViewPage = false }) => {
       // 좌표 유효성 검사 (원본 객체의 좌표를 기본값으로 사용)
       let safeNewPosition = newPosition;
       if (!isValidPosition(newPosition) && obj) {
-        console.warn('Invalid drag position detected during move, using original position:', newPosition);
         safeNewPosition = { x: obj.x, y: obj.y };
       }
 
@@ -433,25 +430,16 @@ const BaseLayer: React.FC<BaseLayerProps> = ({ isViewPage = false }) => {
 
   // 포인터 업 핸들러
   const handlePointerUp = useCallback((e: React.PointerEvent) => {
-    console.log('BaseLayer: PointerUp event', { 
-      isDragging: dragState.isDragging, 
-      isResizing: resizeState.isResizing,
-      pointerType: e.pointerType,
-      pointerId: e.pointerId
-    });
-
     // 포인터 캡처 해제
     try {
       e.currentTarget.releasePointerCapture(e.pointerId);
-      console.log('BaseLayer: Pointer capture released', e.pointerId);
     } catch (error) {
-      console.log('BaseLayer: Failed to release pointer capture', error);
+      // 포인터 캡처 해제 실패는 무시
     }
 
     // 드래그 종료 처리
     if (dragState.isDragging && dragState.draggedObjectId) {
       const finalPosition = dragState.currentPosition;
-      console.log('BaseLayer: Finishing drag for object', dragState.draggedObjectId, 'at position', finalPosition);
       
       updateTextObject(dragState.draggedObjectId, {
         x: finalPosition.x,
@@ -474,8 +462,6 @@ const BaseLayer: React.FC<BaseLayerProps> = ({ isViewPage = false }) => {
       const finalPosition = resizeState.currentPosition;
       
       if (finalSize && finalPosition) {
-        console.log('BaseLayer: Finishing resize for object', resizeState.resizedObjectId);
-        
         updateTextObject(resizeState.resizedObjectId, {
           x: finalPosition.x,
           y: finalPosition.y,
@@ -495,14 +481,13 @@ const BaseLayer: React.FC<BaseLayerProps> = ({ isViewPage = false }) => {
         startObjectPosition: { x: 0, y: 0 }
       });
     }
-  }, [dragState, resizeState, updateTextObject, setSelectedObjectId, isViewPage, currentTool]);
+  }, [dragState, resizeState, updateTextObject]);
 
   // 마우스 업 핸들러 (호환성 유지)
   const handleMouseUp = useCallback(() => {
     // 포인터 업과 동일한 처리를 하되, 포인터 캡처는 사용하지 않음
     if (dragState.isDragging && dragState.draggedObjectId) {
       const finalPosition = dragState.currentPosition;
-      console.log('BaseLayer: Finishing drag for object (mouse)', dragState.draggedObjectId, 'at position', finalPosition);
       
       updateTextObject(dragState.draggedObjectId, {
         x: finalPosition.x,
@@ -524,8 +509,6 @@ const BaseLayer: React.FC<BaseLayerProps> = ({ isViewPage = false }) => {
       const finalPosition = resizeState.currentPosition;
       
       if (finalSize && finalPosition) {
-        console.log('BaseLayer: Finishing resize for object (mouse)', resizeState.resizedObjectId);
-        
         updateTextObject(resizeState.resizedObjectId, {
           x: finalPosition.x,
           y: finalPosition.y,
@@ -554,8 +537,6 @@ const BaseLayer: React.FC<BaseLayerProps> = ({ isViewPage = false }) => {
 
   // 텍스트 객체 클릭 핸들러 (백업용)
   const handleObjectClick = useCallback((e: React.MouseEvent, id: string) => {
-    console.log('Object clicked:', id, 'currentTool:', currentTool, 'isViewPage:', isViewPage);
-
     // 셀 객체인지 확인
     const textObj = textObjects.find(obj => obj.id === id);
     const isCell = textObj?.cellType === 'cell';
@@ -563,11 +544,9 @@ const BaseLayer: React.FC<BaseLayerProps> = ({ isViewPage = false }) => {
     if (!isViewPage && currentTool === 'select') {
       // 셀 객체는 선택하지 않음
       if (isCell) {
-        console.log('Cell object clicked, not selecting:', id);
         return;
       }
       
-      console.log('Setting selectedObjectId to:', id);
       setSelectedObjectId(id);
       if (e) {
         e.stopPropagation();
@@ -577,8 +556,6 @@ const BaseLayer: React.FC<BaseLayerProps> = ({ isViewPage = false }) => {
 
   // 캔버스 빈 공간 클릭 핸들러 (선택 해제)
   const handleCanvasClick = useCallback((e: React.MouseEvent) => {
-    console.log('Canvas clicked, target:', e.target, 'currentTarget:', e.currentTarget);
-    
     // 인라인 편집 중이면 편집 종료
     if (editingObjectId) {
       finishInlineEdit();
@@ -588,7 +565,6 @@ const BaseLayer: React.FC<BaseLayerProps> = ({ isViewPage = false }) => {
     if (!isViewPage && currentTool === 'select') {
       // 객체가 아닌 빈 공간을 클릭했을 때만 선택 해제
       if (e.target === e.currentTarget) {
-        console.log('Clearing selection');
         setSelectedObjectId(null);
       }
     }
@@ -596,7 +572,7 @@ const BaseLayer: React.FC<BaseLayerProps> = ({ isViewPage = false }) => {
 
   // 개선된 텍스트 박스 클릭 핸들러
   const handleTextBoxClick = (obj: TextObject, e: React.MouseEvent) => {
-    e.stopPropagation();
+    if (currentTool !== 'select') return;
     
     const isCell = obj.cellType === 'cell';
     
@@ -610,7 +586,6 @@ const BaseLayer: React.FC<BaseLayerProps> = ({ isViewPage = false }) => {
       }
       
       if (newClickCount === 2) {
-        console.log('Cell double click detected, starting inline edit for:', obj.id);
         startInlineEdit(obj);
         setClickCount(0);
         setClickTimer(null);
@@ -636,7 +611,6 @@ const BaseLayer: React.FC<BaseLayerProps> = ({ isViewPage = false }) => {
     }
     
     if (newClickCount === 3) {
-      console.log('Triple click detected, starting inline edit for:', obj.id);
       startInlineEdit(obj);
       setClickCount(0);
       setClickTimer(null);
@@ -845,7 +819,6 @@ const BaseLayer: React.FC<BaseLayerProps> = ({ isViewPage = false }) => {
                           className="checkbox-area"
                           onClick={(e) => {
                             e.stopPropagation();
-                            console.log('✅ Checkbox clicked directly');
                             const isChecked = !textObj.checkboxChecked;
                             updateTextObject(textObj.id, { 
                               checkboxChecked: isChecked,
@@ -853,6 +826,9 @@ const BaseLayer: React.FC<BaseLayerProps> = ({ isViewPage = false }) => {
                               checkboxCheckedColor: textObj.checkboxCheckedColor || defaultCheckedColor,
                               checkboxUncheckedColor: textObj.checkboxUncheckedColor || defaultUncheckedColor
                             });
+                          }}
+                          onPointerDown={(e) => {
+                            e.stopPropagation();
                           }}
                           style={{
                             display: 'inline-flex',

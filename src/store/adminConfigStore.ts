@@ -73,7 +73,7 @@ export const useAdminConfigStore = create<AdminConfigStore>((set, get) => {
           cellHeight: 40,
           fontSize: 14,
           fontColor: '#000000',
-          backgroundColor: 'transparent',
+          backgroundColor: '#ffffff',
           maxRows: 50,
           maxCols: 50
         }

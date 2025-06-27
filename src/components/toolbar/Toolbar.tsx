@@ -1122,7 +1122,11 @@ const Toolbar: React.FC = () => {
                   <div className="grid grid-cols-2 gap-2 mb-2">
                     <input 
                       type="color" 
-                      value={(selectedObject as TextObject).boxStyle?.backgroundColor || '#ffffff'}
+                      value={
+                        (selectedObject as TextObject).boxStyle?.backgroundColor === 'transparent' 
+                          ? '#ffffff' 
+                          : (selectedObject as TextObject).boxStyle?.backgroundColor || '#ffffff'
+                      }
                       onChange={(e) => debouncedUpdateBoxStyle({ backgroundColor: e.target.value })}
                       className="w-full h-8 rounded border" 
                       title="배경색" 
