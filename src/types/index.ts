@@ -80,6 +80,11 @@ export interface TextObject {
   opacity: number;
   isEditing: boolean;
   
+  // 셀 관련 메타데이터 (엑셀 붙여넣기용)
+  groupId?: string; // 셀 그룹 ID (예: 'excel-input-1234567890')
+  cellType?: 'cell' | 'text' | 'checkbox'; // 객체 타입 구분
+  cellPosition?: { row: number; col: number }; // 셀 위치 (행, 열)
+  
   // LWW (Last Write Wins) 지원
   lastModified: number;
   modifiedBy?: string;
@@ -146,6 +151,17 @@ export interface AdminSettings {
     uncheckedBackgroundColor: string;
     checkedBackgroundOpacity: number;
     uncheckedBackgroundOpacity: number;
+  };
+  // 엑셀 붙여넣기 설정
+  excelPasteSettings: {
+    startPosition: { x: number; y: number };
+    cellWidth: number;
+    cellHeight: number;
+    fontSize: number;
+    fontColor: string;
+    backgroundColor: string;
+    maxRows: number;
+    maxCols: number;
   };
 }
 

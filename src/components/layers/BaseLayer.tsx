@@ -523,14 +523,24 @@ const BaseLayer: React.FC<BaseLayerProps> = ({ isViewPage = false }) => {
   const handleObjectClick = useCallback((e: React.MouseEvent, id: string) => {
     console.log('Object clicked:', id, 'currentTool:', currentTool, 'isViewPage:', isViewPage);
 
+    // 셀 객체인지 확인
+    const textObj = textObjects.find(obj => obj.id === id);
+    const isCell = textObj?.cellType === 'cell';
+
     if (!isViewPage && currentTool === 'select') {
+      // 셀 객체는 선택하지 않음
+      if (isCell) {
+        console.log('Cell object clicked, not selecting:', id);
+        return;
+      }
+      
       console.log('Setting selectedObjectId to:', id);
       setSelectedObjectId(id);
       if (e) {
         e.stopPropagation();
       }
     }
-  }, [currentTool, isViewPage, setSelectedObjectId]);
+  }, [currentTool, isViewPage, setSelectedObjectId, textObjects]);
 
   // 캔버스 빈 공간 클릭 핸들러 (선택 해제)
   const handleCanvasClick = useCallback((e: React.MouseEvent) => {
@@ -572,6 +582,16 @@ const BaseLayer: React.FC<BaseLayerProps> = ({ isViewPage = false }) => {
   const handleTextClick = (obj: TextObject, e: React.MouseEvent) => {
     e.stopPropagation();
     
+    const isCell = obj.cellType === 'cell';
+    
+    // 셀 객체는 단일 클릭으로 바로 편집 모드
+    if (isCell) {
+      console.log('Cell clicked, starting inline edit for:', obj.id);
+      startInlineEdit(obj);
+      return;
+    }
+    
+    // 일반 텍스트 객체는 트리플 클릭으로 편집
     // 클릭 카운트 증가
     const newClickCount = clickCount + 1;
     setClickCount(newClickCount);

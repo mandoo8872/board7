@@ -66,6 +66,16 @@ export const useAdminConfigStore = create<AdminConfigStore>((set, get) => {
           uncheckedBackgroundColor: '#ffffff',
           checkedBackgroundOpacity: 1,
           uncheckedBackgroundOpacity: 1
+        },
+        excelPasteSettings: {
+          startPosition: { x: 100, y: 100 },
+          cellWidth: 120,
+          cellHeight: 40,
+          fontSize: 14,
+          fontColor: '#000000',
+          backgroundColor: '#ffffff',
+          maxRows: 22,
+          maxCols: 7
         }
       },
       view: {
