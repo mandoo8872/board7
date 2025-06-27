@@ -598,14 +598,43 @@ const BaseLayer: React.FC<BaseLayerProps> = ({ isViewPage = false }) => {
   const handleTextBoxClick = (obj: TextObject, e: React.MouseEvent) => {
     e.stopPropagation();
     
-    // 체크박스가 있는 텍스트박스의 좌상단 35px 영역 클릭 시 체크박스 토글
+    // 체크박스가 있는 텍스트박스의 체크박스 영역 클릭 시 체크박스 토글
     if (obj.hasCheckbox) {
       const rect = e.currentTarget.getBoundingClientRect();
       const clickX = e.clientX - rect.left;
       const clickY = e.clientY - rect.top;
       
-      // 좌상단 35x35px 영역 클릭 시 체크박스 토글 (체크박스 30px + 여백 5px)
-      if (clickX <= 35 && clickY <= 35) {
+      // 텍스트 스타일 가져오기
+      const textStyle = obj.textStyle || {
+        horizontalAlign: 'left',
+        verticalAlign: 'middle'
+      };
+      
+      // 패딩 고려 (텍스트 레이어의 padding: '8px')
+      const padding = 8;
+      
+      // 체크박스 크기와 마진
+      const checkboxSize = 30;
+      
+      // 체크박스의 실제 위치 계산
+      let checkboxX = padding; // 기본적으로 왼쪽 패딩부터 시작
+      let checkboxY = padding; // 기본적으로 위쪽 패딩부터 시작
+      
+      // 수직 정렬에 따른 Y 위치 조정
+      if (textStyle.verticalAlign === 'middle') {
+        checkboxY = (rect.height - checkboxSize) / 2;
+      } else if (textStyle.verticalAlign === 'bottom') {
+        checkboxY = rect.height - padding - checkboxSize;
+      }
+      
+      // 체크박스 영역 체크 (30x30px + 약간의 여유)
+      const checkboxLeft = checkboxX;
+      const checkboxTop = checkboxY;
+      const checkboxRight = checkboxX + checkboxSize;
+      const checkboxBottom = checkboxY + checkboxSize;
+      
+      if (clickX >= checkboxLeft && clickX <= checkboxRight && 
+          clickY >= checkboxTop && clickY <= checkboxBottom) {
         console.log('Checkbox area clicked, toggling checkbox for:', obj.id);
         const isChecked = !obj.checkboxChecked;
         updateTextObject(obj.id, { 
