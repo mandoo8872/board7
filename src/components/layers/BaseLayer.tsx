@@ -86,6 +86,16 @@ const BaseLayer: React.FC<BaseLayerProps> = ({ isViewPage = false }) => {
   const startInlineEdit = useCallback((obj: TextObject) => {
     setEditingObjectId(obj.id);
     setEditingText(obj.text);
+    
+    // 다음 틱에서 커서를 마지막으로 이동
+    setTimeout(() => {
+      const textarea = document.querySelector('textarea[data-editing="true"]') as HTMLTextAreaElement;
+      if (textarea) {
+        const textLength = obj.text.length;
+        textarea.setSelectionRange(textLength, textLength);
+        textarea.focus();
+      }
+    }, 0);
   }, []);
 
   const finishInlineEdit = useCallback(async () => {
@@ -561,63 +571,68 @@ const BaseLayer: React.FC<BaseLayerProps> = ({ isViewPage = false }) => {
     }
   }, [editingObjectId, finishInlineEdit, setSelectedObjectId, isViewPage, currentTool]);
 
-  // 텍스트 편집 시작 (ViewPage에서만)
-  // const handleTextEdit = async (obj: TextObject) => {
-  //   if (isViewPage) {
-  //     await updateTextObject(obj.id, {
-  //       isEditing: true
-  //     });
-  //   }
-  // };
-
-  // 텍스트 편집 완료
-  // const handleTextBlur = async (obj: TextObject, newText: string) => {
-  //   await updateTextObject(obj.id, {
-  //     text: newText,
-  //     isEditing: false
-  //   });
-  // };
-
-  // 트리플 클릭 감지 및 인라인 편집 시작
-  const handleTextClick = (obj: TextObject, e: React.MouseEvent) => {
+  // 개선된 텍스트 박스 클릭 핸들러
+  const handleTextBoxClick = (obj: TextObject, e: React.MouseEvent) => {
     e.stopPropagation();
     
     const isCell = obj.cellType === 'cell';
     
-    // 셀 객체는 단일 클릭으로 바로 편집 모드
+    // 엑셀 셀: 한번 클릭으로 선택, 더블 클릭으로 편집
     if (isCell) {
-      console.log('Cell clicked, starting inline edit for:', obj.id);
-      startInlineEdit(obj);
+      const newClickCount = clickCount + 1;
+      setClickCount(newClickCount);
+      
+      if (clickTimer) {
+        clearTimeout(clickTimer);
+      }
+      
+      if (newClickCount === 2) {
+        console.log('Cell double click detected, starting inline edit for:', obj.id);
+        startInlineEdit(obj);
+        setClickCount(0);
+        setClickTimer(null);
+      } else {
+        // 단일 클릭: 선택
+        handleObjectClick(e, obj.id);
+        
+        const timer = setTimeout(() => {
+          setClickCount(0);
+          setClickTimer(null);
+        }, 300);
+        setClickTimer(timer);
+      }
       return;
     }
     
-    // 일반 텍스트 객체는 트리플 클릭으로 편집
-    // 클릭 카운트 증가
+    // 일반 텍스트 객체: 트리플 클릭으로 편집
     const newClickCount = clickCount + 1;
     setClickCount(newClickCount);
     
-    // 기존 타이머 클리어
     if (clickTimer) {
       clearTimeout(clickTimer);
     }
     
-    // 트리플 클릭 감지 (500ms 내에 3번 클릭)
     if (newClickCount === 3) {
       console.log('Triple click detected, starting inline edit for:', obj.id);
       startInlineEdit(obj);
       setClickCount(0);
       setClickTimer(null);
     } else {
-      // 1,2 클릭 시 객체 선택 (기존 동작과 동일)
+      // 1,2 클릭: 객체 선택
       handleObjectClick(e, obj.id);
       
-      // 500ms 후 클릭 카운트 리셋
       const timer = setTimeout(() => {
         setClickCount(0);
         setClickTimer(null);
       }, 500);
       setClickTimer(timer);
     }
+  };
+
+  // 기존 handleTextClick은 텍스트 영역에만 사용
+  const handleTextClick = (obj: TextObject, e: React.MouseEvent) => {
+    // 텍스트 영역 클릭 시에도 같은 로직 적용
+    handleTextBoxClick(obj, e);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -725,7 +740,14 @@ const BaseLayer: React.FC<BaseLayerProps> = ({ isViewPage = false }) => {
                   transition: isDragging ? 'none' : 'all 0.1s ease',
                   pointerEvents: (currentTool === 'pen' || currentTool === 'eraser') ? 'none' : 'auto'
                 }}
-                onClick={(e) => handleObjectClick(e, obj.id)}
+                onClick={(e) => {
+                  // 드래그 중이 아닐 때만 텍스트 박스 클릭 처리
+                  if (!isDragging) {
+                    handleTextBoxClick(textObj, e);
+                  } else {
+                    handleObjectClick(e, obj.id);
+                  }
+                }}
                 onPointerDown={(e) => handlePointerDown(e, obj.id)}
                 onMouseDown={(e) => handleMouseDown(e, obj.id)}
                 onMouseEnter={() => setHoveredObjectId(obj.id)}
@@ -768,6 +790,7 @@ const BaseLayer: React.FC<BaseLayerProps> = ({ isViewPage = false }) => {
                       onBlur={finishInlineEdit}
                       onKeyDown={handleKeyDown}
                       autoFocus
+                      data-editing="true"
                       className="w-full h-full bg-transparent border-none outline-none resize-none"
                       style={{
                         color: textStyle.color,
@@ -784,7 +807,6 @@ const BaseLayer: React.FC<BaseLayerProps> = ({ isViewPage = false }) => {
                   ) : (
                     // 일반 표시 모드
                     <span
-                      onClick={(e) => handleTextClick(textObj, e)}
                       style={{
                         color: textStyle.color,
                         fontFamily: textStyle.fontFamily,
@@ -795,6 +817,7 @@ const BaseLayer: React.FC<BaseLayerProps> = ({ isViewPage = false }) => {
                         lineHeight: '1.2',
                         wordBreak: 'break-word',
                         cursor: 'pointer',
+                        pointerEvents: 'none', // 텍스트 영역은 이벤트 차단하여 부모에서 처리
                       }}
                     >
                       {textObj.hasCheckbox && (
@@ -826,7 +849,8 @@ const BaseLayer: React.FC<BaseLayerProps> = ({ isViewPage = false }) => {
                             marginRight: '8px',
                             cursor: 'pointer',
                             transition: 'all 0.2s ease',
-                            userSelect: 'none'
+                            userSelect: 'none',
+                            pointerEvents: 'auto'
                           }}
                         >
                           {textObj.checkboxChecked && (
