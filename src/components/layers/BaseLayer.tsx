@@ -823,7 +823,7 @@ const BaseLayer: React.FC<BaseLayerProps> = ({ isViewPage = false }) => {
                     />
                   ) : (
                     // 일반 표시 모드
-                    <span
+                    <div
                       style={{
                         color: textStyle.color,
                         fontFamily: textStyle.fontFamily,
@@ -834,7 +834,10 @@ const BaseLayer: React.FC<BaseLayerProps> = ({ isViewPage = false }) => {
                         lineHeight: '1.2',
                         wordBreak: 'break-word',
                         cursor: 'pointer',
-                        pointerEvents: 'none', // 텍스트 영역은 이벤트 차단하여 부모에서 처리
+                        display: 'flex',
+                        alignItems: 'center',
+                        width: '100%',
+                        height: '100%',
                       }}
                     >
                       {textObj.hasCheckbox && (
@@ -867,7 +870,8 @@ const BaseLayer: React.FC<BaseLayerProps> = ({ isViewPage = false }) => {
                             cursor: 'pointer',
                             transition: 'all 0.2s ease',
                             userSelect: 'none',
-                            pointerEvents: 'auto'
+                            flexShrink: 0, // 체크박스 크기 고정
+                            pointerEvents: 'auto', // 체크박스는 클릭 가능하도록 명시적 설정
                           }}
                         >
                           {textObj.checkboxChecked && (
@@ -889,8 +893,15 @@ const BaseLayer: React.FC<BaseLayerProps> = ({ isViewPage = false }) => {
                           )}
                         </div>
                       )}
-                      {textObj.text}
-                    </span>
+                      <span
+                        style={{
+                          pointerEvents: 'none', // 텍스트 부분은 이벤트 차단하여 부모에서 처리
+                          flex: 1, // 남은 공간 차지
+                        }}
+                      >
+                        {textObj.text}
+                      </span>
+                    </div>
                   )}
                 </div>
 
