@@ -602,7 +602,15 @@ const BaseLayer: React.FC<BaseLayerProps> = ({ isViewPage = false }) => {
     if (obj.hasCheckbox) {
       // 클릭된 요소가 체크박스 영역인지 확인
       const clickedElement = e.target as HTMLElement;
-      const isCheckboxClick = clickedElement.closest('.checkbox-area') !== null;
+      console.log('🐛 Debug - Clicked element:', clickedElement);
+      console.log('🐛 Debug - Element classes:', clickedElement.className);
+      console.log('🐛 Debug - Element tagName:', clickedElement.tagName);
+      
+      const checkboxArea = clickedElement.closest('.checkbox-area');
+      console.log('🐛 Debug - Checkbox area found:', checkboxArea);
+      
+      const isCheckboxClick = checkboxArea !== null;
+      console.log('🐛 Debug - Is checkbox click:', isCheckboxClick);
       
       if (isCheckboxClick) {
         console.log('Checkbox area clicked, toggling checkbox for:', obj.id);
@@ -885,6 +893,7 @@ const BaseLayer: React.FC<BaseLayerProps> = ({ isViewPage = false }) => {
                         >
                           {textObj.checkboxChecked && (
                             <svg
+                              className="checkbox-area"
                               width="16"
                               height="16"
                               viewBox="0 0 16 16"
@@ -892,6 +901,7 @@ const BaseLayer: React.FC<BaseLayerProps> = ({ isViewPage = false }) => {
                               xmlns="http://www.w3.org/2000/svg"
                             >
                               <path
+                                className="checkbox-area"
                                 d="M13.5 4.5L6 12L2.5 8.5"
                                 stroke="white"
                                 strokeWidth="2"
