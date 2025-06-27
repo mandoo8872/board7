@@ -598,33 +598,6 @@ const BaseLayer: React.FC<BaseLayerProps> = ({ isViewPage = false }) => {
   const handleTextBoxClick = (obj: TextObject, e: React.MouseEvent) => {
     e.stopPropagation();
     
-    // 체크박스가 있는 텍스트박스의 체크박스 영역 클릭 시 체크박스 토글
-    if (obj.hasCheckbox) {
-      // 클릭된 요소가 체크박스 영역인지 확인
-      const clickedElement = e.target as HTMLElement;
-      console.log('🐛 Debug - Clicked element:', clickedElement);
-      console.log('🐛 Debug - Element classes:', clickedElement.className);
-      console.log('🐛 Debug - Element tagName:', clickedElement.tagName);
-      
-      const checkboxArea = clickedElement.closest('.checkbox-area');
-      console.log('🐛 Debug - Checkbox area found:', checkboxArea);
-      
-      const isCheckboxClick = checkboxArea !== null;
-      console.log('🐛 Debug - Is checkbox click:', isCheckboxClick);
-      
-      if (isCheckboxClick) {
-        console.log('Checkbox area clicked, toggling checkbox for:', obj.id);
-        const isChecked = !obj.checkboxChecked;
-        updateTextObject(obj.id, { 
-          checkboxChecked: isChecked,
-          // 체크박스 색상이 없으면 기본값 적용
-          checkboxCheckedColor: obj.checkboxCheckedColor || defaultCheckedColor,
-          checkboxUncheckedColor: obj.checkboxUncheckedColor || defaultUncheckedColor
-        });
-        return; // 체크박스 토글 후 텍스트 편집 모드로 진입하지 않음
-      }
-    }
-    
     const isCell = obj.cellType === 'cell';
     
     // 엑셀 셀: 한번 클릭으로 선택, 더블 클릭으로 편집
@@ -870,6 +843,17 @@ const BaseLayer: React.FC<BaseLayerProps> = ({ isViewPage = false }) => {
                       {textObj.hasCheckbox && (
                         <div
                           className="checkbox-area"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            console.log('✅ Checkbox clicked directly');
+                            const isChecked = !textObj.checkboxChecked;
+                            updateTextObject(textObj.id, { 
+                              checkboxChecked: isChecked,
+                              // 체크박스 색상이 없으면 기본값 적용
+                              checkboxCheckedColor: textObj.checkboxCheckedColor || defaultCheckedColor,
+                              checkboxUncheckedColor: textObj.checkboxUncheckedColor || defaultUncheckedColor
+                            });
+                          }}
                           style={{
                             display: 'inline-flex',
                             alignItems: 'center',
