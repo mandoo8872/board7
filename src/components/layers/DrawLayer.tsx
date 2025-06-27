@@ -11,6 +11,7 @@ interface DrawLayerProps {
 const DrawLayer: React.FC<DrawLayerProps> = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const isErasingRef = useRef<boolean>(false); // 지우개 드래그 상태 추가
+  const autoSwitchTimeoutRef = useRef<NodeJS.Timeout | null>(null); // 자동 전환 타이머
   
   const { 
     currentStroke, 
@@ -23,8 +24,37 @@ const DrawLayer: React.FC<DrawLayerProps> = () => {
     clearCurrentStroke,
   } = useDrawStore();
   
-  const { drawObjects } = useAdminConfigStore();
-  const { currentTool } = useEditorStore();
+  const { drawObjects, settings } = useAdminConfigStore();
+  const { currentTool, setCurrentTool } = useEditorStore();
+
+  // 설정에서 자동 도구 전환 활성화 여부 확인
+  const autoToolSwitchEnabled = settings?.admin?.autoToolSwitch ?? false;
+
+  // 자동 도구 전환 함수
+  const scheduleAutoSwitch = useCallback(() => {
+    // 자동 도구 전환이 비활성화되어 있으면 실행하지 않음
+    if (!autoToolSwitchEnabled) {
+      console.log('🔄 DrawLayer: Auto tool switch disabled');
+      return;
+    }
+    
+    // 기존 타이머 취소
+    if (autoSwitchTimeoutRef.current) {
+      clearTimeout(autoSwitchTimeoutRef.current);
+      autoSwitchTimeoutRef.current = null;
+    }
+    
+    // 2초 후 select 도구로 전환
+    autoSwitchTimeoutRef.current = setTimeout(() => {
+      if (currentTool === 'pen' || currentTool === 'eraser') {
+        console.log('🔄 DrawLayer: Auto-switching to select tool');
+        setCurrentTool('select');
+      }
+      autoSwitchTimeoutRef.current = null;
+    }, 2000); // 2초 고정
+    
+    console.log('⏰ DrawLayer: Auto switch scheduled in 2 seconds');
+  }, [autoToolSwitchEnabled, currentTool, setCurrentTool]);
 
   // Canvas 초기화
   const initializeCanvas = useCallback(() => {
@@ -148,6 +178,13 @@ const DrawLayer: React.FC<DrawLayerProps> = () => {
     e.preventDefault();
     e.stopPropagation();
     
+    // 기존 자동 전환 타이머 취소 (새로운 액션 시작)
+    if (autoSwitchTimeoutRef.current) {
+      clearTimeout(autoSwitchTimeoutRef.current);
+      autoSwitchTimeoutRef.current = null;
+      console.log('🔄 DrawLayer: Auto switch cancelled - new action started');
+    }
+    
     const coords = getCanvasCoordinates(e.clientX, e.clientY);
     console.log('🖊️ DrawLayer: Start action at', coords, 'tool:', currentTool);
     
@@ -204,14 +241,20 @@ const DrawLayer: React.FC<DrawLayerProps> = () => {
       
       clearCurrentStroke();
       renderAll();
+      
+      // 필기 완료 후 자동 전환 스케줄링
+      scheduleAutoSwitch();
     }
     
     // 지우개 드래그 종료
     if (currentTool === 'eraser' && isErasingRef.current) {
       console.log('🧽 DrawLayer: End erasing');
       isErasingRef.current = false;
+      
+      // 지우개 완료 후 자동 전환 스케줄링
+      scheduleAutoSwitch();
     }
-  }, [isDrawing, currentTool, currentStroke, endStroke, penColor, penWidth, clearCurrentStroke, renderAll]);
+  }, [isDrawing, currentTool, currentStroke, endStroke, penColor, penWidth, clearCurrentStroke, renderAll, scheduleAutoSwitch]);
 
   useEffect(() => {
     initializeCanvas();
@@ -227,6 +270,15 @@ const DrawLayer: React.FC<DrawLayerProps> = () => {
   useEffect(() => {
     renderAll();
   }, [renderAll]);
+
+  useEffect(() => {
+    return () => {
+      if (autoSwitchTimeoutRef.current) {
+        clearTimeout(autoSwitchTimeoutRef.current);
+        autoSwitchTimeoutRef.current = null;
+      }
+    };
+  }, []);
 
   return (
     <canvas
