@@ -614,17 +614,20 @@ const Toolbar: React.FC = () => {
     const allObjects = [...textObjects, ...imageObjects];
     const minZIndex = Math.min(...allObjects.map(obj => obj.zIndex || 0));
     
+    // 최소 zIndex를 1로 제한 (배경 이미지는 zIndex 0이므로 그 아래로 가지 않도록)
+    const newZIndex = Math.max(1, minZIndex - 1);
+    
     // 텍스트 객체인 경우
     const textObj = textObjects.find(obj => obj.id === selectedObjectId);
     if (textObj) {
-      await updateTextObject(selectedObjectId, { zIndex: minZIndex - 1 });
+      await updateTextObject(selectedObjectId, { zIndex: newZIndex });
       return;
     }
     
     // 이미지 객체인 경우
     const imageObj = imageObjects.find(obj => obj.id === selectedObjectId);
     if (imageObj) {
-      await updateImageObject(selectedObjectId, { zIndex: minZIndex - 1 });
+      await updateImageObject(selectedObjectId, { zIndex: newZIndex });
       return;
     }
   };

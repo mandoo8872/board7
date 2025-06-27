@@ -234,8 +234,7 @@ const Canvas: React.FC<CanvasProps> = ({ isViewPage = false }) => {
         onContextMenu={handleContextMenu}
         onTouchStart={handleTouchStart}
       >
-
-        {/* 최하단: Background (floor.png) */}
+        {/* 최하단: Background (floor.png) - zIndex 0 */}
         {floorImage ? (
           <div
             style={{
@@ -248,6 +247,7 @@ const Canvas: React.FC<CanvasProps> = ({ isViewPage = false }) => {
               backgroundSize: 'cover',
               backgroundPosition: 'center',
               backgroundRepeat: 'no-repeat',
+              zIndex: 0,
             }}
           />
         ) : (
@@ -260,7 +260,8 @@ const Canvas: React.FC<CanvasProps> = ({ isViewPage = false }) => {
             backgroundColor: '#f9fafb',
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'center'
+            justifyContent: 'center',
+            zIndex: 0,
           }}>
             <div style={{
               color: '#9ca3af',
@@ -273,25 +274,45 @@ const Canvas: React.FC<CanvasProps> = ({ isViewPage = false }) => {
           </div>
         )}
 
-        {/* 그리드 레이어: 배경 위에 표시 */}
-        <GridLayer 
-          gridEnabled={safeGridSettings.gridVisible}
-          gridSize={safeGridSettings.gridSize}
-          canvasWidth={CANVAS_WIDTH}
-          canvasHeight={CANVAS_HEIGHT}
-        />
+        {/* 중간층: 콘텐츠 레이어 - zIndex 100~9999 */}
+        <div style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          zIndex: 100,
+        }}>
+          {/* 그리드 레이어: 배경 위에 표시 */}
+          <GridLayer 
+            gridEnabled={safeGridSettings.gridVisible}
+            gridSize={safeGridSettings.gridSize}
+            canvasWidth={CANVAS_WIDTH}
+            canvasHeight={CANVAS_HEIGHT}
+          />
 
-        {/* FixedGridLayer: 엑셀 붙여넣기용 셀, 배경 위 고정 */}
-        <FixedGridLayer />
+          {/* FixedGridLayer: 엑셀 붙여넣기용 셀, 배경 위 고정 */}
+          <FixedGridLayer />
 
-        {/* BaseLayer: 텍스트, 체크박스, 사각형, 이미지 포함 모든 객체 */}
-        <BaseLayer isViewPage={isViewPage} />
+          {/* BaseLayer: 텍스트, 체크박스, 사각형, 이미지 포함 모든 객체 */}
+          <BaseLayer isViewPage={isViewPage} />
 
-        {/* 엑셀 미리보기 레이어: BaseLayer 위에 배치 */}
-        <ExcelPreviewLayer />
+          {/* 엑셀 미리보기 레이어: BaseLayer 위에 배치 */}
+          <ExcelPreviewLayer />
+        </div>
 
-        {/* DrawLayer: 필기/지우개 도구 - 최상단에 배치하여 BaseLayer 위에 렌더링 */}
-        <DrawLayer key={`${finalScale}-${viewOffset.x}-${viewOffset.y}`} isViewPage={isViewPage} />
+        {/* 최상단: DrawLayer - zIndex 10000 (항상 최상단) */}
+        <div style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          zIndex: 10000,
+          pointerEvents: (currentTool === 'pen' || currentTool === 'eraser') ? 'auto' : 'none',
+        }}>
+          <DrawLayer key={`${finalScale}-${viewOffset.x}-${viewOffset.y}`} isViewPage={isViewPage} />
+        </div>
       </div>
 
       {/* 줌 레벨 표시 */}

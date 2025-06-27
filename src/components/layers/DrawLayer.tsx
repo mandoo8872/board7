@@ -245,7 +245,6 @@ const DrawLayer: React.FC<DrawLayerProps> = () => {
         touchAction: 'none',
         cursor: currentTool === 'pen' ? 'crosshair' : currentTool === 'eraser' ? 'grab' : 'default',
         pointerEvents: (currentTool === 'pen' || currentTool === 'eraser') ? 'auto' : 'none',
-        zIndex: 1000, // BaseLayer보다 높은 z-index로 설정
       }}
     />
   );
