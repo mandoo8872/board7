@@ -290,7 +290,6 @@ const Canvas: React.FC<CanvasProps> = ({ isViewPage = false }) => {
           right: 0,
           bottom: 0,
           zIndex: 20, // BaseLayer보다 위에, 하지만 과도하게 높지 않게
-          pointerEvents: 'none', // 컨테이너는 이벤트 차단하지 않음
         }}>
           <DrawLayer key={`${finalScale}-${viewOffset.x}-${viewOffset.y}`} isViewPage={isViewPage} />
         </div>
