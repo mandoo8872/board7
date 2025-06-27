@@ -598,6 +598,26 @@ const BaseLayer: React.FC<BaseLayerProps> = ({ isViewPage = false }) => {
   const handleTextBoxClick = (obj: TextObject, e: React.MouseEvent) => {
     e.stopPropagation();
     
+    // 체크박스가 있는 텍스트박스의 좌상단 40px 영역 클릭 시 체크박스 토글
+    if (obj.hasCheckbox) {
+      const rect = e.currentTarget.getBoundingClientRect();
+      const clickX = e.clientX - rect.left;
+      const clickY = e.clientY - rect.top;
+      
+      // 좌상단 40x40px 영역 클릭 시 체크박스 토글
+      if (clickX <= 40 && clickY <= 40) {
+        console.log('Checkbox area clicked, toggling checkbox for:', obj.id);
+        const isChecked = !obj.checkboxChecked;
+        updateTextObject(obj.id, { 
+          checkboxChecked: isChecked,
+          // 체크박스 색상이 없으면 기본값 적용
+          checkboxCheckedColor: obj.checkboxCheckedColor || defaultCheckedColor,
+          checkboxUncheckedColor: obj.checkboxUncheckedColor || defaultUncheckedColor
+        });
+        return; // 체크박스 토글 후 텍스트 편집 모드로 진입하지 않음
+      }
+    }
+    
     const isCell = obj.cellType === 'cell';
     
     // 엑셀 셀: 한번 클릭으로 선택, 더블 클릭으로 편집
@@ -842,17 +862,6 @@ const BaseLayer: React.FC<BaseLayerProps> = ({ isViewPage = false }) => {
                     >
                       {textObj.hasCheckbox && (
                         <div
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            // 체크박스 상태 변경 시 배경도 함께 업데이트
-                            const isChecked = !textObj.checkboxChecked;
-                            updateTextObject(obj.id, { 
-                              checkboxChecked: isChecked,
-                              // 체크박스 색상이 없으면 기본값 적용
-                              checkboxCheckedColor: textObj.checkboxCheckedColor || defaultCheckedColor,
-                              checkboxUncheckedColor: textObj.checkboxUncheckedColor || defaultUncheckedColor
-                            });
-                          }}
                           style={{
                             display: 'inline-flex',
                             alignItems: 'center',
@@ -867,11 +876,10 @@ const BaseLayer: React.FC<BaseLayerProps> = ({ isViewPage = false }) => {
                               : '#d1d5db'}`,
                             borderRadius: '4px',
                             marginRight: '8px',
-                            cursor: 'pointer',
                             transition: 'all 0.2s ease',
                             userSelect: 'none',
                             flexShrink: 0, // 체크박스 크기 고정
-                            pointerEvents: 'auto', // 체크박스는 클릭 가능하도록 명시적 설정
+                            pointerEvents: 'none', // 시각적 표시만, 클릭은 부모에서 처리
                           }}
                         >
                           {textObj.checkboxChecked && (
@@ -895,7 +903,6 @@ const BaseLayer: React.FC<BaseLayerProps> = ({ isViewPage = false }) => {
                       )}
                       <span
                         style={{
-                          pointerEvents: 'none', // 텍스트 부분은 이벤트 차단하여 부모에서 처리
                           flex: 1, // 남은 공간 차지
                         }}
                       >
