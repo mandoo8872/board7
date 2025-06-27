@@ -290,21 +290,8 @@ const Canvas: React.FC<CanvasProps> = ({ isViewPage = false }) => {
         {/* 엑셀 미리보기 레이어: BaseLayer 위에 배치 */}
         <ExcelPreviewLayer />
 
-        {/* DrawLayer: 필기/지우개 도구 - BaseLayer 위에 배치 */}
-        <div style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          width: '100%',
-          height: '100%',
-          zIndex: 1000, // 충분히 높은 z-index로 설정
-          cursor: getCursor(),
-          pointerEvents: (currentTool === 'pen' || currentTool === 'eraser') ? 'auto' : 'none'
-        }}>
-          <DrawLayer key={`${finalScale}-${viewOffset.x}-${viewOffset.y}`} isViewPage={isViewPage} />
-        </div>
+        {/* DrawLayer: 필기/지우개 도구 - 최상단에 배치하여 BaseLayer 위에 렌더링 */}
+        <DrawLayer key={`${finalScale}-${viewOffset.x}-${viewOffset.y}`} isViewPage={isViewPage} />
       </div>
 
       {/* 줌 레벨 표시 */}

@@ -10,6 +10,7 @@ interface DrawLayerProps {
 
 const DrawLayer: React.FC<DrawLayerProps> = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const isErasingRef = useRef<boolean>(false); // 지우개 드래그 상태 추가
   
   const { 
     currentStroke, 
@@ -155,6 +156,8 @@ const DrawLayer: React.FC<DrawLayerProps> = () => {
       addPoint(coords.x, coords.y);
       renderAll();
     } else if (currentTool === 'eraser') {
+      // 지우개 드래그 시작
+      isErasingRef.current = true;
       eraseAtPoint(coords.x, coords.y);
     }
   }, [currentTool, getCanvasCoordinates, startStroke, addPoint, renderAll, eraseAtPoint]);
@@ -166,7 +169,8 @@ const DrawLayer: React.FC<DrawLayerProps> = () => {
       const coords = getCanvasCoordinates(e.clientX, e.clientY);
       addPoint(coords.x, coords.y);
       renderAll();
-    } else if (currentTool === 'eraser') {
+    } else if (currentTool === 'eraser' && isErasingRef.current) {
+      // 지우개는 드래그 중일 때만 작동
       e.preventDefault();
       
       const coords = getCanvasCoordinates(e.clientX, e.clientY);
@@ -175,31 +179,38 @@ const DrawLayer: React.FC<DrawLayerProps> = () => {
   }, [isDrawing, currentTool, getCanvasCoordinates, addPoint, renderAll, eraseAtPoint]);
 
   const handlePointerUp = useCallback(async () => {
-    if (!isDrawing || currentTool !== 'pen') return;
-    
-    console.log('🖊️ DrawLayer: End drawing', { strokeLength: currentStroke.length });
-    
-    endStroke();
-    
-    if (currentStroke.length >= 4) {
-      const drawObject = {
-        points: currentStroke,
-        color: penColor,
-        width: penWidth,
-        createdAt: new Date().toISOString(),
-        lastModified: Date.now()
-      };
+    // 필기 도구 처리
+    if (isDrawing && currentTool === 'pen') {
+      console.log('🖊️ DrawLayer: End drawing', { strokeLength: currentStroke.length });
+      
+      endStroke();
+      
+      if (currentStroke.length >= 4) {
+        const drawObject = {
+          points: currentStroke,
+          color: penColor,
+          width: penWidth,
+          createdAt: new Date().toISOString(),
+          lastModified: Date.now()
+        };
 
-      try {
-        await lwwCreateDrawObject(drawObject);
-        console.log('✅ DrawLayer: Stroke saved to Firebase');
-      } catch (error) {
-        console.error('❌ DrawLayer: Failed to save stroke:', error);
+        try {
+          await lwwCreateDrawObject(drawObject);
+          console.log('✅ DrawLayer: Stroke saved to Firebase');
+        } catch (error) {
+          console.error('❌ DrawLayer: Failed to save stroke:', error);
+        }
       }
+      
+      clearCurrentStroke();
+      renderAll();
     }
     
-    clearCurrentStroke();
-    renderAll();
+    // 지우개 드래그 종료
+    if (currentTool === 'eraser' && isErasingRef.current) {
+      console.log('🧽 DrawLayer: End erasing');
+      isErasingRef.current = false;
+    }
   }, [isDrawing, currentTool, currentStroke, endStroke, penColor, penWidth, clearCurrentStroke, renderAll]);
 
   useEffect(() => {
@@ -234,6 +245,7 @@ const DrawLayer: React.FC<DrawLayerProps> = () => {
         touchAction: 'none',
         cursor: currentTool === 'pen' ? 'crosshair' : currentTool === 'eraser' ? 'grab' : 'default',
         pointerEvents: (currentTool === 'pen' || currentTool === 'eraser') ? 'auto' : 'none',
+        zIndex: 1000, // BaseLayer보다 높은 z-index로 설정
       }}
     />
   );
