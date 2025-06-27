@@ -39,21 +39,18 @@ const DrawLayer: React.FC<DrawLayerProps> = ({ /* isViewPage = false */ }) => {
       return;
     }
     
-    // 터치 기기에서 연속 필기를 위해 자동 전환 지연시간을 늘림
-    const extendedDelay = autoSwitchDelay * 3; // 기본 2초 → 6초로 연장
-    
     // 기존 타이머 취소
     if (autoSwitchTimeoutRef.current) {
       clearTimeout(autoSwitchTimeoutRef.current);
     }
     
-    // 새 타이머 설정 (더 긴 지연시간)
+    // 새 타이머 설정 (기본 지연시간 사용)
     autoSwitchTimeoutRef.current = setTimeout(() => {
       if (currentTool === 'pen' || currentTool === 'eraser') {
-        console.log('DrawLayer: Auto-switching to select tool after extended delay');
+        console.log('DrawLayer: Auto-switching to select tool');
         setCurrentTool('select');
       }
-    }, extendedDelay);
+    }, autoSwitchDelay);
   }, [autoSwitchDelay, currentTool, setCurrentTool, autoToolSwitchEnabled]);
 
   // 컴포넌트 언마운트 시 타이머 정리
@@ -264,17 +261,22 @@ const DrawLayer: React.FC<DrawLayerProps> = ({ /* isViewPage = false */ }) => {
       currentTool, 
       pointerType: e.pointerType, 
       isPrimary: e.isPrimary,
-      pressure: e.pressure 
+      pressure: e.pressure,
+      clientX: e.clientX,
+      clientY: e.clientY
     });
     
     // pen이나 eraser 도구가 선택되었을 때만 작동
-    if (currentTool !== 'pen' && currentTool !== 'eraser') return;
+    if (currentTool !== 'pen' && currentTool !== 'eraser') {
+      console.log('DrawLayer: Ignoring pointer down - wrong tool', currentTool);
+      return;
+    }
 
     e.preventDefault();
     e.stopPropagation();
 
     const coords = getCanvasCoordinates(e.clientX, e.clientY);
-    console.log('DrawLayer: Coordinates', coords, 'PointerType:', e.pointerType);
+    console.log('DrawLayer: Calculated coordinates', coords, 'from client', { x: e.clientX, y: e.clientY });
     
     // 기존 자동 전환 타이머 취소 (새로운 액션 시작 - 연속 필기 지원)
     if (autoSwitchTimeoutRef.current) {
@@ -288,10 +290,12 @@ const DrawLayer: React.FC<DrawLayerProps> = ({ /* isViewPage = false */ }) => {
     
     if (currentTool === 'eraser') {
       // 지우개 모드: 지우개 시작 (필기와 동일한 방식)
+      console.log('DrawLayer: Starting eraser stroke');
       startStroke(); // 지우개 시작 상태 설정
       eraseAtPoint(coords.x, coords.y);
     } else {
       // 필기 모드: 새 스트로크 시작
+      console.log('DrawLayer: Starting pen stroke at', coords);
       startStroke();
       addPoint(coords.x, coords.y);
     }
@@ -301,13 +305,15 @@ const DrawLayer: React.FC<DrawLayerProps> = ({ /* isViewPage = false */ }) => {
     // pen이나 eraser 도구가 선택되고 그리는 중일 때만 작동
     if (currentTool !== 'pen' && currentTool !== 'eraser') return;
 
-    // 터치 디버깅을 위한 상세 로그
+    // 모든 포인터 타입에 대한 상세 로그
     console.log('DrawLayer: PointerMove event', { 
       pointerType: e.pointerType, 
       currentTool, 
       isDrawing, 
       currentStrokeLength: currentStroke.length,
-      isPrimary: e.isPrimary 
+      isPrimary: e.isPrimary,
+      clientX: e.clientX,
+      clientY: e.clientY
     });
 
     e.preventDefault();
@@ -324,11 +330,12 @@ const DrawLayer: React.FC<DrawLayerProps> = ({ /* isViewPage = false */ }) => {
     if (currentTool === 'eraser') {
       // 지우개 모드: 드래그 중일 때만 지우기 (필기와 동일한 방식)
       if (isDrawing) {
+        console.log('DrawLayer: Erasing at', coords);
         eraseAtPoint(coords.x, coords.y);
       }
     } else if (isDrawing) {
-      // 필기 모드: 점 추가
-      console.log('DrawLayer: Adding point to stroke', coords);
+      // 필기 모드: 점 추가 (모든 포인터 타입 허용)
+      console.log('DrawLayer: Adding point to stroke', coords, 'pointerType:', e.pointerType);
       addPoint(coords.x, coords.y);
     } else {
       console.log('DrawLayer: PointerMove ignored - not drawing', { isDrawing, currentTool });
@@ -340,17 +347,21 @@ const DrawLayer: React.FC<DrawLayerProps> = ({ /* isViewPage = false */ }) => {
       isDrawing, 
       currentTool, 
       pointerType: e.pointerType,
-      currentStrokeLength: currentStroke.length
+      currentStrokeLength: currentStroke.length,
+      clientX: e.clientX,
+      clientY: e.clientY
     });
     
     // 액션 완료 시간 업데이트
     updateLastActionTime();
     
     if (currentTool === 'pen' && isDrawing) {
+      console.log('DrawLayer: Ending pen stroke, preparing to save');
       endStroke();
 
       // pointerup 시점에 Firebase에 저장 (필기만) - LWW 사용
       if (currentStroke.length >= 4) {
+        console.log('DrawLayer: Stroke has enough points, saving to Firebase');
         const drawObject = {
           points: currentStroke,
           color: penColor,
@@ -362,7 +373,7 @@ const DrawLayer: React.FC<DrawLayerProps> = ({ /* isViewPage = false */ }) => {
         try {
           const objectId = await lwwCreateDrawObject(drawObject);
           if (objectId) {
-            console.log('DrawLayer: Stroke saved to Firebase with LWW'); // 디버그 로그
+            console.log('DrawLayer: Stroke saved to Firebase with LWW, objectId:', objectId);
             
             // Firebase 저장 성공 후에만 currentStroke 지우기
             setTimeout(() => {
@@ -378,11 +389,12 @@ const DrawLayer: React.FC<DrawLayerProps> = ({ /* isViewPage = false */ }) => {
           clearCurrentStroke(); // 에러 시에도 정리
         }
       } else {
-        console.log('DrawLayer: Stroke too short, not saving');
+        console.log('DrawLayer: Stroke too short, not saving', currentStroke.length);
         clearCurrentStroke(); // 너무 짧은 스트로크는 바로 정리
       }
     } else if (currentTool === 'eraser' && isDrawing) {
       // 지우개 모드: 드래그 상태만 종료 (Firebase 저장 없음)
+      console.log('DrawLayer: Ending eraser stroke');
       endStroke();
       clearCurrentStroke(); // 지우개는 즉시 상태 정리
     }
@@ -393,7 +405,7 @@ const DrawLayer: React.FC<DrawLayerProps> = ({ /* isViewPage = false */ }) => {
     }
   }, [isDrawing, currentStroke, currentTool, penColor, penWidth, endStroke, clearCurrentStroke, updateLastActionTime, scheduleAutoSwitch]);
 
-  // 포인터 이탈/취소 이벤트 핸들러 (터치 최적화)
+  // 포인터 이탈/취소 이벤트 핸들러 (모든 포인터 타입 지원)
   const handlePointerLeaveOrCancel = useCallback((e: React.PointerEvent) => {
     console.log('DrawLayer: PointerLeave/Cancel event triggered', { 
       eventType: e.type,
@@ -402,13 +414,8 @@ const DrawLayer: React.FC<DrawLayerProps> = ({ /* isViewPage = false */ }) => {
       currentTool 
     });
     
-    // 터치 타입이고 실제로 필기 중이라면 이벤트 무시 (Surface 터치 최적화)
-    if (e.pointerType === 'touch' && isDrawing && currentTool === 'pen') {
-      console.log('DrawLayer: Ignoring pointer leave/cancel for touch during drawing');
-      return;
-    }
-    
-    // 마우스나 펜 타입, 또는 실제로 필기가 끝난 경우에만 처리
+    // 모든 포인터 타입에 대해 동일하게 처리
+    console.log('DrawLayer: Processing pointer leave/cancel for', e.pointerType);
     handlePointerUp(e);
   }, [isDrawing, currentTool, handlePointerUp]);
 

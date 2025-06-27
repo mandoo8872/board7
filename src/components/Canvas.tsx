@@ -287,7 +287,7 @@ const Canvas: React.FC<CanvasProps> = ({ isViewPage = false }) => {
         right: 0, 
         bottom: 0, 
         zIndex: 999999,
-        pointerEvents: 'none',
+        pointerEvents: 'auto', // 마우스 이벤트 허용으로 변경
         overflow: 'hidden'
       }}>
         <div style={{
@@ -304,6 +304,7 @@ const Canvas: React.FC<CanvasProps> = ({ isViewPage = false }) => {
             : '50%', // 스크롤이 없으면 컨테이너 중앙
           marginLeft: `-${CANVAS_WIDTH / 2}px`,
           marginTop: `-${CANVAS_HEIGHT / 2}px`,
+          pointerEvents: 'auto', // 하위 div에서도 마우스 이벤트 허용
         }}>
           <DrawLayer isViewPage={isViewPage} />
         </div>
