@@ -105,25 +105,53 @@ const DrawLayer: React.FC<DrawLayerProps> = ({ /* isViewPage = false */ }) => {
     return coords;
   }, []);
 
-  // 쓰로틀된 addPoint 함수 (16ms = 60fps)
+  // 쓰로틀된 addPoint 함수 (개선된 렌더링)
   const throttledAddPoint = useCallback((x: number, y: number) => {
+    // 즉시 상태 업데이트 (끊김 방지)
+    originalAddPoint(x, y);
+    
+    // 즉시 렌더링 (부드러운 필기를 위해, 확대/축소 대응)
+    const canvas = canvasRef.current;
+    if (canvas && isDrawing && currentTool === 'pen') {
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        // 현재 캔버스의 표시 크기와 논리적 크기 비율 계산
+        const rect = canvas.getBoundingClientRect();
+        const scaleX = rect.width / 2160;
+        const scaleY = rect.height / 3840;
+        
+        // 현재 점을 즉시 렌더링 (확대/축소 스케일 적용)
+        ctx.save();
+        ctx.scale(scaleX, scaleY);
+        
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        ctx.lineTo(x, y); // 점 하나 그리기
+        ctx.strokeStyle = penColor;
+        ctx.lineWidth = penWidth;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.stroke();
+        
+        ctx.restore();
+      }
+    }
+    
+    // 성능 최적화를 위한 배치 렌더링도 유지
     pendingPointsRef.current.push(x, y);
     
     if (!isRenderingRef.current) {
       isRenderingRef.current = true;
       
       const render = (currentTime: number) => {
-        // 16ms (60fps) 간격으로 렌더링 제한
-        if (currentTime - lastRenderTimeRef.current >= 16) {
+        // 8ms (120fps) 간격으로 렌더링 제한 (더 부드럽게)
+        if (currentTime - lastRenderTimeRef.current >= 8) {
           if (pendingPointsRef.current.length > 0) {
-            // 대기 중인 모든 점들을 한 번에 추가
+            // 대기 중인 점들을 이용해 전체 스트로크 재렌더링
             const points = [...pendingPointsRef.current];
             pendingPointsRef.current = [];
             
-            // 상태 업데이트는 한 번만
-            for (let i = 0; i < points.length; i += 2) {
-              originalAddPoint(points[i], points[i + 1]);
-            }
+            renderCurrentStrokeComplete();
           }
           
           lastRenderTimeRef.current = currentTime;
@@ -136,7 +164,94 @@ const DrawLayer: React.FC<DrawLayerProps> = ({ /* isViewPage = false */ }) => {
       
       animationFrameRef.current = requestAnimationFrame(render);
     }
-  }, [originalAddPoint]);
+  }, [originalAddPoint, isDrawing, currentTool, penColor, penWidth]);
+
+  // 현재 스트로크 전체 렌더링 (끊김 방지, 확대/축소 대응)
+  const renderCurrentStrokeComplete = useCallback(() => {
+    const canvas = canvasRef.current;
+    if (!canvas || !isDrawing || currentStroke.length < 4 || currentTool !== 'pen') return;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    // 현재 캔버스의 표시 크기와 논리적 크기 비율 계산
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = rect.width / 2160;
+    const scaleY = rect.height / 3840;
+
+    // 캔버스 클리어
+    ctx.clearRect(0, 0, rect.width, rect.height);
+
+    // 저장된 DrawObjects 렌더링 (확대/축소 스케일 적용)
+    ctx.save();
+    ctx.scale(scaleX, scaleY);
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    
+    drawObjects.forEach((stroke) => {
+      if (stroke.points.length < 4) return;
+
+      ctx.beginPath();
+      ctx.moveTo(stroke.points[0], stroke.points[1]);
+
+      for (let i = 2; i < stroke.points.length; i += 2) {
+        ctx.lineTo(stroke.points[i], stroke.points[i + 1]);
+      }
+
+      ctx.strokeStyle = stroke.color;
+      ctx.lineWidth = stroke.width;
+      ctx.stroke();
+    });
+
+    // 현재 스트로크 전체를 연결된 선으로 그리기 (같은 스케일 적용)
+    if (currentStroke.length >= 4) {
+      ctx.beginPath();
+      ctx.moveTo(currentStroke[0], currentStroke[1]);
+
+      for (let i = 2; i < currentStroke.length; i += 2) {
+        ctx.lineTo(currentStroke[i], currentStroke[i + 1]);
+      }
+
+      ctx.strokeStyle = penColor;
+      ctx.lineWidth = penWidth;
+      ctx.stroke();
+    }
+    
+    ctx.restore();
+  }, [currentStroke, isDrawing, currentTool, penColor, penWidth, drawObjects]);
+
+  // 최적화된 현재 스트로크 렌더링 (점진적, 확대/축소 대응)
+  const renderCurrentStrokeOptimized = useCallback(() => {
+    const canvas = canvasRef.current;
+    if (!canvas || !isDrawing || currentStroke.length < 4 || currentTool !== 'pen') return;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    // 현재 캔버스의 표시 크기와 논리적 크기 비율 계산
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = rect.width / 2160;
+    const scaleY = rect.height / 3840;
+
+    // 점진적 렌더링: 마지막 선분만 추가로 그리기 (확대/축소 스케일 적용)
+    const len = currentStroke.length;
+    if (len >= 4) {
+      ctx.save();
+      ctx.scale(scaleX, scaleY);
+      
+      ctx.beginPath();
+      ctx.moveTo(currentStroke[len - 4], currentStroke[len - 3]);
+      ctx.lineTo(currentStroke[len - 2], currentStroke[len - 1]);
+      
+      ctx.strokeStyle = penColor;
+      ctx.lineWidth = penWidth;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.stroke();
+      
+      ctx.restore();
+    }
+  }, [currentStroke, isDrawing, currentTool, penColor, penWidth]);
 
   // 지우개 기능: 해당 위치의 스트로크 삭제
   const eraseAtPoint = useCallback((x: number, y: number) => {
@@ -163,29 +278,6 @@ const DrawLayer: React.FC<DrawLayerProps> = ({ /* isViewPage = false */ }) => {
       }
     });
   }, [drawObjects]);
-
-  // 최적화된 현재 스트로크 렌더링 (requestAnimationFrame 기반)
-  const renderCurrentStrokeOptimized = useCallback(() => {
-    const canvas = canvasRef.current;
-    if (!canvas || !isDrawing || currentStroke.length < 4 || currentTool !== 'pen') return;
-
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    // 점진적 렌더링: 마지막 선분만 추가로 그리기
-    const len = currentStroke.length;
-    if (len >= 4) {
-      ctx.beginPath();
-      ctx.moveTo(currentStroke[len - 4], currentStroke[len - 3]);
-      ctx.lineTo(currentStroke[len - 2], currentStroke[len - 1]);
-      
-      ctx.strokeStyle = penColor;
-      ctx.lineWidth = penWidth;
-      ctx.lineCap = 'round';
-      ctx.lineJoin = 'round';
-      ctx.stroke();
-    }
-  }, [currentStroke, isDrawing, currentTool, penColor, penWidth]);
 
   // DrawObjects 변경 시 캔버스 재렌더링
   useEffect(() => {
@@ -399,7 +491,7 @@ const DrawLayer: React.FC<DrawLayerProps> = ({ /* isViewPage = false */ }) => {
     return false;
   };
 
-  // 캔버스 초기화 및 고해상도 설정
+  // 캔버스 초기화 및 고해상도 설정 (확대/축소 대응)
   const initializeCanvas = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -407,25 +499,39 @@ const DrawLayer: React.FC<DrawLayerProps> = ({ /* isViewPage = false */ }) => {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    // devicePixelRatio 고려한 고해상도 설정
-    const devicePixelRatio = window.devicePixelRatio || 1;
+    // 부모 컨테이너의 실제 크기 확인
     const rect = canvas.getBoundingClientRect();
+    const devicePixelRatio = window.devicePixelRatio || 1;
     
-    // 실제 캔버스 크기는 고정 (2160x3840)
-    canvas.width = 2160 * devicePixelRatio;
-    canvas.height = 3840 * devicePixelRatio;
+    // 캔버스 실제 크기를 부모 컨테이너에 맞춤 (확대/축소 대응)
+    const displayWidth = rect.width;
+    const displayHeight = rect.height;
     
-    // CSS 크기는 원래대로
-    canvas.style.width = '2160px';
-    canvas.style.height = '3840px';
+    // 고해상도를 위한 스케일링
+    canvas.width = displayWidth * devicePixelRatio;
+    canvas.height = displayHeight * devicePixelRatio;
     
-    // 컨텍스트 스케일 조정
+    // CSS 크기는 실제 표시 크기로 설정
+    canvas.style.width = displayWidth + 'px';
+    canvas.style.height = displayHeight + 'px';
+    
+    // 컨텍스트 스케일 조정 (고해상도 대응)
     ctx.scale(devicePixelRatio, devicePixelRatio);
     
-    console.log('DrawLayer: Canvas initialized with devicePixelRatio', devicePixelRatio);
+    console.log('DrawLayer: Canvas initialized', {
+      devicePixelRatio,
+      displaySize: { width: displayWidth, height: displayHeight },
+      canvasSize: { width: canvas.width, height: canvas.height },
+      scale: { x: displayWidth / 2160, y: displayHeight / 3840 }
+    });
+
+    // 초기화 후 기존 스트로크들 재렌더링
+    requestAnimationFrame(() => {
+      renderStoredStrokes();
+    });
   }, []);
 
-  // 저장된 스트로크들을 효율적으로 렌더링
+  // 저장된 스트로크들을 효율적으로 렌더링 (확대/축소 대응)
   const renderStoredStrokes = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -433,10 +539,17 @@ const DrawLayer: React.FC<DrawLayerProps> = ({ /* isViewPage = false */ }) => {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    // 캔버스 클리어
-    ctx.clearRect(0, 0, 2160, 3840);
+    // 현재 캔버스의 표시 크기와 논리적 크기 비율 계산
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = rect.width / 2160;
+    const scaleY = rect.height / 3840;
 
-    // 저장된 DrawObjects 렌더링 (배치 처리)
+    // 캔버스 클리어
+    ctx.clearRect(0, 0, rect.width, rect.height);
+
+    // 저장된 DrawObjects 렌더링 (확대/축소 스케일 적용)
+    ctx.save();
+    ctx.scale(scaleX, scaleY);
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
     
@@ -454,11 +567,27 @@ const DrawLayer: React.FC<DrawLayerProps> = ({ /* isViewPage = false */ }) => {
       ctx.lineWidth = stroke.width;
       ctx.stroke();
     });
+    
+    ctx.restore();
   }, [drawObjects]);
 
   // 캔버스 초기화
   useEffect(() => {
     initializeCanvas();
+    
+    // 윈도우 리사이즈나 확대/축소 시 캔버스 재초기화
+    const handleResize = () => {
+      console.log('DrawLayer: Window resized, reinitializing canvas');
+      setTimeout(() => {
+        initializeCanvas();
+      }, 100); // 약간의 지연으로 확실한 크기 변경 후 처리
+    };
+    
+    window.addEventListener('resize', handleResize);
+    
+    return () => {
+      window.removeEventListener('resize', handleResize);
+    };
   }, [initializeCanvas]);
 
   // DrawObjects 변경 시 캔버스 재렌더링

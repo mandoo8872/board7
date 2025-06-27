@@ -305,7 +305,7 @@ const Canvas: React.FC<CanvasProps> = ({ isViewPage = false }) => {
           marginLeft: `-${CANVAS_WIDTH / 2}px`,
           marginTop: `-${CANVAS_HEIGHT / 2}px`,
         }}>
-          <DrawLayer isViewPage={isViewPage} />
+          <DrawLayer key={`${finalScale}-${viewOffset.x}-${viewOffset.y}`} isViewPage={isViewPage} />
         </div>
       </div>
 
