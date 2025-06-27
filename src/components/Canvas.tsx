@@ -18,7 +18,7 @@ const Canvas: React.FC<CanvasProps> = ({ isViewPage = false }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
   const [autoScale, setAutoScale] = useState(0.3); // 초기 로딩용 임시값
-  const { zoom, viewOffset, setZoom, zoomAtPoint } = useEditorStore();
+  const { zoom, viewOffset, setZoom, zoomAtPoint, currentTool } = useEditorStore();
   const { floorImage, initializeFirebaseListeners, settings } = useAdminConfigStore();
 
   // 설정이 로드되지 않았을 때 기본값 제공
@@ -171,6 +171,14 @@ const Canvas: React.FC<CanvasProps> = ({ isViewPage = false }) => {
     }
   };
 
+  // 현재 도구에 따른 커서 설정
+  const getCursor = () => {
+    if (currentTool === 'pen' || currentTool === 'eraser') {
+      return 'crosshair';
+    }
+    return isViewPage ? 'default' : 'default';
+  };
+
   return (
     <div 
       ref={containerRef}
@@ -182,7 +190,7 @@ const Canvas: React.FC<CanvasProps> = ({ isViewPage = false }) => {
         overflowX: needsHorizontalScroll ? 'auto' : 'hidden',
         overflowY: needsVerticalScroll ? 'auto' : 'hidden',
         backgroundColor: '#ffffff',
-        cursor: isViewPage ? 'crosshair' : 'default',
+        cursor: getCursor(),
       }}
     >
       {/* 가상 스크롤 영역 - 실제 스케일된 캔버스 크기를 반영 (스크롤이 필요할 때만) */}
@@ -289,7 +297,11 @@ const Canvas: React.FC<CanvasProps> = ({ isViewPage = false }) => {
           left: 0,
           right: 0,
           bottom: 0,
-          zIndex: 20, // BaseLayer보다 위에, 하지만 과도하게 높지 않게
+          width: '100%',
+          height: '100%',
+          zIndex: 1000, // 충분히 높은 z-index로 설정
+          cursor: getCursor(),
+          pointerEvents: (currentTool === 'pen' || currentTool === 'eraser') ? 'auto' : 'none'
         }}>
           <DrawLayer key={`${finalScale}-${viewOffset.x}-${viewOffset.y}`} isViewPage={isViewPage} />
         </div>

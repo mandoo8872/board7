@@ -858,7 +858,7 @@ const Toolbar: React.FC = () => {
                   { color: '#e0e7ff', label: '인디고', className: 'bg-indigo-100' },
                   { color: '#f3e8ff', label: '보라', className: 'bg-purple-100' },
                   { color: '#fce7f3', label: '핑크', className: 'bg-pink-100' }
-                ].map(({ color, label, className }, index) => (
+                ].map(({ color, label, className }, _) => (
                   <button
                     key={color}
                     onClick={() => updateSettings('admin', {

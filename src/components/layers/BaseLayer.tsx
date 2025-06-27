@@ -1,10 +1,8 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { useAdminConfigStore } from '../../store/adminConfigStore';
 import { useEditorStore } from '../../store/editorStore';
-import { useGridStore } from '../../store/gridStore';
 import { useCheckboxStore } from '../../store/checkboxStore';
 import { TextObject } from '../../types';
-import { snapPositionToGrid, snapSizeToGrid } from '../../utils/gridUtils';
 import { isValidPosition, isValidSize } from '../../utils/validation';
 
 interface BaseLayerProps {
@@ -16,7 +14,6 @@ const BaseLayer: React.FC<BaseLayerProps> = ({ isViewPage = false }) => {
     textObjects, 
     imageObjects,
     updateTextObject, 
-    updateImageObject,
     deleteTextObject,
     deleteImageObject,
     addTextObject,
@@ -29,10 +26,6 @@ const BaseLayer: React.FC<BaseLayerProps> = ({ isViewPage = false }) => {
     setSelectedObjectId,
     setHoveredObjectId,
   } = useEditorStore();
-  const { 
-    gridSize,
-    snapEnabled
-  } = useGridStore();
   const { 
     defaultCheckedColor,
     defaultUncheckedColor,
@@ -216,6 +209,14 @@ const BaseLayer: React.FC<BaseLayerProps> = ({ isViewPage = false }) => {
     if (!obj.permissions?.movable) {
       console.log('Object not movable, skipping drag:', id);
       return;
+    }
+
+    // 포인터 캡처 설정 (빠른 드래그 시에도 마우스에서 떨어지지 않도록)
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+      console.log('BaseLayer: Pointer capture set for drag', e.pointerId);
+    } catch (error) {
+      console.log('BaseLayer: Failed to set pointer capture', error);
     }
 
     const rect = e.currentTarget.getBoundingClientRect();
@@ -430,32 +431,34 @@ const BaseLayer: React.FC<BaseLayerProps> = ({ isViewPage = false }) => {
     }
   };
 
-  // 포인터 업 핸들러 (드래그 및 크기조절 종료) - 마우스, 터치, 펜 모두 지원
-  const handlePointerUp = useCallback(() => {
-    if (dragState.isDragging) {
-      let finalPosition = dragState.currentPosition;
-      
-      // 원본 객체 찾기
-      const obj = textObjects.find(o => o.id === selectedObjectId) || imageObjects.find(o => o.id === selectedObjectId);
-      
-      // 좌표 유효성 검사 (원본 객체의 좌표를 기본값으로 사용)
-      if (!isValidPosition(finalPosition) && obj) {
-        console.warn('Invalid drag position detected, using original position:', finalPosition);
-        finalPosition = { x: obj.x, y: obj.y };
-      }
-      
-      if (snapEnabled) {
-        const snappedPos = snapPositionToGrid(finalPosition.x, finalPosition.y, gridSize);
-        finalPosition = snappedPos;
-      }
+  // 포인터 업 핸들러
+  const handlePointerUp = useCallback((e: React.PointerEvent) => {
+    console.log('BaseLayer: PointerUp event', { 
+      isDragging: dragState.isDragging, 
+      isResizing: resizeState.isResizing,
+      pointerType: e.pointerType,
+      pointerId: e.pointerId
+    });
 
-      if (obj && selectedObjectId) {
-        if (obj.hasOwnProperty('text')) {
-          updateTextObject(selectedObjectId, { x: finalPosition.x, y: finalPosition.y });
-        } else {
-          updateImageObject(selectedObjectId, { x: finalPosition.x, y: finalPosition.y });
-        }
-      }
+    // 포인터 캡처 해제
+    try {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+      console.log('BaseLayer: Pointer capture released', e.pointerId);
+    } catch (error) {
+      console.log('BaseLayer: Failed to release pointer capture', error);
+    }
+
+    // 드래그 종료 처리
+    if (dragState.isDragging && dragState.draggedObjectId) {
+      const finalPosition = dragState.currentPosition;
+      console.log('BaseLayer: Finishing drag for object', dragState.draggedObjectId, 'at position', finalPosition);
+      
+      updateTextObject(dragState.draggedObjectId, {
+        x: finalPosition.x,
+        y: finalPosition.y
+      }).catch(error => {
+        console.error('Failed to update object position:', error);
+      });
 
       setDragState({
         isDragging: false,
@@ -465,64 +468,84 @@ const BaseLayer: React.FC<BaseLayerProps> = ({ isViewPage = false }) => {
       });
     }
 
-    if (resizeState.isResizing) {
-      let finalSize = resizeState.currentSize || { width: 100, height: 100 };
-      let finalPosition = resizeState.currentPosition || { x: 0, y: 0 };
+    // 리사이즈 종료 처리
+    if (resizeState.isResizing && resizeState.resizedObjectId) {
+      const finalSize = resizeState.currentSize;
+      const finalPosition = resizeState.currentPosition;
       
-      // 원본 객체 찾기
-      const obj = textObjects.find(o => o.id === resizeState.resizedObjectId) || imageObjects.find(o => o.id === resizeState.resizedObjectId);
-      
-      // 크기와 좌표 유효성 검사 (원본 객체 값을 기본값으로 사용)
-      if (!isValidSize(finalSize) && obj) {
-        console.warn('Invalid resize size detected, using original size:', finalSize);
-        finalSize = { width: obj.width, height: obj.height };
-      }
-      
-      if (!isValidPosition(finalPosition) && obj) {
-        console.warn('Invalid resize position detected, using original position:', finalPosition);
-        finalPosition = { x: obj.x, y: obj.y };
-      }
-      
-      if (snapEnabled) {
-        const snappedSize = snapSizeToGrid(finalSize.width, finalSize.height, gridSize);
-        const snappedPos = snapPositionToGrid(finalPosition.x, finalPosition.y, gridSize);
-        finalSize = snappedSize;
-        finalPosition = snappedPos;
-      }
-
-      if (obj && resizeState.resizedObjectId) {
-        if (obj.hasOwnProperty('text')) {
-          updateTextObject(resizeState.resizedObjectId, { 
-            width: finalSize.width, 
-            height: finalSize.height,
-            x: finalPosition.x,
-            y: finalPosition.y
-          });
-        } else {
-          updateImageObject(resizeState.resizedObjectId, { 
-            width: finalSize.width, 
-            height: finalSize.height,
-            x: finalPosition.x,
-            y: finalPosition.y
-          });
-        }
+      if (finalSize && finalPosition) {
+        console.log('BaseLayer: Finishing resize for object', resizeState.resizedObjectId);
+        
+        updateTextObject(resizeState.resizedObjectId, {
+          x: finalPosition.x,
+          y: finalPosition.y,
+          width: finalSize.width,
+          height: finalSize.height
+        }).catch(error => {
+          console.error('Failed to update object size/position:', error);
+        });
       }
 
       setResizeState({
         isResizing: false,
         resizedObjectId: null,
-        resizeHandle: null,
+        resizeHandle: '',
         startPosition: { x: 0, y: 0 },
         startSize: { width: 0, height: 0 },
         startObjectPosition: { x: 0, y: 0 }
       });
     }
-  }, [dragState, resizeState, selectedObjectId, textObjects, imageObjects, updateTextObject, updateImageObject, snapEnabled, gridSize]);
+  }, [dragState, resizeState, updateTextObject, setSelectedObjectId, isViewPage, currentTool]);
 
   // 마우스 업 핸들러 (호환성 유지)
   const handleMouseUp = useCallback(() => {
-    handlePointerUp();
-  }, [handlePointerUp]);
+    // 포인터 업과 동일한 처리를 하되, 포인터 캡처는 사용하지 않음
+    if (dragState.isDragging && dragState.draggedObjectId) {
+      const finalPosition = dragState.currentPosition;
+      console.log('BaseLayer: Finishing drag for object (mouse)', dragState.draggedObjectId, 'at position', finalPosition);
+      
+      updateTextObject(dragState.draggedObjectId, {
+        x: finalPosition.x,
+        y: finalPosition.y
+      }).catch(error => {
+        console.error('Failed to update object position:', error);
+      });
+
+      setDragState({
+        isDragging: false,
+        draggedObjectId: null,
+        offset: { x: 0, y: 0 },
+        currentPosition: { x: 0, y: 0 }
+      });
+    }
+
+    if (resizeState.isResizing && resizeState.resizedObjectId) {
+      const finalSize = resizeState.currentSize;
+      const finalPosition = resizeState.currentPosition;
+      
+      if (finalSize && finalPosition) {
+        console.log('BaseLayer: Finishing resize for object (mouse)', resizeState.resizedObjectId);
+        
+        updateTextObject(resizeState.resizedObjectId, {
+          x: finalPosition.x,
+          y: finalPosition.y,
+          width: finalSize.width,
+          height: finalSize.height
+        }).catch(error => {
+          console.error('Failed to update object size/position:', error);
+        });
+      }
+
+      setResizeState({
+        isResizing: false,
+        resizedObjectId: null,
+        resizeHandle: '',
+        startPosition: { x: 0, y: 0 },
+        startSize: { width: 0, height: 0 },
+        startObjectPosition: { x: 0, y: 0 }
+      });
+    }
+  }, [dragState, resizeState, updateTextObject]);
 
   // 마우스 이동 핸들러 (호환성 유지)
   const handleMouseMove = (e: React.MouseEvent) => {
@@ -627,12 +650,6 @@ const BaseLayer: React.FC<BaseLayerProps> = ({ isViewPage = false }) => {
       }, 500);
       setClickTimer(timer);
     }
-  };
-
-  // 기존 handleTextClick은 텍스트 영역에만 사용
-  const handleTextClick = (obj: TextObject, e: React.MouseEvent) => {
-    // 텍스트 영역 클릭 시에도 같은 로직 적용
-    handleTextBoxClick(obj, e);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
