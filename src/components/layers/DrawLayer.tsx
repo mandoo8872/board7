@@ -87,11 +87,10 @@ const DrawLayer: React.FC<DrawLayerProps> = ({ /* isViewPage = false */ }) => {
       y: relativeY * scaleY
     };
     
-    console.log('DrawLayer: Canvas rect', canvasRect);
-    console.log('DrawLayer: Client coords', { clientX, clientY });
-    console.log('DrawLayer: Relative coords', { relativeX, relativeY });
-    console.log('DrawLayer: Scale', { scaleX, scaleY });
-    console.log('DrawLayer: Final coords', coords);
+    // 디버깅 로그 간소화 (필요시에만)
+    if (coords.x < 0 || coords.y < 0 || coords.x > 2160 || coords.y > 3840) {
+      console.log('DrawLayer: Coordinates out of bounds', coords, 'from client', { clientX, clientY });
+    }
     
     return coords;
   }, []);
@@ -305,16 +304,14 @@ const DrawLayer: React.FC<DrawLayerProps> = ({ /* isViewPage = false */ }) => {
     // pen이나 eraser 도구가 선택되고 그리는 중일 때만 작동
     if (currentTool !== 'pen' && currentTool !== 'eraser') return;
 
-    // 모든 포인터 타입에 대한 상세 로그
-    console.log('DrawLayer: PointerMove event', { 
-      pointerType: e.pointerType, 
-      currentTool, 
-      isDrawing, 
-      currentStrokeLength: currentStroke.length,
-      isPrimary: e.isPrimary,
-      clientX: e.clientX,
-      clientY: e.clientY
-    });
+    // 필요한 경우에만 로그 출력 (성능 최적화)
+    if (isDrawing && currentStroke.length % 10 === 0) {
+      console.log('DrawLayer: PointerMove progress', { 
+        pointerType: e.pointerType, 
+        currentTool, 
+        currentStrokeLength: currentStroke.length,
+      });
+    }
 
     e.preventDefault();
     e.stopPropagation();
@@ -330,15 +327,11 @@ const DrawLayer: React.FC<DrawLayerProps> = ({ /* isViewPage = false */ }) => {
     if (currentTool === 'eraser') {
       // 지우개 모드: 드래그 중일 때만 지우기 (필기와 동일한 방식)
       if (isDrawing) {
-        console.log('DrawLayer: Erasing at', coords);
         eraseAtPoint(coords.x, coords.y);
       }
     } else if (isDrawing) {
       // 필기 모드: 점 추가 (모든 포인터 타입 허용)
-      console.log('DrawLayer: Adding point to stroke', coords, 'pointerType:', e.pointerType);
       addPoint(coords.x, coords.y);
-    } else {
-      console.log('DrawLayer: PointerMove ignored - not drawing', { isDrawing, currentTool });
     }
   }, [isDrawing, currentTool, addPoint, getCanvasCoordinates, eraseAtPoint, currentStroke.length]);
 
