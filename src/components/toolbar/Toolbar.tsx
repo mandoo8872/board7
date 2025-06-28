@@ -1548,7 +1548,7 @@ const Toolbar: React.FC = () => {
                   <label className="text-xs text-gray-500">그리드 크기</label>
                   <input 
                     type="range" 
-                    min="16" 
+                    min="8" 
                     max="64" 
                     value={safeSettings.admin.gridSize}
                     onChange={(e) => updateSettings('admin', { gridSize: parseInt(e.target.value) })}

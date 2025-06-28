@@ -4,6 +4,7 @@ import { useEditorStore } from '../../store/editorStore';
 import { useCheckboxStore } from '../../store/checkboxStore';
 import { TextObject } from '../../types';
 import { isValidPosition, isValidSize } from '../../utils/validation';
+import { snapPositionToGrid, snapSizeToGrid } from '../../utils/gridUtils';
 
 interface BaseLayerProps {
   isViewPage?: boolean;
@@ -17,7 +18,8 @@ const BaseLayer: React.FC<BaseLayerProps> = ({ isViewPage = false }) => {
     deleteTextObject,
     deleteImageObject,
     addTextObject,
-    addImageObject
+    addImageObject,
+    settings
   } = useAdminConfigStore();
   const { 
     selectedObjectId,
@@ -80,20 +82,36 @@ const BaseLayer: React.FC<BaseLayerProps> = ({ isViewPage = false }) => {
     setEditingObjectId(obj.id);
     setEditingText(obj.text);
     
-    // 다음 틱에서 커서를 마지막으로 이동
-    setTimeout(() => {
-      const textarea = document.querySelector('textarea[data-editing="true"]') as HTMLTextAreaElement;
-      if (textarea) {
-        const textLength = obj.text.length;
-        textarea.setSelectionRange(textLength, textLength);
-        textarea.focus();
-      }
-    }, 0);
-  }, []);
+    // 객체를 편집 상태로 업데이트
+    updateTextObject(obj.id, { isEditing: true });
+    
+    // ViewPage에서는 가상 키보드 활성화
+    if (isViewPage) {
+      setSelectedObjectId(obj.id);
+      setTimeout(() => {
+        window.dispatchEvent(new CustomEvent('activateVirtualKeyboard', {
+          detail: { objectId: obj.id }
+        }));
+      }, 100);
+    } else {
+      // AdminPage에서는 기존 방식 (textarea 포커스)
+      setTimeout(() => {
+        const textarea = document.querySelector('textarea[data-editing="true"]') as HTMLTextAreaElement;
+        if (textarea) {
+          const textLength = obj.text.length;
+          textarea.setSelectionRange(textLength, textLength);
+          textarea.focus();
+        }
+      }, 0);
+    }
+  }, [isViewPage, updateTextObject, setSelectedObjectId]);
 
   const finishInlineEdit = useCallback(async () => {
     if (editingObjectId && editingText !== undefined) {
-      await updateTextObject(editingObjectId, { text: editingText });
+      await updateTextObject(editingObjectId, { 
+        text: editingText,
+        isEditing: false 
+      });
       setEditingObjectId(null);
       setEditingText('');
     }
@@ -291,12 +309,23 @@ const BaseLayer: React.FC<BaseLayerProps> = ({ isViewPage = false }) => {
         y: mouseY - dragState.offset.y / scale
       };
 
+      // 그리드 스냅 적용 (Admin 설정 확인)
+      let finalPosition = newPosition;
+      
+      // 설정이 로드되지 않았을 때 기본값 제공
+      const gridSnapEnabled = settings?.admin?.gridSnapEnabled ?? false;
+      const gridSize = settings?.admin?.gridSize ?? 32;
+      
+      if (gridSnapEnabled && !isViewPage) {
+        finalPosition = snapPositionToGrid(newPosition.x, newPosition.y, gridSize);
+      }
+
       // 원본 객체 찾기
       const obj = textObjects.find(o => o.id === dragState.draggedObjectId) || imageObjects.find(o => o.id === dragState.draggedObjectId);
 
       // 좌표 유효성 검사 (원본 객체의 좌표를 기본값으로 사용)
-      let safeNewPosition = newPosition;
-      if (!isValidPosition(newPosition) && obj) {
+      let safeNewPosition = finalPosition;
+      if (!isValidPosition(finalPosition) && obj) {
         safeNewPosition = { x: obj.x, y: obj.y };
       }
 
@@ -413,16 +442,26 @@ const BaseLayer: React.FC<BaseLayerProps> = ({ isViewPage = false }) => {
           break;
       }
 
-      // 좌표와 크기 유효성 검사
-      const validPosition = { x: newX, y: newY };
-      const validSize = { width: newWidth, height: newHeight };
+      // 그리드 스냅 적용 (Admin 설정 확인)
+      let finalPosition = { x: newX, y: newY };
+      let finalSize = { width: newWidth, height: newHeight };
+      
+      // 설정이 로드되지 않았을 때 기본값 제공
+      const gridSnapEnabled = settings?.admin?.gridSnapEnabled ?? false;
+      const gridSize = settings?.admin?.gridSize ?? 32;
+      
+      if (gridSnapEnabled && !isViewPage) {
+        finalPosition = snapPositionToGrid(newX, newY, gridSize);
+        finalSize = snapSizeToGrid(newWidth, newHeight, gridSize);
+      }
 
-      if (isValidPosition(validPosition) && isValidSize(validSize)) {
+      // 좌표와 크기 유효성 검사
+      if (isValidPosition(finalPosition) && isValidSize(finalSize)) {
         // 임시로 로컬 상태에 저장 (실시간 반영)
         setResizeState(prev => ({
           ...prev,
-          currentSize: validSize,
-          currentPosition: validPosition
+          currentSize: finalSize,
+          currentPosition: finalPosition
         }));
       }
     }
@@ -567,12 +606,22 @@ const BaseLayer: React.FC<BaseLayerProps> = ({ isViewPage = false }) => {
       if (e.target === e.currentTarget) {
         setSelectedObjectId(null);
       }
+    } else if (isViewPage) {
+      // ViewPage에서는 빈 공간 클릭 시 선택 해제만 (키보드는 선택 해제 시 자동으로 숨겨짐)
+      if (e.target === e.currentTarget) {
+        setSelectedObjectId(null);
+      }
     }
   }, [editingObjectId, finishInlineEdit, setSelectedObjectId, isViewPage, currentTool]);
 
   // 개선된 텍스트 박스 클릭 핸들러
   const handleTextBoxClick = (obj: TextObject, e: React.MouseEvent) => {
     if (currentTool !== 'select') return;
+    
+    // 다른 객체를 편집 중이라면 먼저 편집 종료
+    if (editingObjectId && editingObjectId !== obj.id) {
+      finishInlineEdit();
+    }
     
     const isCell = obj.cellType === 'cell';
     

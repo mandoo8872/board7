@@ -52,8 +52,8 @@ export const useAdminConfigStore = create<AdminConfigStore>((set, get) => {
       admin: {
         autoToolSwitch: true,
         gridVisible: true,
-        gridSize: 32,
-        gridSnapEnabled: false,
+        gridSize: 16,
+        gridSnapEnabled: true,
         defaultFontSize: 16,
         objectCreationPosition: {
           x: 260,

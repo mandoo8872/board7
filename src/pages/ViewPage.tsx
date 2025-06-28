@@ -1,8 +1,7 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import Canvas from '../components/Canvas';
-import FloatingToolbar from '../components/toolbar/FloatingToolbar';
-import VirtualKeyboard from '../components/keyboard/VirtualKeyboard';
-import DrawToolSettings from '../components/toolbar/DrawToolSettings';
+import ViewFloatingToolbar from '../components/toolbar/ViewFloatingToolbar';
+import ViewVirtualKeyboard from '../components/keyboard/ViewVirtualKeyboard';
 import { useAdminConfigStore } from '../store/adminConfigStore';
 
 const ViewPage: React.FC = () => {
@@ -10,6 +9,10 @@ const ViewPage: React.FC = () => {
 
   // 설정이 로드되지 않았을 때 기본값 제공
   const virtualKeyboardEnabled = settings?.view?.virtualKeyboardEnabled ?? true;
+
+  // 플로팅 툴바 자동 숨김 상태 관리
+  const [toolbarVisible, setToolbarVisible] = useState(true);
+  const hideTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     // ViewPage에서도 Firebase 리스너 초기화
@@ -22,6 +25,50 @@ const ViewPage: React.FC = () => {
     };
   }, [initializeFirebaseListeners]);
 
+  // 플로팅 툴바 자동 숨김 관리
+  useEffect(() => {
+    const startHideTimer = () => {
+      if (hideTimerRef.current) {
+        clearTimeout(hideTimerRef.current);
+      }
+      
+      hideTimerRef.current = setTimeout(() => {
+        setToolbarVisible(false);
+      }, 10000); // 10초 후 숨김
+    };
+
+    const showToolbar = () => {
+      setToolbarVisible(true);
+      startHideTimer();
+    };
+
+    // 사용자 액션 감지 이벤트 핸들러
+    const handleUserAction = () => {
+      showToolbar();
+    };
+
+    // 초기 타이머 시작
+    startHideTimer();
+
+    // 전역 이벤트 리스너 등록
+    window.addEventListener('mousemove', handleUserAction);
+    window.addEventListener('mousedown', handleUserAction);
+    window.addEventListener('click', handleUserAction);
+    window.addEventListener('touchstart', handleUserAction);
+
+    // 정리
+    return () => {
+      if (hideTimerRef.current) {
+        clearTimeout(hideTimerRef.current);
+      }
+      
+      window.removeEventListener('mousemove', handleUserAction);
+      window.removeEventListener('mousedown', handleUserAction);
+      window.removeEventListener('click', handleUserAction);
+      window.removeEventListener('touchstart', handleUserAction);
+    };
+  }, []);
+
   return (
     <div className="w-screen h-screen overflow-hidden bg-white relative">
       {/* 메인 캔버스 영역 */}
@@ -29,14 +76,11 @@ const ViewPage: React.FC = () => {
         <Canvas isViewPage={true} />
       </main>
       
-      {/* 플로팅 툴바 (T/T 생성용) */}
-      <FloatingToolbar />
+      {/* ViewPage 전용 플로팅 툴바 - 조건부 렌더링 */}
+      {toolbarVisible && <ViewFloatingToolbar />}
       
-      {/* 필기/지우개 도구 설정 */}
-      <DrawToolSettings />
-      
-      {/* 가상 키보드 (설정에 따라 표시) */}
-      {virtualKeyboardEnabled && <VirtualKeyboard />}
+      {/* ViewPage 전용 가상 키보드 (설정에 따라 표시) */}
+      {virtualKeyboardEnabled && <ViewVirtualKeyboard />}
     </div>
   );
 };
