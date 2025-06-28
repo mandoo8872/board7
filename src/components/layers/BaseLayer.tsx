@@ -1,7 +1,6 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { useAdminConfigStore } from '../../store/adminConfigStore';
 import { useEditorStore } from '../../store/editorStore';
-import { useCheckboxStore } from '../../store/checkboxStore';
 import { TextObject } from '../../types';
 import { isValidPosition, isValidSize } from '../../utils/validation';
 import { snapPositionToGrid, snapSizeToGrid } from '../../utils/gridUtils';
@@ -28,14 +27,16 @@ const BaseLayer: React.FC<BaseLayerProps> = ({ isViewPage = false }) => {
     setSelectedObjectId,
     setHoveredObjectId,
   } = useEditorStore();
-  const { 
-    defaultCheckedColor,
-    defaultUncheckedColor,
-    checkedBackgroundColor,
-    uncheckedBackgroundColor,
-    checkedBackgroundOpacity,
-    uncheckedBackgroundOpacity
-  } = useCheckboxStore();
+
+  // 전역 체크박스 설정
+  const globalCheckboxSettings = settings?.admin?.defaultCheckboxSettings || {
+    checkedColor: '#22c55e',
+    uncheckedColor: '#f3f4f6',
+    checkedBackgroundColor: '#ffffff',
+    uncheckedBackgroundColor: '#ffffff',
+    checkedBackgroundOpacity: 1,
+    uncheckedBackgroundOpacity: 1
+  };
 
   // 드래그 상태 관리
   const [dragState, setDragState] = useState<{
@@ -798,14 +799,14 @@ const BaseLayer: React.FC<BaseLayerProps> = ({ isViewPage = false }) => {
                   className="absolute inset-0"
                   style={{
                     backgroundColor: textObj.hasCheckbox && textObj.checkboxChecked 
-                      ? checkedBackgroundColor 
+                      ? globalCheckboxSettings.checkedBackgroundColor 
                       : textObj.hasCheckbox && !textObj.checkboxChecked 
-                        ? uncheckedBackgroundColor 
+                        ? globalCheckboxSettings.uncheckedBackgroundColor 
                         : boxStyle.backgroundColor,
                     opacity: textObj.hasCheckbox && textObj.checkboxChecked 
-                      ? checkedBackgroundOpacity
+                      ? globalCheckboxSettings.checkedBackgroundOpacity
                       : textObj.hasCheckbox && !textObj.checkboxChecked 
-                        ? uncheckedBackgroundOpacity
+                        ? globalCheckboxSettings.uncheckedBackgroundOpacity
                         : boxStyle.backgroundOpacity,
                     borderRadius: `${boxStyle.borderRadius}px`,
                   }}
@@ -870,10 +871,7 @@ const BaseLayer: React.FC<BaseLayerProps> = ({ isViewPage = false }) => {
                             e.stopPropagation();
                             const isChecked = !textObj.checkboxChecked;
                             updateTextObject(textObj.id, { 
-                              checkboxChecked: isChecked,
-                              // 체크박스 색상이 없으면 기본값 적용
-                              checkboxCheckedColor: textObj.checkboxCheckedColor || defaultCheckedColor,
-                              checkboxUncheckedColor: textObj.checkboxUncheckedColor || defaultUncheckedColor
+                              checkboxChecked: isChecked
                             });
                           }}
                           onPointerDown={(e) => {
@@ -886,10 +884,10 @@ const BaseLayer: React.FC<BaseLayerProps> = ({ isViewPage = false }) => {
                             width: '35px',
                             height: '35px',
                             backgroundColor: textObj.checkboxChecked 
-                              ? (textObj.checkboxCheckedColor || defaultCheckedColor)
-                              : (textObj.checkboxUncheckedColor || defaultUncheckedColor),
+                              ? globalCheckboxSettings.checkedColor
+                              : globalCheckboxSettings.uncheckedColor,
                             border: `2px solid ${textObj.checkboxChecked 
-                              ? (textObj.checkboxCheckedColor || defaultCheckedColor)
+                              ? globalCheckboxSettings.checkedColor
                               : '#d1d5db'}`,
                             borderRadius: '4px',
                             marginRight: '8px',

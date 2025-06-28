@@ -240,8 +240,8 @@ const Toolbar: React.FC = () => {
       opacity: 1,
       hasCheckbox: false,
       checkboxChecked: false,
-      checkboxCheckedColor: '#22c55e',
-      checkboxUncheckedColor: '#f3f4f6',
+      checkboxCheckedColor: undefined, // 전역 설정 사용
+      checkboxUncheckedColor: undefined, // 전역 설정 사용
       isEditing: false,
       lastModified: Date.now()
     };
@@ -255,7 +255,6 @@ const Toolbar: React.FC = () => {
 
   const handleCreateCheckbox = useCallback(async () => {
     const { x, y } = safeSettings.admin.objectCreationPosition;
-    const { checkedColor, uncheckedColor } = safeSettings.admin.defaultCheckboxSettings;
     const newCheckboxObject: Omit<TextObject, 'id'> = {
       x,
       y,
@@ -290,8 +289,8 @@ const Toolbar: React.FC = () => {
       opacity: 1,
       hasCheckbox: true,
       checkboxChecked: false,
-      checkboxCheckedColor: checkedColor,
-      checkboxUncheckedColor: uncheckedColor,
+      checkboxCheckedColor: undefined, // 전역 설정 사용
+      checkboxUncheckedColor: undefined, // 전역 설정 사용
       isEditing: false,
       lastModified: Date.now()
     };
@@ -301,7 +300,7 @@ const Toolbar: React.FC = () => {
     } catch (error) {
       console.error('체크박스 객체 생성 실패:', error);
     }
-  }, [addTextObject, safeSettings.admin.objectCreationPosition, safeSettings.admin.defaultCheckboxSettings, safeSettings.admin.defaultFontSize, safeSettings.admin.defaultBoxWidth, safeSettings.admin.defaultBoxHeight]);
+  }, [addTextObject, safeSettings.admin.objectCreationPosition, safeSettings.admin.defaultFontSize, safeSettings.admin.defaultBoxWidth, safeSettings.admin.defaultBoxHeight]);
 
   const handleCreateImage = useCallback(async () => {
     const input = document.createElement('input');
