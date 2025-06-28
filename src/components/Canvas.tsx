@@ -189,7 +189,7 @@ const Canvas: React.FC<CanvasProps> = ({ isViewPage = false }) => {
         height: '100%',
         overflowX: needsHorizontalScroll ? 'auto' : 'hidden',
         overflowY: needsVerticalScroll ? 'auto' : 'hidden',
-        backgroundColor: '#ffffff',
+        backgroundColor: 'transparent',
         cursor: getCursor(),
       }}
     >

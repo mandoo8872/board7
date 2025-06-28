@@ -26,6 +26,16 @@ body {
   -ms-user-select: none;
   user-select: none;
   touch-action: manipulation;
+  
+  /* 럭셔리 크림톤 배경 */
+  background-color: #f7f5ed;
+  background-image: 
+    radial-gradient(circle at 25% 25%, rgba(245, 240, 220, 0.4) 2px, transparent 2px),
+    radial-gradient(circle at 75% 75%, rgba(245, 240, 220, 0.3) 1px, transparent 1px),
+    linear-gradient(45deg, transparent 40%, rgba(248, 246, 238, 0.2) 40%, rgba(248, 246, 238, 0.2) 60%, transparent 60%),
+    linear-gradient(-45deg, transparent 40%, rgba(245, 240, 220, 0.15) 40%, rgba(245, 240, 220, 0.15) 60%, transparent 60%);
+  background-size: 80px 80px, 120px 120px, 200px 200px, 180px 180px;
+  background-position: 0 0, 40px 40px, 0 0, 90px 90px;
 }
 
 /* 사용자 선택 비활성화 (터치 인터페이스 최적화) */

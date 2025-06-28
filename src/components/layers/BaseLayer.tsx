@@ -883,8 +883,8 @@ const BaseLayer: React.FC<BaseLayerProps> = ({ isViewPage = false }) => {
                             display: 'inline-flex',
                             alignItems: 'center',
                             justifyContent: 'center',
-                            width: '30px',
-                            height: '30px',
+                            width: '35px',
+                            height: '35px',
                             backgroundColor: textObj.checkboxChecked 
                               ? (textObj.checkboxCheckedColor || defaultCheckedColor)
                               : (textObj.checkboxUncheckedColor || defaultUncheckedColor),

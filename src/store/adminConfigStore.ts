@@ -55,6 +55,8 @@ export const useAdminConfigStore = create<AdminConfigStore>((set, get) => {
         gridSize: 16,
         gridSnapEnabled: true,
         defaultFontSize: 16,
+        defaultBoxWidth: 200,
+        defaultBoxHeight: 60,
         objectCreationPosition: {
           x: 260,
           y: 950

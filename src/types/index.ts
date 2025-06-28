@@ -140,6 +140,8 @@ export interface AdminSettings {
   gridSize: number;
   gridSnapEnabled: boolean;
   defaultFontSize: number;
+  defaultBoxWidth: number;
+  defaultBoxHeight: number;
   objectCreationPosition: {
     x: number;
     y: number;

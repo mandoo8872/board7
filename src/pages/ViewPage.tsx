@@ -70,7 +70,7 @@ const ViewPage: React.FC = () => {
   }, []);
 
   return (
-    <div className="w-screen h-screen overflow-hidden bg-white relative">
+    <div className="w-screen h-screen overflow-hidden relative">
       {/* 메인 캔버스 영역 */}
       <main className="w-full h-full">
         <Canvas isViewPage={true} />
