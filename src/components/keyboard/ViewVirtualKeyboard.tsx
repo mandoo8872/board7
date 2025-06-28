@@ -413,7 +413,7 @@ const ViewVirtualKeyboard: React.FC = () => {
     }
   };
 
-  const getKeyButtonClass = (key: string) => {
+  const getKeyButtonClass = (_key: string) => {
     const baseClass = 'bg-gray-700 hover:bg-gray-600 text-white rounded transition-colors border border-gray-600';
     let keySize = 'text-sm px-2 py-2';
     
