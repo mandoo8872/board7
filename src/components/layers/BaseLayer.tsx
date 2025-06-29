@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { useAdminConfigStore } from '../../store/adminConfigStore';
 import { useEditorStore } from '../../store/editorStore';
+import { useCheckboxStore } from '../../store/checkboxStore';
 import { TextObject } from '../../types';
 import { isValidPosition, isValidSize } from '../../utils/validation';
 import { snapPositionToGrid, snapSizeToGrid } from '../../utils/gridUtils';
@@ -14,6 +15,7 @@ const BaseLayer: React.FC<BaseLayerProps> = ({ isViewPage = false }) => {
     textObjects, 
     imageObjects,
     updateTextObject, 
+    updateImageObject,
     deleteTextObject,
     deleteImageObject,
     addTextObject,
@@ -27,16 +29,14 @@ const BaseLayer: React.FC<BaseLayerProps> = ({ isViewPage = false }) => {
     setSelectedObjectId,
     setHoveredObjectId,
   } = useEditorStore();
-
-  // 전역 체크박스 설정
-  const globalCheckboxSettings = settings?.admin?.defaultCheckboxSettings || {
-    checkedColor: '#22c55e',
-    uncheckedColor: '#f3f4f6',
-    checkedBackgroundColor: '#ffffff',
-    uncheckedBackgroundColor: '#ffffff',
-    checkedBackgroundOpacity: 1,
-    uncheckedBackgroundOpacity: 1
-  };
+  const { 
+    defaultCheckedColor,
+    defaultUncheckedColor,
+    checkedBackgroundColor,
+    uncheckedBackgroundColor,
+    checkedBackgroundOpacity,
+    uncheckedBackgroundOpacity
+  } = useCheckboxStore();
 
   // 드래그 상태 관리
   const [dragState, setDragState] = useState<{
@@ -481,12 +481,25 @@ const BaseLayer: React.FC<BaseLayerProps> = ({ isViewPage = false }) => {
     if (dragState.isDragging && dragState.draggedObjectId) {
       const finalPosition = dragState.currentPosition;
       
-      updateTextObject(dragState.draggedObjectId, {
-        x: finalPosition.x,
-        y: finalPosition.y
-      }).catch(error => {
-        console.error('Failed to update object position:', error);
-      });
+      // 텍스트 객체인지 이미지 객체인지 확인
+      const textObj = textObjects.find(obj => obj.id === dragState.draggedObjectId);
+      const imageObj = imageObjects.find(obj => obj.id === dragState.draggedObjectId);
+      
+      if (textObj) {
+        updateTextObject(dragState.draggedObjectId, {
+          x: finalPosition.x,
+          y: finalPosition.y
+        }).catch(error => {
+          console.error('Failed to update text object position:', error);
+        });
+      } else if (imageObj) {
+        updateImageObject(dragState.draggedObjectId, {
+          x: finalPosition.x,
+          y: finalPosition.y
+        }).catch((error: any) => {
+          console.error('Failed to update image object position:', error);
+        });
+      }
 
       setDragState({
         isDragging: false,
@@ -502,14 +515,29 @@ const BaseLayer: React.FC<BaseLayerProps> = ({ isViewPage = false }) => {
       const finalPosition = resizeState.currentPosition;
       
       if (finalSize && finalPosition) {
-        updateTextObject(resizeState.resizedObjectId, {
-          x: finalPosition.x,
-          y: finalPosition.y,
-          width: finalSize.width,
-          height: finalSize.height
-        }).catch(error => {
-          console.error('Failed to update object size/position:', error);
-        });
+        // 텍스트 객체인지 이미지 객체인지 확인
+        const textObj = textObjects.find(obj => obj.id === resizeState.resizedObjectId);
+        const imageObj = imageObjects.find(obj => obj.id === resizeState.resizedObjectId);
+        
+        if (textObj) {
+          updateTextObject(resizeState.resizedObjectId, {
+            x: finalPosition.x,
+            y: finalPosition.y,
+            width: finalSize.width,
+            height: finalSize.height
+          }).catch(error => {
+            console.error('Failed to update text object size/position:', error);
+          });
+        } else if (imageObj) {
+          updateImageObject(resizeState.resizedObjectId, {
+            x: finalPosition.x,
+            y: finalPosition.y,
+            width: finalSize.width,
+            height: finalSize.height
+          }).catch((error: any) => {
+            console.error('Failed to update image object size/position:', error);
+          });
+        }
       }
 
       setResizeState({
@@ -521,7 +549,7 @@ const BaseLayer: React.FC<BaseLayerProps> = ({ isViewPage = false }) => {
         startObjectPosition: { x: 0, y: 0 }
       });
     }
-  }, [dragState, resizeState, updateTextObject]);
+  }, [dragState, resizeState, textObjects, imageObjects, updateTextObject, updateImageObject]);
 
   // 마우스 업 핸들러 (호환성 유지)
   const handleMouseUp = useCallback(() => {
@@ -529,12 +557,25 @@ const BaseLayer: React.FC<BaseLayerProps> = ({ isViewPage = false }) => {
     if (dragState.isDragging && dragState.draggedObjectId) {
       const finalPosition = dragState.currentPosition;
       
-      updateTextObject(dragState.draggedObjectId, {
-        x: finalPosition.x,
-        y: finalPosition.y
-      }).catch(error => {
-        console.error('Failed to update object position:', error);
-      });
+      // 텍스트 객체인지 이미지 객체인지 확인
+      const textObj = textObjects.find(obj => obj.id === dragState.draggedObjectId);
+      const imageObj = imageObjects.find(obj => obj.id === dragState.draggedObjectId);
+      
+      if (textObj) {
+        updateTextObject(dragState.draggedObjectId, {
+          x: finalPosition.x,
+          y: finalPosition.y
+        }).catch((error: any) => {
+          console.error('Failed to update text object position:', error);
+        });
+      } else if (imageObj) {
+        updateImageObject(dragState.draggedObjectId, {
+          x: finalPosition.x,
+          y: finalPosition.y
+        }).catch((error: any) => {
+          console.error('Failed to update image object position:', error);
+        });
+      }
 
       setDragState({
         isDragging: false,
@@ -549,14 +590,29 @@ const BaseLayer: React.FC<BaseLayerProps> = ({ isViewPage = false }) => {
       const finalPosition = resizeState.currentPosition;
       
       if (finalSize && finalPosition) {
-        updateTextObject(resizeState.resizedObjectId, {
-          x: finalPosition.x,
-          y: finalPosition.y,
-          width: finalSize.width,
-          height: finalSize.height
-        }).catch(error => {
-          console.error('Failed to update object size/position:', error);
-        });
+        // 텍스트 객체인지 이미지 객체인지 확인
+        const textObj = textObjects.find(obj => obj.id === resizeState.resizedObjectId);
+        const imageObj = imageObjects.find(obj => obj.id === resizeState.resizedObjectId);
+        
+        if (textObj) {
+          updateTextObject(resizeState.resizedObjectId, {
+            x: finalPosition.x,
+            y: finalPosition.y,
+            width: finalSize.width,
+            height: finalSize.height
+          }).catch((error: any) => {
+            console.error('Failed to update text object size/position:', error);
+          });
+        } else if (imageObj) {
+          updateImageObject(resizeState.resizedObjectId, {
+            x: finalPosition.x,
+            y: finalPosition.y,
+            width: finalSize.width,
+            height: finalSize.height
+          }).catch((error: any) => {
+            console.error('Failed to update image object size/position:', error);
+          });
+        }
       }
 
       setResizeState({
@@ -568,7 +624,7 @@ const BaseLayer: React.FC<BaseLayerProps> = ({ isViewPage = false }) => {
         startObjectPosition: { x: 0, y: 0 }
       });
     }
-  }, [dragState, resizeState, updateTextObject]);
+  }, [dragState, resizeState, textObjects, imageObjects, updateTextObject, updateImageObject]);
 
   // 마우스 이동 핸들러 (호환성 유지)
   const handleMouseMove = (e: React.MouseEvent) => {
@@ -799,14 +855,14 @@ const BaseLayer: React.FC<BaseLayerProps> = ({ isViewPage = false }) => {
                   className="absolute inset-0"
                   style={{
                     backgroundColor: textObj.hasCheckbox && textObj.checkboxChecked 
-                      ? globalCheckboxSettings.checkedBackgroundColor 
+                      ? (textObj.checkedBackgroundColor || checkedBackgroundColor)
                       : textObj.hasCheckbox && !textObj.checkboxChecked 
-                        ? globalCheckboxSettings.uncheckedBackgroundColor 
+                        ? (textObj.uncheckedBackgroundColor || uncheckedBackgroundColor)
                         : boxStyle.backgroundColor,
                     opacity: textObj.hasCheckbox && textObj.checkboxChecked 
-                      ? globalCheckboxSettings.checkedBackgroundOpacity
+                      ? (textObj.checkedBackgroundOpacity ?? checkedBackgroundOpacity)
                       : textObj.hasCheckbox && !textObj.checkboxChecked 
-                        ? globalCheckboxSettings.uncheckedBackgroundOpacity
+                        ? (textObj.uncheckedBackgroundOpacity ?? uncheckedBackgroundOpacity)
                         : boxStyle.backgroundOpacity,
                     borderRadius: `${boxStyle.borderRadius}px`,
                   }}
@@ -859,7 +915,8 @@ const BaseLayer: React.FC<BaseLayerProps> = ({ isViewPage = false }) => {
                         wordBreak: 'break-word',
                         cursor: 'pointer',
                         display: 'flex',
-                        alignItems: 'center',
+                        alignItems: textStyle.verticalAlign === 'top' ? 'flex-start' : 
+                                   textStyle.verticalAlign === 'middle' ? 'center' : 'flex-end',
                         width: '100%',
                         height: '100%',
                       }}
@@ -871,7 +928,10 @@ const BaseLayer: React.FC<BaseLayerProps> = ({ isViewPage = false }) => {
                             e.stopPropagation();
                             const isChecked = !textObj.checkboxChecked;
                             updateTextObject(textObj.id, { 
-                              checkboxChecked: isChecked
+                              checkboxChecked: isChecked,
+                              // 체크박스 색상이 없으면 기본값 적용
+                              checkboxCheckedColor: textObj.checkboxCheckedColor || defaultCheckedColor,
+                              checkboxUncheckedColor: textObj.checkboxUncheckedColor || defaultUncheckedColor
                             });
                           }}
                           onPointerDown={(e) => {
@@ -884,10 +944,10 @@ const BaseLayer: React.FC<BaseLayerProps> = ({ isViewPage = false }) => {
                             width: '35px',
                             height: '35px',
                             backgroundColor: textObj.checkboxChecked 
-                              ? globalCheckboxSettings.checkedColor
-                              : globalCheckboxSettings.uncheckedColor,
+                              ? (textObj.checkboxCheckedColor || defaultCheckedColor)
+                              : (textObj.checkboxUncheckedColor || defaultUncheckedColor),
                             border: `2px solid ${textObj.checkboxChecked 
-                              ? globalCheckboxSettings.checkedColor
+                              ? (textObj.checkboxCheckedColor || defaultCheckedColor)
                               : '#d1d5db'}`,
                             borderRadius: '4px',
                             marginRight: '8px',
@@ -1024,7 +1084,9 @@ const BaseLayer: React.FC<BaseLayerProps> = ({ isViewPage = false }) => {
                 <img
                   src={imageObj.src}
                   alt=""
-                  className="w-full h-full object-contain"
+                  className={`w-full h-full ${
+                    imageObj.maintainAspectRatio ? 'object-contain' : 'object-fill'
+                  }`}
                   draggable={false}
                   style={{
                     pointerEvents: 'none',

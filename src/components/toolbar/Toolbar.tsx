@@ -25,7 +25,7 @@ const Toolbar: React.FC = () => {
   const [isExcelPasteExpanded, setIsExcelPasteExpanded] = useState(false);
   const [excelPasteData, setExcelPasteData] = useState('');
   const [showPreview, setShowPreview] = useState(false);
-  
+
   // 색상 선택 모드 상태 (text, background, border)
   const [colorMode, setColorMode] = useState<'text' | 'background' | 'border'>('text');
   
@@ -240,8 +240,8 @@ const Toolbar: React.FC = () => {
       opacity: 1,
       hasCheckbox: false,
       checkboxChecked: false,
-      checkboxCheckedColor: undefined, // 전역 설정 사용
-      checkboxUncheckedColor: undefined, // 전역 설정 사용
+      checkboxCheckedColor: '#22c55e',
+      checkboxUncheckedColor: '#f3f4f6',
       isEditing: false,
       lastModified: Date.now()
     };
@@ -255,6 +255,15 @@ const Toolbar: React.FC = () => {
 
   const handleCreateCheckbox = useCallback(async () => {
     const { x, y } = safeSettings.admin.objectCreationPosition;
+    const { 
+      checkedColor, 
+      uncheckedColor,
+      checkedBackgroundColor,
+      uncheckedBackgroundColor,
+      checkedBackgroundOpacity,
+      uncheckedBackgroundOpacity
+    } = safeSettings.admin.defaultCheckboxSettings;
+    
     const newCheckboxObject: Omit<TextObject, 'id'> = {
       x,
       y,
@@ -264,7 +273,7 @@ const Toolbar: React.FC = () => {
       fontSize: safeSettings.admin.defaultFontSize,
       textStyle: {
         color: '#000000',
-        bold: false,
+        bold: true, // 체크박스는 기본적으로 굵게
         italic: false,
         horizontalAlign: 'left',
         verticalAlign: 'middle',
@@ -274,8 +283,8 @@ const Toolbar: React.FC = () => {
         backgroundColor: 'transparent',
         backgroundOpacity: 1,
         borderColor: '#000000',
-        borderWidth: 0,
-        borderRadius: 0
+        borderWidth: 1, // 1px 테두리 추가
+        borderRadius: 8 // 라운딩 처리 추가
       },
       permissions: {
         editable: true,
@@ -289,8 +298,12 @@ const Toolbar: React.FC = () => {
       opacity: 1,
       hasCheckbox: true,
       checkboxChecked: false,
-      checkboxCheckedColor: undefined, // 전역 설정 사용
-      checkboxUncheckedColor: undefined, // 전역 설정 사용
+      checkboxCheckedColor: checkedColor,
+      checkboxUncheckedColor: uncheckedColor,
+      checkedBackgroundColor: checkedBackgroundColor,
+      uncheckedBackgroundColor: uncheckedBackgroundColor,
+      checkedBackgroundOpacity: checkedBackgroundOpacity,
+      uncheckedBackgroundOpacity: uncheckedBackgroundOpacity,
       isEditing: false,
       lastModified: Date.now()
     };
@@ -300,7 +313,7 @@ const Toolbar: React.FC = () => {
     } catch (error) {
       console.error('체크박스 객체 생성 실패:', error);
     }
-  }, [addTextObject, safeSettings.admin.objectCreationPosition, safeSettings.admin.defaultFontSize, safeSettings.admin.defaultBoxWidth, safeSettings.admin.defaultBoxHeight]);
+  }, [addTextObject, safeSettings.admin.objectCreationPosition, safeSettings.admin.defaultCheckboxSettings, safeSettings.admin.defaultFontSize, safeSettings.admin.defaultBoxWidth, safeSettings.admin.defaultBoxHeight]);
 
   const handleCreateImage = useCallback(async () => {
     const input = document.createElement('input');
@@ -315,12 +328,13 @@ const Toolbar: React.FC = () => {
         const reader = new FileReader();
         reader.onload = async (event) => {
           const src = event.target?.result as string;
+          const { x, y } = safeSettings.admin.objectCreationPosition;
           
           const newImageObject: Omit<ImageObject, 'id'> = {
-            x: 200,
-            y: 200,
-            width: 200,
-            height: 200,
+            x,
+            y,
+            width: safeSettings.admin.defaultBoxWidth,
+            height: safeSettings.admin.defaultBoxHeight,
             src,
             permissions: {
               editable: true,
@@ -345,7 +359,7 @@ const Toolbar: React.FC = () => {
     };
 
     input.click();
-  }, [addImageObject]);
+  }, [addImageObject, safeSettings.admin.objectCreationPosition, safeSettings.admin.defaultBoxWidth, safeSettings.admin.defaultBoxHeight]);
 
   // 엑셀 데이터 파싱 함수
   const parseExcelData = useCallback((data: string): string[][] => {
@@ -1084,15 +1098,15 @@ const Toolbar: React.FC = () => {
                         ▲
                 </button>
               </div>
-            </div>
-
+              </div>
+              
                   {/* 색상 선택 */}
                   <div>
                     <label className="text-xs font-medium text-slate-600 mb-2 block">색상</label>
                     
                     {/* 색상 모드 선택 버튼 */}
                     <div className="grid grid-cols-3 gap-1 mb-3">
-                      <button
+                <button
                         onClick={() => setColorMode('text')}
                         className={`px-2 py-2 rounded text-xs transition-colors ${
                           colorMode === 'text'
@@ -1101,8 +1115,8 @@ const Toolbar: React.FC = () => {
                         }`}
                       >
                         텍스트
-                      </button>
-                      <button
+                </button>
+                <button
                         onClick={() => setColorMode('background')}
                         className={`px-2 py-2 rounded text-xs transition-colors ${
                           colorMode === 'background'
@@ -1111,8 +1125,8 @@ const Toolbar: React.FC = () => {
                         }`}
                       >
                         배경
-                      </button>
-                      <button
+                </button>
+                <button
                         onClick={() => setColorMode('border')}
                         className={`px-2 py-2 rounded text-xs transition-colors ${
                           colorMode === 'border'
@@ -1121,8 +1135,8 @@ const Toolbar: React.FC = () => {
                         }`}
                       >
                         테두리
-                      </button>
-                    </div>
+                </button>
+            </div>
 
                     {/* 색상 파레트 */}
                     <div className="grid grid-cols-5 gap-2">
@@ -1272,6 +1286,21 @@ const Toolbar: React.FC = () => {
               {/* 이미지 객체 편집 */}
               {isImageObject(selectedObject) && (
                 <div className="space-y-3">
+                {/* 비율 유지 체크박스 */}
+                  <div>
+                  <label className="flex items-center gap-2 text-xs">
+                    <input 
+                      type="checkbox" 
+                        checked={selectedObject.maintainAspectRatio || false}
+                        onChange={(e) => debouncedUpdateImageObject(selectedObject.id, { 
+                          maintainAspectRatio: e.target.checked 
+                        })}
+                      className="rounded" 
+                    />
+                      <span>비율 유지</span>
+                  </label>
+                </div>
+                  
                   <div>
                     <label className="text-xs font-medium text-slate-600 mb-1 block">불투명도</label>
                   <div className="flex items-center gap-2">
@@ -1294,8 +1323,91 @@ const Toolbar: React.FC = () => {
                       >
                         ▲
                       </button>
-                  </div>
+              </div>
                 </div>
+                
+                  {/* 크기 조절 */}
+                  <div>
+                    <label className="text-xs font-medium text-slate-600 mb-2 block">크기</label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="text-xs text-slate-600 mb-1 block">너비</label>
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => {
+                              const newWidth = Math.max(50, selectedObject.width - 10);
+                              const updates = selectedObject.maintainAspectRatio
+                                ? { 
+                                    width: newWidth,
+                                    height: newWidth / (selectedObject.width / selectedObject.height)
+                                  }
+                                : { width: newWidth };
+                              debouncedUpdateImageObject(selectedObject.id, updates);
+                            }}
+                            className="px-2 py-1 bg-slate-100 hover:bg-slate-200 rounded text-xs"
+                          >
+                            ◀
+                          </button>
+                          <span className="flex-1 text-center text-xs font-mono bg-slate-50 py-1 rounded">
+                            {Math.round(selectedObject.width)}
+                          </span>
+                          <button
+                            onClick={() => {
+                              const newWidth = selectedObject.width + 10;
+                              const updates = selectedObject.maintainAspectRatio
+                                ? { 
+                                    width: newWidth,
+                                    height: newWidth / (selectedObject.width / selectedObject.height)
+                                  }
+                                : { width: newWidth };
+                              debouncedUpdateImageObject(selectedObject.id, updates);
+                            }}
+                            className="px-2 py-1 bg-slate-100 hover:bg-slate-200 rounded text-xs"
+                          >
+                            ▶
+                          </button>
+                        </div>
+                      </div>
+                      <div>
+                        <label className="text-xs text-slate-600 mb-1 block">높이</label>
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => {
+                              const newHeight = Math.max(30, selectedObject.height - 10);
+                              const updates = selectedObject.maintainAspectRatio
+                                ? { 
+                                    height: newHeight,
+                                    width: newHeight * (selectedObject.width / selectedObject.height)
+                                  }
+                                : { height: newHeight };
+                              debouncedUpdateImageObject(selectedObject.id, updates);
+                            }}
+                            className="px-2 py-1 bg-slate-100 hover:bg-slate-200 rounded text-xs"
+                          >
+                            ▲
+                          </button>
+                          <span className="flex-1 text-center text-xs font-mono bg-slate-50 py-1 rounded">
+                            {Math.round(selectedObject.height)}
+                          </span>
+                          <button
+                            onClick={() => {
+                              const newHeight = selectedObject.height + 10;
+                              const updates = selectedObject.maintainAspectRatio
+                                ? { 
+                                    height: newHeight,
+                                    width: newHeight * (selectedObject.width / selectedObject.height)
+                                  }
+                                : { height: newHeight };
+                              debouncedUpdateImageObject(selectedObject.id, updates);
+                            }}
+                            className="px-2 py-1 bg-slate-100 hover:bg-slate-200 rounded text-xs"
+                          >
+                            ▼
+                          </button>
+              </div>
+            </div>
+                    </div>
+                  </div>
               </div>
             )}
 

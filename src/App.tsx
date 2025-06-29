@@ -1,12 +1,14 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, Suspense } from 'react';
 import { 
   BrowserRouter as Router, 
   Routes, 
   Route, 
   Navigate
 } from 'react-router-dom';
-import AdminPage from './pages/AdminPage';
-import ViewPage from './pages/ViewPage';
+
+// 페이지 컴포넌트들을 동적 import로 변경 (코드 분할)
+const AdminPage = React.lazy(() => import('./pages/AdminPage'));
+const ViewPage = React.lazy(() => import('./pages/ViewPage'));
 
 const App: React.FC = () => {
   // 인증 관련 상태 (현재 사용하지 않음)
@@ -80,11 +82,20 @@ const App: React.FC = () => {
 
   return (
     <Router>
-      <Routes>
-        <Route path="/admin" element={<AdminPage />} />
-        <Route path="/view" element={<ViewPage />} />
-        <Route path="/" element={<Navigate to="/view" />} />
-      </Routes>
+      <Suspense fallback={
+        <div className="flex items-center justify-center min-h-screen bg-gray-50">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <p className="text-gray-600">페이지를 불러오는 중...</p>
+          </div>
+        </div>
+      }>
+        <Routes>
+          <Route path="/admin" element={<AdminPage />} />
+          <Route path="/view" element={<ViewPage />} />
+          <Route path="/" element={<Navigate to="/view" />} />
+        </Routes>
+      </Suspense>
     </Router>
   );
 };

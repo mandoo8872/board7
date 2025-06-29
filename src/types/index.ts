@@ -70,6 +70,10 @@ export interface TextObject {
   checkboxChecked: boolean;
   checkboxCheckedColor?: string;
   checkboxUncheckedColor?: string;
+  checkedBackgroundColor?: string;
+  uncheckedBackgroundColor?: string;
+  checkedBackgroundOpacity?: number;
+  uncheckedBackgroundOpacity?: number;
   boxStyle: BoxStyle;
   fontSize: number;
   textStyle: TextStyle;
