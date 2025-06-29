@@ -91,9 +91,19 @@ const ViewFloatingToolbar: React.FC = () => {
 
   // 설정이 로드되지 않았을 때 기본값 제공
   const safeSettings = {
-    defaultCheckboxSettings: settings?.admin?.defaultCheckboxSettings ?? {
-      checkedColor: '#22c55e',
-      uncheckedColor: '#f3f4f6'
+    admin: {
+      objectCreationPosition: settings?.admin?.objectCreationPosition ?? { x: 200, y: 200 },
+      defaultBoxWidth: settings?.admin?.defaultBoxWidth ?? 200,
+      defaultBoxHeight: settings?.admin?.defaultBoxHeight ?? 60,
+      defaultFontSize: settings?.admin?.defaultFontSize ?? 18,
+      defaultCheckboxSettings: settings?.admin?.defaultCheckboxSettings ?? {
+        checkedColor: '#22c55e',
+        uncheckedColor: '#f3f4f6',
+        checkedBackgroundColor: '#22c55e',
+        uncheckedBackgroundColor: '#f3f4f6',
+        checkedBackgroundOpacity: 0.2,
+        uncheckedBackgroundOpacity: 0.1
+      }
     }
   };
 
@@ -187,20 +197,32 @@ const ViewFloatingToolbar: React.FC = () => {
   };
 
   const handleCheckboxCreate = async () => {
-    const createX = position.x + size.width + 20;
-    const createY = position.y + 20;
+    // admin 설정된 위치 사용
+    const { x, y } = safeSettings.admin.objectCreationPosition;
     
-    const { checkedColor, uncheckedColor } = safeSettings.defaultCheckboxSettings;
+    const { 
+      checkedColor, 
+      uncheckedColor, 
+      checkedBackgroundColor, 
+      uncheckedBackgroundColor,
+      checkedBackgroundOpacity,
+      uncheckedBackgroundOpacity
+    } = safeSettings.admin.defaultCheckboxSettings;
+    
     const newCheckboxObject: Omit<TextObject, 'id'> = {
-      x: createX,
-      y: createY,
-      width: 200,
-      height: 60,
+      x,
+      y,
+      width: safeSettings.admin.defaultBoxWidth,
+      height: safeSettings.admin.defaultBoxHeight,
       text: '새 체크박스',
       hasCheckbox: true,
       checkboxChecked: false,
       checkboxCheckedColor: checkedColor,
       checkboxUncheckedColor: uncheckedColor,
+      checkedBackgroundColor: checkedBackgroundColor,
+      uncheckedBackgroundColor: uncheckedBackgroundColor,
+      checkedBackgroundOpacity: checkedBackgroundOpacity,
+      uncheckedBackgroundOpacity: uncheckedBackgroundOpacity,
       boxStyle: {
         backgroundColor: '#ffffff',
         backgroundOpacity: 1,
@@ -208,7 +230,7 @@ const ViewFloatingToolbar: React.FC = () => {
         borderWidth: 1,
         borderRadius: 0,
       },
-      fontSize: 18,
+      fontSize: safeSettings.admin.defaultFontSize,
       textStyle: {
         color: '#000000',
         fontFamily: 'Arial, sans-serif',
