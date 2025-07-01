@@ -34,17 +34,19 @@ const DrawLayer: React.FC<DrawLayerProps> = () => {
   const { drawObjects, settings, isLoading } = useAdminConfigStore();
   const { currentTool, setCurrentTool } = useEditorStore();
 
-  // 웹킷 브라우저 및 iOS 감지 (더 정확한 감지)
+  // 웹킷 브라우저 및 iOS 감지 (iPad만 엄격한 제한)
   useEffect(() => {
     const userAgent = navigator.userAgent.toLowerCase();
-    const isIOS = /iphone|ipad|ipod/.test(userAgent);
+    const isIPhone = /iphone/.test(userAgent);
+    const isIPad = /ipad/.test(userAgent);
     const isSafari = /safari/.test(userAgent) && !/chrome/.test(userAgent);
     
-    // 실제 iOS/Safari에서만 엄격한 입력 제한 적용
-    isWebkitRef.current = isIOS || isSafari;
+    // iPad에서만 엄격한 입력 제한 적용 (Apple Pencil 지원)
+    // iPhone은 터치만 사용하므로 제한하지 않음
+    isWebkitRef.current = isIPad;
     
     if (import.meta.env.DEV) {
-      console.log(`🔍 Browser detection: iOS=${isIOS}, Safari=${isSafari}, Strict input filtering=${isWebkitRef.current}`);
+      console.log(`🔍 Browser detection: iPhone=${isIPhone}, iPad=${isIPad}, Safari=${isSafari}, Strict input filtering=${isWebkitRef.current}`);
     }
   }, []);
 
@@ -364,23 +366,25 @@ const DrawLayer: React.FC<DrawLayerProps> = () => {
 
   // 입력 타입 검증 함수
   const isValidInputType = useCallback((e: React.PointerEvent) => {
-    // iOS/Safari에서만 엄격한 입력 제한 적용
+    // iPad에서만 엄격한 입력 제한 적용 (Apple Pencil vs 터치 구분)
     if (isWebkitRef.current) {
       // 지우개는 펜과 터치 모두 허용하지만 펜 우선
       if (currentTool === 'eraser') {
         // 이미 펜이 활성화되어 있으면 터치 무시
         if (activePointerRef.current !== null && e.pointerType === 'touch') {
           if (import.meta.env.DEV) {
-            console.log(`🚫 Rejecting ${e.pointerType} input (pen already active)`);
+            console.log(`🚫 Rejecting ${e.pointerType} input (pen already active on iPad)`);
           }
           return false;
         }
       }
       
-      // 펜 도구의 경우: 펜 입력이 우선이지만 마우스도 허용 (호환성)
-      if (currentTool === 'pen' && e.pointerType !== 'pen' && e.pointerType !== 'mouse') {
+      // iPad에서 펜 도구 사용 시: 펜 입력이 우선이지만 터치도 허용 (호환성)
+      // (실제로는 동시 입력만 방지)
+      if (currentTool === 'pen' && activePointerRef.current !== null && 
+          e.pointerType === 'touch' && activePointerRef.current !== e.pointerId) {
         if (import.meta.env.DEV) {
-          console.log(`🚫 Rejecting ${e.pointerType} input for pen tool on iOS/Safari`);
+          console.log(`🚫 Rejecting ${e.pointerType} input (another pointer already active on iPad)`);
         }
         return false;
       }
