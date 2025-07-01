@@ -13,7 +13,7 @@ interface Size {
 }
 
 const ViewFloatingToolbar: React.FC = () => {
-  const { currentTool, setCurrentTool } = useEditorStore();
+  const { currentTool, setCurrentTool, fitToWindow } = useEditorStore();
   const { addTextObject, settings } = useAdminConfigStore();
   const { penColor, penWidth, setPenColor, setPenWidth } = useDrawStore();
   
@@ -355,6 +355,19 @@ const ViewFloatingToolbar: React.FC = () => {
             title="체크박스 추가"
           >
             <span style={{ fontSize: iconSize * 0.6 }}>☑️</span>
+          </button>
+
+          {/* 창맞춤 버튼 */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              fitToWindow();
+            }}
+            className="rounded transition-all duration-200 flex items-center justify-center bg-blue-500 text-white hover:bg-blue-600 shadow-md"
+            style={{ width: buttonSize, height: buttonSize }}
+            title="창맞춤"
+          >
+            <span style={{ fontSize: iconSize * 0.6 }}>⌂</span>
           </button>
 
           {/* 필기 도구 설정 - 펜 선택 시에만 표시 */}

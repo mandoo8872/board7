@@ -1,12 +1,23 @@
 import { create } from 'zustand';
 
+// perfect-freehand를 위한 포인트 타입
+export interface PressurePoint {
+  x: number;
+  y: number;
+  pressure?: number;
+  tiltX?: number;
+  tiltY?: number;
+}
+
 export interface DrawStore {
   currentStroke: number[];
+  currentPressureStroke: PressurePoint[]; // perfect-freehand용 압력 데이터
   isDrawing: boolean;
   
   // 필기 설정
   penColor: string;
   penWidth: number;
+  usePerfectFreehand: boolean; // perfect-freehand 사용 여부
   
   // 액션 추적
   lastActionTime: number;
@@ -15,7 +26,7 @@ export interface DrawStore {
   defaultColors: string[];
   
   // 액션들
-  addPoint: (x: number, y: number) => void;
+  addPoint: (x: number, y: number, pressure?: number, tiltX?: number, tiltY?: number) => void;
   startStroke: () => void;
   endStroke: () => void;
   clearCurrentStroke: () => void;
@@ -23,16 +34,19 @@ export interface DrawStore {
   // 설정 관련
   setPenColor: (color: string) => void;
   setPenWidth: (width: number) => void;
+  setUsePerfectFreehand: (use: boolean) => void;
   updateLastActionTime: () => void;
 }
 
 export const useDrawStore = create<DrawStore>((set) => ({
   currentStroke: [],
+  currentPressureStroke: [],
   isDrawing: false,
   
   // 필기 설정
   penColor: '#000000', // 기본 검은색
   penWidth: 4,
+  usePerfectFreehand: true, // 기본적으로 perfect-freehand 사용
   
   // 액션 추적
   lastActionTime: 0,
@@ -43,8 +57,9 @@ export const useDrawStore = create<DrawStore>((set) => ({
     '#FF00FF', '#00FFFF', '#FFA500', '#800080', '#A52A2A'
   ],
   
-  addPoint: (x, y) => set((state) => ({
-    currentStroke: [...state.currentStroke, x, y]
+  addPoint: (x, y, pressure = 0.5, tiltX = 0, tiltY = 0) => set((state) => ({
+    currentStroke: [...state.currentStroke, x, y],
+    currentPressureStroke: [...state.currentPressureStroke, { x, y, pressure, tiltX, tiltY }]
   })),
   
   startStroke: () => set({ 
@@ -57,10 +72,12 @@ export const useDrawStore = create<DrawStore>((set) => ({
   }),
   
   clearCurrentStroke: () => set({ 
-    currentStroke: [] 
+    currentStroke: [],
+    currentPressureStroke: []
   }),
   
   setPenColor: (color) => set({ penColor: color }),
   setPenWidth: (width) => set({ penWidth: width }),
+  setUsePerfectFreehand: (use) => set({ usePerfectFreehand: use }),
   updateLastActionTime: () => set({ lastActionTime: Date.now() }),
 })); 

@@ -9,7 +9,7 @@ const ZoomControls: React.FC = React.memo(() => {
   }, [zoom, setZoom]);
 
   const handleZoomOut = useCallback(() => {
-    setZoom(Math.max(zoom / 1.2, 0.1));
+    setZoom(Math.max(zoom / 1.2, 0.05));
   }, [zoom, setZoom]);
 
   const handleFitToWindow = useCallback(() => {

@@ -275,7 +275,34 @@ const ViewVirtualKeyboard: React.FC = () => {
     e.nativeEvent.stopImmediatePropagation();
     
     if (key === 'Backspace') {
-      setCurrentText(prev => prev.slice(0, -1));
+      setCurrentText(prev => {
+        if (prev.length === 0) return prev;
+        
+        // 한글 조립 상태에서 백스페이스 처리
+        if (hangulState.isAssembling) {
+          if (hangulState.final) {
+            // 종성이 있으면 종성만 제거
+            setHangulState(prev => ({ ...prev, final: '' }));
+            const assembled = assembleHangul(hangulState.initial, hangulState.middle);
+            return prev.slice(0, -1) + assembled;
+          } else if (hangulState.middle) {
+            // 중성이 있으면 중성 제거하고 초성만 남김
+            setHangulState(prev => ({ ...prev, middle: '', isAssembling: false }));
+            return prev.slice(0, -1) + hangulState.initial;
+          } else if (hangulState.initial) {
+            // 초성만 있으면 완전히 제거
+            setHangulState({ initial: '', middle: '', final: '', isAssembling: false });
+            return prev.slice(0, -1);
+          }
+        } else {
+          // 일반적인 백스페이스
+          setHangulState({ initial: '', middle: '', final: '', isAssembling: false });
+          return prev.slice(0, -1);
+        }
+        return prev;
+      });
+    } else if (key === 'ClearAll') {
+      setCurrentText('');
       setHangulState({ initial: '', middle: '', final: '', isAssembling: false });
     } else if (key === 'Space') {
       setCurrentText(prev => prev + ' ');
@@ -323,16 +350,33 @@ const ViewVirtualKeyboard: React.FC = () => {
           final: '',
           isAssembling: true
         });
+        setCurrentText(prev => prev + key);
       } else if (hangulState.initial && hangulState.middle && !hangulState.final) {
-        // 종성 추가
+        // 종성 추가 가능
         setHangulState(prev => ({
           ...prev,
           final: key
         }));
         const assembled = assembleHangul(hangulState.initial, hangulState.middle, key);
         setCurrentText(prev => prev.slice(0, -1) + assembled);
+      } else if (hangulState.initial && hangulState.middle && hangulState.final) {
+        // 이미 완성된 글자에 새로운 자음 시작
+        const assembled = assembleHangul(hangulState.initial, hangulState.middle, hangulState.final);
+        setCurrentText(prev => prev.slice(0, -1) + assembled + key);
+        setHangulState({
+          initial: key,
+          middle: '',
+          final: '',
+          isAssembling: true
+        });
       } else {
         // 현재 조립 완료하고 새로운 자음으로 시작
+        if (hangulState.initial && hangulState.middle) {
+          const assembled = assembleHangul(hangulState.initial, hangulState.middle);
+          setCurrentText(prev => prev.slice(0, -1) + assembled + key);
+        } else {
+          setCurrentText(prev => prev + key);
+        }
         setHangulState({
           initial: key,
           middle: '',
@@ -348,7 +392,19 @@ const ViewVirtualKeyboard: React.FC = () => {
           middle: key
         }));
         const assembled = assembleHangul(hangulState.initial, key);
-        setCurrentText(prev => prev + assembled);
+        setCurrentText(prev => prev.slice(0, -1) + assembled);
+      } else if (hangulState.initial && hangulState.middle && hangulState.final) {
+        // 종성이 있는 완성된 글자 다음에 모음 (종성을 분리해서 새 글자 시작)
+        const lastConsonant = hangulState.final;
+        const assembledWithoutFinal = assembleHangul(hangulState.initial, hangulState.middle);
+        const newAssembled = assembleHangul(lastConsonant, key);
+        setCurrentText(prev => prev.slice(0, -1) + assembledWithoutFinal + newAssembled);
+        setHangulState({
+          initial: lastConsonant,
+          middle: key,
+          final: '',
+          isAssembling: true
+        });
       } else {
         // 단독 모음 입력 또는 조립 불가능한 상황
         setCurrentText(prev => prev + key);
@@ -491,6 +547,18 @@ const ViewVirtualKeyboard: React.FC = () => {
         onMouseDown={(e) => e.stopPropagation()}
       >
         <div className="flex gap-2">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              handleKeyPress(e, 'ClearAll');
+            }}
+            onPointerDown={(e) => e.stopPropagation()}
+            onMouseDown={(e) => e.stopPropagation()}
+            className="px-2 py-1 bg-red-600 hover:bg-red-500 text-white rounded text-xs font-medium transition-colors whitespace-nowrap"
+            title="전체 삭제"
+          >
+            전체삭제
+          </button>
           <div className="flex-1 bg-white text-black p-2 rounded text-sm min-h-[30px] max-h-[60px] overflow-auto"
             onClick={(e) => e.stopPropagation()}
             onPointerDown={(e) => e.stopPropagation()}
@@ -532,7 +600,7 @@ const ViewVirtualKeyboard: React.FC = () => {
         onPointerDown={(e) => e.stopPropagation()}
         onMouseDown={(e) => e.stopPropagation()}
       >
-        {/* 숫자열 */}
+        {/* 숫자열 + 백스페이스 */}
         <div className="flex gap-1 justify-center">
           {layout.numbers.map((key) => (
             <button
@@ -546,6 +614,15 @@ const ViewVirtualKeyboard: React.FC = () => {
               {key}
             </button>
           ))}
+          <button
+            onClick={(e) => handleKeyPress(e, 'Backspace')}
+            onPointerDown={(e) => e.stopPropagation()}
+            onMouseDown={(e) => e.stopPropagation()}
+            className={`${getKeyButtonClass('Backspace')} bg-red-600 hover:bg-red-500`}
+            style={{ minWidth: `${Math.max(50, size.width / 10)}px` }}
+          >
+            ⌫
+          </button>
         </div>
         
         {/* 첫 번째 행 */}
@@ -604,16 +681,6 @@ const ViewVirtualKeyboard: React.FC = () => {
               {key}
             </button>
           ))}
-          
-          <button
-            onClick={(e) => handleKeyPress(e, 'Backspace')}
-            onPointerDown={(e) => e.stopPropagation()}
-            onMouseDown={(e) => e.stopPropagation()}
-            className={getKeyButtonClass('Backspace')}
-            style={{ minWidth: `${Math.max(50, size.width / 10)}px` }}
-          >
-            ⌫
-          </button>
         </div>
         
         {/* 하단 행 */}

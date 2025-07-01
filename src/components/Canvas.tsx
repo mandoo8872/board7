@@ -17,7 +17,7 @@ const CANVAS_HEIGHT = 3840;
 const Canvas: React.FC<CanvasProps> = ({ isViewPage = false }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
-  const [autoScale, setAutoScale] = useState(0.3); // 초기 로딩용 임시값
+  const [autoScale, setAutoScale] = useState(0.15); // 초기 로딩용 임시값
   const { zoom, viewOffset, setZoom, zoomAtPoint, currentTool } = useEditorStore();
   const { floorImage, initializeFirebaseListeners, settings } = useAdminConfigStore();
 
@@ -63,24 +63,12 @@ const Canvas: React.FC<CanvasProps> = ({ isViewPage = false }) => {
 
   // zoom이 비정상적으로 작으면 1.0으로 리셋
   useEffect(() => {
-    if (zoom < 0.5) {
+    if (zoom < 0.04) {
       setZoom(1.0);
     }
   }, [zoom, setZoom]);
 
-  // Firebase 리스너 초기화
-  useEffect(() => {
-    initializeFirebaseListeners();
-    
-    // 컴포넌트 언마운트 시 Firebase 리스너 정리
-    return () => {
-      if (typeof initializeFirebaseListeners === 'function') {
-        // adminConfigStore에서 cleanupFirebaseListeners 함수 호출
-        const { cleanupFirebaseListeners } = useAdminConfigStore.getState();
-        cleanupFirebaseListeners();
-      }
-    };
-  }, [initializeFirebaseListeners]);
+  // Firebase 리스너는 상위 페이지(ViewPage/AdminPage)에서 초기화하므로 여기서는 제거
 
   // 창 크기에 맞는 자동 스케일 계산
   useEffect(() => {
@@ -92,7 +80,7 @@ const Canvas: React.FC<CanvasProps> = ({ isViewPage = false }) => {
         
         // 컨테이너가 너무 작으면 최소값 사용
         if (containerWidth <= 0 || containerHeight <= 0) {
-          setAutoScale(0.3);
+          setAutoScale(0.15);
           return;
         }
         
@@ -103,7 +91,7 @@ const Canvas: React.FC<CanvasProps> = ({ isViewPage = false }) => {
         // 두 스케일 중 작은 값을 사용하여 캔버스가 완전히 들어가도록 함
         const newAutoScale = Math.min(scaleX, scaleY);
         
-        setAutoScale(Math.max(0.2, newAutoScale)); // 최소 0.2 보장
+        setAutoScale(Math.max(0.1, newAutoScale)); // 최소 0.1 보장
       }
     };
 

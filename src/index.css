@@ -68,6 +68,12 @@ canvas {
   image-rendering: -webkit-crisp-edges;
   image-rendering: pixelated;
   image-rendering: crisp-edges;
+  /* Safari/iOS 캔버스 터치 최적화 */
+  -webkit-touch-callout: none !important;
+  -webkit-user-select: none !important;
+  -webkit-tap-highlight-color: transparent !important;
+  touch-action: none !important;
+  -webkit-user-drag: none !important;
 }
 
 /* 컨텍스트 메뉴 방지 */

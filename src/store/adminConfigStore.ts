@@ -93,12 +93,29 @@ export const useAdminConfigStore = create<AdminConfigStore>((set, get) => {
       
       set({ isLoading: true });
       
+      let loadedCount = 0;
+      const totalLoaders = 5; // textObjects, imageObjects, drawObjects, floorImage, settings
+      
+      const checkAllLoaded = () => {
+        loadedCount++;
+        if (loadedCount >= totalLoaders) {
+          if (import.meta.env.DEV) {
+            console.log('🔥 Firebase: All data loaded successfully');
+          }
+          set({ isLoading: false });
+        }
+      };
+      
       // TextObjects 리스너
       const textObjectsRef = ref(database, 'textObjects');
       const unsubscribeTextObjects = onValue(textObjectsRef, (snapshot) => {
         const data = snapshot.val();
         const textObjects = data ? Object.values(data) as TextObject[] : [];
+        if (import.meta.env.DEV) {
+          console.log(`📝 Loaded ${textObjects.length} text objects`);
+        }
         set({ textObjects });
+        checkAllLoaded();
       });
       unsubscribeFunctions.push(unsubscribeTextObjects);
       
@@ -107,7 +124,11 @@ export const useAdminConfigStore = create<AdminConfigStore>((set, get) => {
       const unsubscribeImageObjects = onValue(imageObjectsRef, (snapshot) => {
         const data = snapshot.val();
         const imageObjects = data ? Object.values(data) as ImageObject[] : [];
+        if (import.meta.env.DEV) {
+          console.log(`🖼️ Loaded ${imageObjects.length} image objects`);
+        }
         set({ imageObjects });
+        checkAllLoaded();
       });
       unsubscribeFunctions.push(unsubscribeImageObjects);
       
@@ -116,7 +137,11 @@ export const useAdminConfigStore = create<AdminConfigStore>((set, get) => {
       const unsubscribeDrawObjects = onValue(drawObjectsRef, (snapshot) => {
         const data = snapshot.val();
         const drawObjects = data ? Object.values(data) as DrawObject[] : [];
+        if (import.meta.env.DEV) {
+          console.log(`✏️ Loaded ${drawObjects.length} draw objects`);
+        }
         set({ drawObjects });
+        checkAllLoaded();
       });
       unsubscribeFunctions.push(unsubscribeDrawObjects);
       
@@ -124,7 +149,11 @@ export const useAdminConfigStore = create<AdminConfigStore>((set, get) => {
       const floorImageRef = ref(database, 'floorImage');
       const unsubscribeFloorImage = onValue(floorImageRef, (snapshot) => {
         const floorImage = snapshot.val() as FloorImage | null;
+        if (import.meta.env.DEV) {
+          console.log(`🏠 Loaded floor image: ${floorImage ? 'YES' : 'NO'}`);
+        }
         set({ floorImage });
+        checkAllLoaded();
       });
       unsubscribeFunctions.push(unsubscribeFloorImage);
       
@@ -135,7 +164,10 @@ export const useAdminConfigStore = create<AdminConfigStore>((set, get) => {
         if (settings) {
           set({ settings });
         }
-        set({ isLoading: false });
+        if (import.meta.env.DEV) {
+          console.log(`⚙️ Loaded settings`);
+        }
+        checkAllLoaded();
       });
       unsubscribeFunctions.push(unsubscribeSettings);
     },

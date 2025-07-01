@@ -330,27 +330,43 @@ const Toolbar: React.FC = () => {
           const src = event.target?.result as string;
           const { x, y } = safeSettings.admin.objectCreationPosition;
           
-          const newImageObject: Omit<ImageObject, 'id'> = {
-            x,
-            y,
-            width: safeSettings.admin.defaultBoxWidth,
-            height: safeSettings.admin.defaultBoxHeight,
-            src,
-            permissions: {
-              editable: true,
-              movable: true,
-              resizable: true,
-              deletable: true,
-            },
-            zIndex: Date.now(),
-            locked: false,
-            visible: true,
-            opacity: 1,
-            maintainAspectRatio: true,
-            lastModified: Date.now()
-          };
+          // 이미지 실제 크기 측정을 위한 임시 이미지 객체 생성
+          const img = new Image();
+          img.onload = async () => {
+            // 가로 200px 고정, 세로는 비율에 맞춰 계산
+            const targetWidth = 200;
+            const aspectRatio = img.naturalHeight / img.naturalWidth;
+            const targetHeight = targetWidth * aspectRatio;
+            
+            const newImageObject: Omit<ImageObject, 'id'> = {
+              x,
+              y,
+              width: targetWidth,
+              height: targetHeight,
+              src,
+              permissions: {
+                editable: true,
+                movable: true,
+                resizable: true,
+                deletable: true,
+              },
+              zIndex: Date.now(),
+              locked: false,
+              visible: true,
+              opacity: 1,
+              maintainAspectRatio: true, // 비율 유지 활성화
+              lastModified: Date.now()
+            };
 
-          await addImageObject(newImageObject);
+            await addImageObject(newImageObject);
+          };
+          
+          img.onerror = () => {
+            console.error('이미지 로드 실패');
+            alert('이미지를 로드할 수 없습니다.');
+          };
+          
+          img.src = src;
         };
         reader.readAsDataURL(file);
       } catch (error) {
@@ -369,6 +385,38 @@ const Toolbar: React.FC = () => {
     return rows.map(row => row.split('\t'));
   }, []);
 
+  // 엑셀 셀 그룹 삭제 함수
+  const handleDeleteExcelCellGroups = useCallback(async () => {
+    // 엑셀로 생성된 셀들 찾기 (groupId가 'excel-input-'로 시작하는 것들)
+    const excelCells = textObjects.filter(obj => 
+      obj.groupId && obj.groupId.startsWith('excel-input-')
+    );
+
+    if (excelCells.length === 0) {
+      alert('삭제할 엑셀 셀이 없습니다.');
+      return;
+    }
+
+    const groupCount = new Set(excelCells.map(cell => cell.groupId)).size;
+    
+    const confirmMessage = `${groupCount}개의 엑셀 그룹 (총 ${excelCells.length}개 셀)을 삭제하시겠습니까?`;
+    if (!confirm(confirmMessage)) {
+      return;
+    }
+
+    try {
+      // 모든 엑셀 셀 삭제
+      for (const cell of excelCells) {
+        await deleteTextObject(cell.id);
+      }
+      
+      alert(`${groupCount}개 그룹 (${excelCells.length}개 셀)이 삭제되었습니다.`);
+    } catch (error) {
+      console.error('엑셀 셀 삭제 실패:', error);
+      alert('셀 삭제 중 오류가 발생했습니다.');
+    }
+  }, [textObjects, deleteTextObject]);
+
   // 엑셀 셀 생성 함수
   const handleCreateExcelCells = useCallback(async () => {
     const parsedData = parseExcelData(excelPasteData);
@@ -384,20 +432,21 @@ const Toolbar: React.FC = () => {
       fontSize, 
       fontColor, 
       backgroundColor,
-      maxRows,
-      maxCols 
+      maxRows = 100,  // 기본값 설정
+      maxCols = 50    // 기본값 설정
     } = safeSettings.admin.excelPasteSettings;
     
     const groupId = `excel-input-${Date.now()}`;
     const cells: Omit<TextObject, 'id'>[] = [];
 
-    // 최대 행/열 수 제한
+    // 최대 행/열 제한
     const actualRows = Math.min(parsedData.length, maxRows);
-    const actualCols = Math.min(
-      Math.max(...parsedData.map(row => row.length)), 
-      maxCols
-    );
-
+    
+    // 각 행의 길이를 안전하게 계산
+    const rowLengths = parsedData.map(row => row.length);
+    const maxRowLength = rowLengths.length > 0 ? Math.max(...rowLengths) : 0;
+    const actualCols = Math.min(maxRowLength, maxCols);
+    
     for (let row = 0; row < actualRows; row++) {
       for (let col = 0; col < actualCols; col++) {
         const cellText = parsedData[row]?.[col] || '';
@@ -1025,7 +1074,8 @@ const Toolbar: React.FC = () => {
             </div>
 
                  {/* 실행 버튼 */}
-                 <div className="flex gap-2">
+                 <div className="space-y-2">
+                   <div className="flex gap-2">
             <button
               onClick={handleCreateExcelCells}
               disabled={!excelPasteData.trim()}
@@ -1048,8 +1098,18 @@ const Toolbar: React.FC = () => {
                      className="px-4 py-2 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 text-white rounded-lg text-sm font-medium transition-colors"
                    >
                      👁️ {showPreview ? '숨김' : '미리보기'}
-                        </button>
-                      </div>
+                     </button>
+                   </div>
+                   
+                   {/* 엑셀 셀 그룹 삭제 버튼 */}
+                   <button
+                     onClick={handleDeleteExcelCellGroups}
+                     className="w-full px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm font-medium transition-colors"
+                     title="생성된 모든 엑셀 셀 그룹을 삭제합니다"
+                   >
+                     🗑️ 엑셀 셀 그룹 삭제
+                   </button>
+                 </div>
           </div>
         )}
       </div>

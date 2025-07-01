@@ -122,6 +122,11 @@ export interface DrawObject {
   width: number;
   createdAt: string;
   
+  // perfect-freehand 지원
+  usePerfectFreehand?: boolean;
+  pressure?: number[]; // 각 포인트의 압력 데이터
+  inputType?: 'mouse' | 'pen' | 'touch'; // 입력 디바이스 타입
+  
   // LWW (Last Write Wins) 지원
   lastModified: number;
   modifiedBy?: string;

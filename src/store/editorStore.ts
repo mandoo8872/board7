@@ -30,7 +30,7 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
   hoveredObjectId: null,
   
   setCurrentTool: (tool) => set({ currentTool: tool }),
-  setZoom: (zoom) => set({ zoom: Math.max(0.1, Math.min(5.0, zoom)) }),
+  setZoom: (zoom) => set({ zoom: Math.max(0.05, Math.min(5.0, zoom)) }),
   setViewOffset: (offset) => set({ viewOffset: offset }),
   setSelectedObjectId: (id) => set({ selectedObjectId: id }),
   setCreationMode: (mode) => set({ creationMode: mode }),
@@ -41,7 +41,7 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
   })),
   
   zoomOut: () => set((state) => ({ 
-    zoom: Math.max(0.1, state.zoom - 0.1) 
+    zoom: Math.max(0.05, state.zoom - 0.1) 
   })),
   
   zoomAtPoint: (delta, _pointX, pointY, canvasRect) => {
@@ -49,7 +49,7 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
     const zoomFactor = 1.1;
     const newZoom = delta > 0 
       ? Math.min(5.0, state.zoom * zoomFactor)
-      : Math.max(0.1, state.zoom / zoomFactor);
+      : Math.max(0.05, state.zoom / zoomFactor);
     
     if (newZoom === state.zoom) return; // 줌이 변경되지 않으면 리턴
     

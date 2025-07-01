@@ -1,10 +1,24 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import Canvas from '../components/Canvas';
 import { default as Toolbar } from '../components/toolbar/Toolbar';
 import ZoomControls from '../components/zoom/ZoomControls';
 import DrawToolSettings from '../components/toolbar/DrawToolSettings';
+import { useAdminConfigStore } from '../store/adminConfigStore';
 
 const AdminPage: React.FC = () => {
+  const { initializeFirebaseListeners } = useAdminConfigStore();
+
+  useEffect(() => {
+    // AdminPage에서 Firebase 리스너 초기화
+    initializeFirebaseListeners();
+    
+    // 컴포넌트 언마운트 시 정리
+    return () => {
+      const { cleanupFirebaseListeners } = useAdminConfigStore.getState();
+      cleanupFirebaseListeners();
+    };
+  }, [initializeFirebaseListeners]);
+
   return (
     <div className="w-screen h-screen overflow-hidden flex">
       {/* 왼쪽 툴바 */}

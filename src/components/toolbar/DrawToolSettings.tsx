@@ -7,9 +7,11 @@ const DrawToolSettings: React.FC = () => {
   const { 
     penColor, 
     penWidth, 
+    usePerfectFreehand,
     defaultColors,
     setPenColor, 
-    setPenWidth
+    setPenWidth,
+    setUsePerfectFreehand
   } = useDrawStore();
 
   // 필기나 지우개 도구가 선택되지 않으면 렌더링하지 않음
@@ -70,6 +72,29 @@ const DrawToolSettings: React.FC = () => {
                   {width}px
                 </button>
               ))}
+            </div>
+          </div>
+        )}
+
+        {/* perfect-freehand 토글 (필기 도구일 때만) */}
+        {currentTool === 'pen' && (
+          <div>
+            <div className="text-xs text-gray-600 mb-2">렌더링 품질</div>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={usePerfectFreehand}
+                onChange={(e) => setUsePerfectFreehand(e.target.checked)}
+                className="rounded"
+              />
+              <span className="text-xs text-gray-700">
+                고품질 렌더링 (Perfect Freehand)
+              </span>
+            </label>
+            <div className="text-xs text-gray-500 mt-1">
+              {usePerfectFreehand 
+                ? '✨ 압력 감지 및 부드러운 곡선 활성화' 
+                : '📝 기본 선 렌더링 (빠른 성능)'}
             </div>
           </div>
         )}
