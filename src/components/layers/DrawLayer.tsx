@@ -89,22 +89,7 @@ const DrawLayer: React.FC<DrawLayerProps> = () => {
     return baseOptions;
   }, [penWidth]);
 
-  // SVG 패스 생성 함수
-  const getSvgPathFromStroke = useCallback((stroke: number[][]) => {
-    if (!stroke.length) return '';
 
-    const d = stroke.reduce(
-      (acc, [x0, y0], i, arr) => {
-        const [x1, y1] = arr[(i + 1) % arr.length];
-        acc.push(x0, y0, (x0 + x1) / 2, (y0 + y1) / 2);
-        return acc;
-      },
-      ['M', ...stroke[0], 'Q']
-    );
-
-    d.push('Z');
-    return d.join(' ');
-  }, []);
 
   // Canvas 2D 패스로 스트로크 그리기
   const drawStrokeToCanvas = useCallback((ctx: CanvasRenderingContext2D, stroke: number[][], color: string) => {

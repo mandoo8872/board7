@@ -19,7 +19,7 @@ const Canvas: React.FC<CanvasProps> = ({ isViewPage = false }) => {
   const canvasRef = useRef<HTMLDivElement>(null);
   const [autoScale, setAutoScale] = useState(0.15); // 초기 로딩용 임시값
   const { zoom, viewOffset, setZoom, zoomAtPoint, currentTool } = useEditorStore();
-  const { floorImage, initializeFirebaseListeners, settings } = useAdminConfigStore();
+  const { floorImage, settings } = useAdminConfigStore();
 
   // 설정이 로드되지 않았을 때 기본값 제공
   const safeGridSettings = {
