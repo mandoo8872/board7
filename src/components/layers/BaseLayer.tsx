@@ -2,6 +2,7 @@ import React, { useState, useCallback } from 'react';
 import { useAdminConfigStore } from '../../store/adminConfigStore';
 import { useEditorStore } from '../../store/editorStore';
 import { useCheckboxStore } from '../../store/checkboxStore';
+import { useCellSelectionStore } from '../../store/cellSelectionStore';
 import { TextObject } from '../../types';
 import { isValidPosition, isValidSize } from '../../utils/validation';
 import { snapPositionToGrid, snapSizeToGrid } from '../../utils/gridUtils';
@@ -37,6 +38,17 @@ const BaseLayer: React.FC<BaseLayerProps> = ({ isViewPage = false }) => {
     checkedBackgroundOpacity,
     uncheckedBackgroundOpacity
   } = useCheckboxStore();
+  
+  // 셀 다중선택 관리
+  // const {
+  //   selectCell,
+  //   selectCellsInRange,
+  //   clearSelection,
+  //   isSelected,
+  //   startDragSelection,
+  //   updateDragSelection,
+  //   endDragSelection
+  // } = useCellSelectionStore();
 
   // 드래그 상태 관리
   const [dragState, setDragState] = useState<{
@@ -176,6 +188,28 @@ const BaseLayer: React.FC<BaseLayerProps> = ({ isViewPage = false }) => {
     }
   }, [selectedObjectId, textObjects, imageObjects, deleteTextObject, deleteImageObject, setSelectedObjectId]);
 
+  // 다중선택된 엑셀 셀들의 텍스트 내용 일괄 삭제
+  const handleBulkClearCellText = useCallback(async () => {
+    const { getSelectedCells } = useCellSelectionStore.getState();
+    const selectedCellIds = getSelectedCells();
+    
+    if (selectedCellIds.length === 0) return;
+    
+    try {
+      // 선택된 셀들의 텍스트를 빈 문자열로 변경
+      for (const cellId of selectedCellIds) {
+        const cellObj = textObjects.find(obj => obj.id === cellId);
+        if (cellObj && cellObj.cellType === 'cell') {
+          await updateTextObject(cellId, { text: '' });
+        }
+      }
+      
+      console.log(`${selectedCellIds.length}개 셀의 텍스트 내용이 삭제되었습니다.`);
+    } catch (error) {
+      console.error('셀 텍스트 일괄 삭제 실패:', error);
+    }
+  }, [textObjects, updateTextObject]);
+
   // 클립보드 이미지 붙여넣기 핸들러
   const handleClipboardPaste = useCallback(async () => {
     try {
@@ -283,9 +317,18 @@ const BaseLayer: React.FC<BaseLayerProps> = ({ isViewPage = false }) => {
       }
     }
     
-    // Delete: 삭제
+    // Delete: 삭제 (엑셀 셀 다중선택 텍스트 내용 삭제 또는 일반 객체 삭제)
     if (e.key === 'Delete') {
       e.preventDefault();
+      
+      // 다중선택된 엑셀 셀들이 있으면 텍스트 내용만 일괄 삭제
+      const selectedCells = useCellSelectionStore.getState().getSelectedCells();
+      if (selectedCells.length > 0) {
+        handleBulkClearCellText();
+        return;
+      }
+      
+      // 일반 객체 삭제
       if (selectedObjectId) {
         handleDeleteObject();
       }
@@ -722,19 +765,21 @@ const BaseLayer: React.FC<BaseLayerProps> = ({ isViewPage = false }) => {
     const isCell = textObj?.cellType === 'cell';
 
     if (!isViewPage && currentTool === 'select') {
-      // 셀 객체는 선택하지 않음
-      if (isCell) {
-        return;
-      }
-      
-      setSelectedObjectId(id);
-      if (e) {
-        e.stopPropagation();
+      // 셀 객체가 아닌 경우에만 일반 객체 선택
+      if (!isCell) {
+        // 셀 다중선택 해제
+        const { clearSelection } = useCellSelectionStore.getState();
+        clearSelection();
+        
+        setSelectedObjectId(id);
+        if (e) {
+          e.stopPropagation();
+        }
       }
     }
   }, [currentTool, isViewPage, setSelectedObjectId, textObjects]);
 
-  // 캔버스 빈 공간 클릭 핸들러 (선택 해제)
+  // 캔버스 빈 공간 클릭 핸들러 (선택 해제 및 드래그 선택)
   const handleCanvasClick = useCallback((e: React.MouseEvent) => {
     // 캔버스에 포커스 설정 (키보드 단축키 활성화용)
     const canvasContainer = e.currentTarget as HTMLElement;
@@ -755,14 +800,22 @@ const BaseLayer: React.FC<BaseLayerProps> = ({ isViewPage = false }) => {
       // 객체가 아닌 빈 공간을 클릭했을 때만 선택 해제
       if (e.target === e.currentTarget) {
         setSelectedObjectId(null);
+        // 엑셀 셀 다중선택도 해제
+        const { clearSelection } = useCellSelectionStore.getState();
+        clearSelection();
       }
     } else if (isViewPage) {
       // ViewPage에서는 빈 공간 클릭 시 선택 해제만 (키보드는 선택 해제 시 자동으로 숨겨짐)
       if (e.target === e.currentTarget) {
         setSelectedObjectId(null);
+        // 엑셀 셀 다중선택도 해제
+        const { clearSelection } = useCellSelectionStore.getState();
+        clearSelection();
       }
     }
   }, [editingObjectId, finishInlineEdit, setSelectedObjectId, isViewPage, currentTool]);
+
+
 
   // 개선된 텍스트 박스 클릭 핸들러
   const handleTextBoxClick = (obj: TextObject, e: React.MouseEvent) => {
@@ -775,8 +828,9 @@ const BaseLayer: React.FC<BaseLayerProps> = ({ isViewPage = false }) => {
     
     const isCell = obj.cellType === 'cell';
     
-    // 엑셀 셀: 한번 클릭으로 선택, 더블 클릭으로 편집
+    // 엑셀 셀: 다중선택 지원 (Ctrl, Shift)
     if (isCell) {
+      const { selectCell, selectCellsInRange, getSelectedCells } = useCellSelectionStore.getState();
       const newClickCount = clickCount + 1;
       setClickCount(newClickCount);
       
@@ -785,12 +839,55 @@ const BaseLayer: React.FC<BaseLayerProps> = ({ isViewPage = false }) => {
       }
       
       if (newClickCount === 2) {
+        // 더블 클릭: 편집 시작
         startInlineEdit(obj);
         setClickCount(0);
         setClickTimer(null);
       } else {
-        // 단일 클릭: 선택
-        handleObjectClick(e, obj.id);
+        // 단일 클릭: 다중선택 (Ctrl, Shift 키 상태에 따라)
+        const isCtrlPressed = e.ctrlKey || e.metaKey;
+        const isShiftPressed = e.shiftKey;
+        
+        if (isShiftPressed) {
+          // Shift + 클릭: 범위 선택
+          const selectedCells = getSelectedCells();
+          if (selectedCells.length > 0) {
+            // 마지막 선택된 셀과 현재 셀 사이의 모든 셀 선택
+            const lastSelectedCell = textObjects.find(cell => cell.id === selectedCells[selectedCells.length - 1]);
+            if (lastSelectedCell && lastSelectedCell.cellType === 'cell' && lastSelectedCell.cellPosition && obj.cellPosition) {
+              const startRow = Math.min(lastSelectedCell.cellPosition.row, obj.cellPosition.row);
+              const endRow = Math.max(lastSelectedCell.cellPosition.row, obj.cellPosition.row);
+              const startCol = Math.min(lastSelectedCell.cellPosition.col, obj.cellPosition.col);
+              const endCol = Math.max(lastSelectedCell.cellPosition.col, obj.cellPosition.col);
+              
+              const rangeCellIds: string[] = [];
+              textObjects.forEach(cell => {
+                if (cell.cellType === 'cell' && cell.cellPosition && cell.groupId === obj.groupId) {
+                  const { row, col } = cell.cellPosition;
+                  if (row >= startRow && row <= endRow && col >= startCol && col <= endCol) {
+                    rangeCellIds.push(cell.id);
+                  }
+                }
+              });
+              
+              selectCellsInRange(rangeCellIds);
+            }
+          } else {
+            // 첫 번째 선택이면 단일 선택
+            selectCell(obj.id, false);
+          }
+        } else if (isCtrlPressed) {
+          // Ctrl + 클릭: 토글 선택
+          selectCell(obj.id, true);
+        } else {
+          // 일반 클릭: 새로 선택
+          selectCell(obj.id, false);
+        }
+        
+        // 일반 객체 선택도 해제 (엑셀 셀 다중선택과 구분)
+        if (!isCtrlPressed && !isShiftPressed) {
+          setSelectedObjectId(null);
+        }
         
         const timer = setTimeout(() => {
           setClickCount(0);
@@ -854,7 +951,6 @@ const BaseLayer: React.FC<BaseLayerProps> = ({ isViewPage = false }) => {
       onPointerLeave={handlePointerUp}
       // 마우스 이벤트 (호환성 유지)
       onMouseMove={handleMouseMove}
-      onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseUp}
       // 컨텍스트 메뉴 방지
       onContextMenu={handleContextMenu}
@@ -889,6 +985,9 @@ const BaseLayer: React.FC<BaseLayerProps> = ({ isViewPage = false }) => {
           if (isTextObject) {
             // 텍스트 객체 렌더링
             const textObj = obj as typeof textObjects[0];
+            
+            // 엑셀 셀 다중선택 상태 확인
+            const isCellSelected = textObj.cellType === 'cell' && useCellSelectionStore.getState().isSelected(obj.id);
             
             // boxStyle 기본값 설정
             const boxStyle = textObj.boxStyle || {
@@ -950,16 +1049,20 @@ const BaseLayer: React.FC<BaseLayerProps> = ({ isViewPage = false }) => {
                 <div
                   className="absolute inset-0"
                   style={{
-                    backgroundColor: textObj.hasCheckbox && textObj.checkboxChecked 
-                      ? (textObj.checkedBackgroundColor || checkedBackgroundColor)
-                      : textObj.hasCheckbox && !textObj.checkboxChecked 
-                        ? (textObj.uncheckedBackgroundColor || uncheckedBackgroundColor)
-                        : boxStyle.backgroundColor,
-                    opacity: textObj.hasCheckbox && textObj.checkboxChecked 
-                      ? (textObj.checkedBackgroundOpacity ?? checkedBackgroundOpacity)
-                      : textObj.hasCheckbox && !textObj.checkboxChecked 
-                        ? (textObj.uncheckedBackgroundOpacity ?? uncheckedBackgroundOpacity)
-                        : boxStyle.backgroundOpacity,
+                    backgroundColor: isCellSelected 
+                      ? '#9ca3af'  // 다중선택된 엑셀 셀: 회색 반투명
+                      : textObj.hasCheckbox && textObj.checkboxChecked 
+                        ? (textObj.checkedBackgroundColor || checkedBackgroundColor)
+                        : textObj.hasCheckbox && !textObj.checkboxChecked 
+                          ? (textObj.uncheckedBackgroundColor || uncheckedBackgroundColor)
+                          : boxStyle.backgroundColor,
+                    opacity: isCellSelected 
+                      ? 0.15  // 다중선택된 셀: 15% 투명도 (더 투명하게)
+                      : textObj.hasCheckbox && textObj.checkboxChecked 
+                        ? (textObj.checkedBackgroundOpacity ?? checkedBackgroundOpacity)
+                        : textObj.hasCheckbox && !textObj.checkboxChecked 
+                          ? (textObj.uncheckedBackgroundOpacity ?? uncheckedBackgroundOpacity)
+                          : boxStyle.backgroundOpacity,
                     borderRadius: `${boxStyle.borderRadius}px`,
                   }}
                 />

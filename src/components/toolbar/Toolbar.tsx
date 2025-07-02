@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useRef } from 'react';
-import { useEditorStore, useAdminConfigStore } from '../../store';
+import { useEditorStore, useAdminConfigStore, useCellSelectionStore } from '../../store';
 import { Tool, TextObject, ImageObject } from '../../types';
 
 const Toolbar: React.FC = () => {
@@ -19,6 +19,7 @@ const Toolbar: React.FC = () => {
     isLoading
   } = useAdminConfigStore();
   const { currentTool, setCurrentTool, selectedObjectId, setSelectedObjectId } = useEditorStore();
+  // const { getSelectedCells, getSelectedCount } = useCellSelectionStore();
   
   // 설정 메뉴 접기/펼치기 상태
   const [isSettingsExpanded, setIsSettingsExpanded] = useState(false);
@@ -31,7 +32,7 @@ const Toolbar: React.FC = () => {
   
   // 색상 파레트
   const colorPalette = [
-    '#000000', '#ffffff', '#ff0000', '#00ff00', '#0000ff',
+    '#000000', '#ffffff', '#cccccc', '#ff0000', '#00ff00', '#0000ff',
     '#ffff00', '#ff00ff', '#00ffff', '#ffa500', '#800080'
   ];
 
@@ -337,28 +338,28 @@ const Toolbar: React.FC = () => {
             const targetWidth = 200;
             const aspectRatio = img.naturalHeight / img.naturalWidth;
             const targetHeight = targetWidth * aspectRatio;
-            
-            const newImageObject: Omit<ImageObject, 'id'> = {
-              x,
-              y,
+          
+          const newImageObject: Omit<ImageObject, 'id'> = {
+            x,
+            y,
               width: targetWidth,
               height: targetHeight,
-              src,
-              permissions: {
-                editable: true,
-                movable: true,
-                resizable: true,
-                deletable: true,
-              },
-              zIndex: Date.now(),
-              locked: false,
-              visible: true,
-              opacity: 1,
+            src,
+            permissions: {
+              editable: true,
+              movable: true,
+              resizable: true,
+              deletable: true,
+            },
+            zIndex: Date.now(),
+            locked: false,
+            visible: true,
+            opacity: 1,
               maintainAspectRatio: true, // 비율 유지 활성화
-              lastModified: Date.now()
-            };
+            lastModified: Date.now()
+          };
 
-            await addImageObject(newImageObject);
+          await addImageObject(newImageObject);
           };
           
           img.onerror = () => {
@@ -440,13 +441,13 @@ const Toolbar: React.FC = () => {
     const cells: Omit<TextObject, 'id'>[] = [];
 
     // 최대 행/열 제한
-    const actualRows = Math.min(parsedData.length, maxRows);
-    
-    // 각 행의 길이를 안전하게 계산
-    const rowLengths = parsedData.map(row => row.length);
-    const maxRowLength = rowLengths.length > 0 ? Math.max(...rowLengths) : 0;
-    const actualCols = Math.min(maxRowLength, maxCols);
-    
+        const actualRows = Math.min(parsedData.length, maxRows);
+        
+        // 각 행의 길이를 안전하게 계산
+        const rowLengths = parsedData.map(row => row.length);
+        const maxRowLength = rowLengths.length > 0 ? Math.max(...rowLengths) : 0;
+        const actualCols = Math.min(maxRowLength, maxCols);
+
     for (let row = 0; row < actualRows; row++) {
       for (let col = 0; col < actualCols; col++) {
         const cellText = parsedData[row]?.[col] || '';
@@ -1112,7 +1113,7 @@ const Toolbar: React.FC = () => {
 
                  {/* 실행 버튼 */}
                  <div className="space-y-2">
-                   <div className="flex gap-2">
+                 <div className="flex gap-2">
             <button
               onClick={handleCreateExcelCells}
               disabled={!excelPasteData.trim()}
@@ -1145,14 +1146,25 @@ const Toolbar: React.FC = () => {
                      title="생성된 모든 엑셀 셀 그룹을 삭제합니다"
                    >
                      🗑️ 엑셀 셀 그룹 삭제
-                   </button>
-                 </div>
+                        </button>
+                      </div>
           </div>
         )}
       </div>
 
           {/* 3. 선택된 객체 편집 */}
-          {selectedObject && (
+          {selectedObject && (() => {
+            // 엑셀 셀이 선택되었는지 확인
+            const isExcelCellSelected = 'cellType' in selectedObject && selectedObject.cellType === 'cell';
+            const { getSelectedCount } = useCellSelectionStore.getState();
+            const selectedCellCount = getSelectedCount();
+            
+            // 엑셀 셀이 다중선택되었거나 단일 엑셀 셀이 선택되었으면 기존 편집 메뉴 숨김
+            if (isExcelCellSelected || selectedCellCount > 0) {
+              return null;
+            }
+            
+            return (
             <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
               <h3 className="text-sm font-bold text-slate-700 mb-3 flex items-center gap-2">
                 <span>✏️</span> 선택된 객체 편집
@@ -1558,7 +1570,426 @@ const Toolbar: React.FC = () => {
                 </button>
               </div>
             </div>
-          )}
+          );
+          })()}
+
+          {/* 다중선택된 엑셀 셀들 편집 */}
+          {(() => {
+            const { getSelectedCells, getSelectedCount } = useCellSelectionStore.getState();
+            const selectedCells = getSelectedCells();
+            const selectedCount = getSelectedCount();
+            
+            return selectedCount > 0 ? (
+              <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
+                <h3 className="text-sm font-bold text-slate-700 mb-3 flex items-center gap-2">
+                  <span>📊</span> 선택된 엑셀 셀 ({selectedCount}개)
+                </h3>
+                
+                <div className="space-y-4">
+                  {/* 폰트 크기 */}
+                  <div>
+                    <label className="text-xs font-medium text-slate-600 mb-1 block">폰트 크기</label>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={async () => {
+                          // 선택된 셀들 중 가장 작은 폰트 크기 찾기
+                          let minFontSize = 72;
+                          for (const cellId of selectedCells) {
+                            const cellObj = textObjects.find(obj => obj.id === cellId);
+                            if (cellObj && cellObj.cellType === 'cell') {
+                              minFontSize = Math.min(minFontSize, cellObj.fontSize);
+                            }
+                          }
+                          
+                          // 가장 작은 폰트 크기 기준으로 2px 감소
+                          const newFontSize = Math.max(8, minFontSize - 2);
+                          
+                          // 모든 선택된 셀에 동일한 폰트 크기 적용
+                          for (const cellId of selectedCells) {
+                            const cellObj = textObjects.find(obj => obj.id === cellId);
+                            if (cellObj && cellObj.cellType === 'cell') {
+                              await updateTextObject(cellId, { 
+                                fontSize: newFontSize
+                              });
+                            }
+                          }
+                        }}
+                        className="px-2 py-1 bg-slate-100 hover:bg-slate-200 rounded text-xs"
+                      >
+                        ▼
+                      </button>
+                      <span className="flex-1 text-center text-sm font-mono bg-slate-50 py-1 rounded border">
+                        일괄 변경
+                      </span>
+                      <button
+                        onClick={async () => {
+                          // 선택된 셀들 중 가장 작은 폰트 크기 찾기
+                          let minFontSize = 72;
+                          for (const cellId of selectedCells) {
+                            const cellObj = textObjects.find(obj => obj.id === cellId);
+                            if (cellObj && cellObj.cellType === 'cell') {
+                              minFontSize = Math.min(minFontSize, cellObj.fontSize);
+                            }
+                          }
+                          
+                          // 가장 작은 폰트 크기 기준으로 2px 증가
+                          const newFontSize = Math.min(72, minFontSize + 2);
+                          
+                          // 모든 선택된 셀에 동일한 폰트 크기 적용
+                          for (const cellId of selectedCells) {
+                            const cellObj = textObjects.find(obj => obj.id === cellId);
+                            if (cellObj && cellObj.cellType === 'cell') {
+                              await updateTextObject(cellId, { 
+                                fontSize: newFontSize
+                              });
+                            }
+                          }
+                        }}
+                        className="px-2 py-1 bg-slate-100 hover:bg-slate-200 rounded text-xs"
+                      >
+                        ▲
+                      </button>
+                    </div>
+                  </div>
+                  
+                  {/* 색상 선택 */}
+                  <div>
+                    <label className="text-xs font-medium text-slate-600 mb-2 block">색상</label>
+                    
+                    {/* 색상 모드 선택 버튼 */}
+                    <div className="grid grid-cols-3 gap-1 mb-3">
+                      <button
+                        onClick={() => setColorMode('text')}
+                        className={`px-2 py-2 rounded text-xs transition-colors ${
+                          colorMode === 'text'
+                            ? 'bg-blue-500 text-white'
+                            : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                        }`}
+                      >
+                        텍스트
+                      </button>
+                      <button
+                        onClick={() => setColorMode('background')}
+                        className={`px-2 py-2 rounded text-xs transition-colors ${
+                          colorMode === 'background'
+                            ? 'bg-blue-500 text-white'
+                            : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                        }`}
+                      >
+                        배경
+                      </button>
+                      <button
+                        onClick={() => setColorMode('border')}
+                        className={`px-2 py-2 rounded text-xs transition-colors ${
+                          colorMode === 'border'
+                            ? 'bg-blue-500 text-white'
+                            : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                        }`}
+                      >
+                        테두리
+                      </button>
+                    </div>
+
+                    {/* 색상 파레트 */}
+                    <div className="grid grid-cols-5 gap-2">
+                      {/* 배경 모드일 때만 투명 옵션 표시 */}
+                      {colorMode === 'background' && (
+                        <button
+                          onClick={async () => {
+                            for (const cellId of selectedCells) {
+                              const cellObj = textObjects.find(obj => obj.id === cellId);
+                              if (cellObj && cellObj.cellType === 'cell') {
+                                await updateTextObject(cellId, {
+                                  boxStyle: { 
+                                    ...cellObj.boxStyle,
+                                    backgroundColor: 'transparent'
+                                  }
+                                });
+                              }
+                            }
+                          }}
+                          className={`w-8 h-8 rounded border-2 transition-all ${
+                            getCurrentColor() === 'transparent'
+                              ? 'border-blue-500 border-2 shadow-md' 
+                              : 'border-slate-300 hover:border-slate-400'
+                          }`}
+                          style={{ 
+                            backgroundColor: 'white',
+                            backgroundImage: 'linear-gradient(45deg, #ccc 25%, transparent 25%), linear-gradient(-45deg, #ccc 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #ccc 75%), linear-gradient(-45deg, transparent 75%, #ccc 75%)',
+                            backgroundSize: '8px 8px',
+                            backgroundPosition: '0 0, 0 4px, 4px -4px, -4px 0px'
+                          }}
+                          title="투명"
+                        />
+                      )}
+                      {colorPalette.map((color, index) => {
+                        const isSelected = getCurrentColor() === color;
+                        return (
+                          <button
+                            key={index}
+                            onClick={async () => {
+                              for (const cellId of selectedCells) {
+                                const cellObj = textObjects.find(obj => obj.id === cellId);
+                                if (cellObj && cellObj.cellType === 'cell') {
+                                  switch (colorMode) {
+                                    case 'text':
+                                      await updateTextObject(cellId, {
+                                        textStyle: { 
+                                          ...cellObj.textStyle,
+                                          color: color
+                                        }
+                                      });
+                                      break;
+                                    case 'background':
+                                      await updateTextObject(cellId, {
+                                        boxStyle: { 
+                                          ...cellObj.boxStyle,
+                                          backgroundColor: color
+                                        }
+                                      });
+                                      break;
+                                    case 'border':
+                                      await updateTextObject(cellId, {
+                                        boxStyle: { 
+                                          ...cellObj.boxStyle,
+                                          borderColor: color
+                                        }
+                                      });
+                                      break;
+                                  }
+                                }
+                              }
+                            }}
+                            className={`w-8 h-8 rounded border-2 transition-all ${
+                              isSelected 
+                                ? 'border-blue-500 border-2 shadow-md' 
+                                : 'border-slate-300 hover:border-slate-400'
+                            }`}
+                            style={{ backgroundColor: color }}
+                            title={color}
+                          />
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* 텍스트 스타일 */}
+                  <div>
+                    <label className="text-xs font-medium text-slate-600 mb-2 block">텍스트 스타일</label>
+                    <div className="flex gap-2">
+                      <button 
+                        onClick={async () => {
+                          for (const cellId of selectedCells) {
+                            const cellObj = textObjects.find(obj => obj.id === cellId);
+                            if (cellObj && cellObj.cellType === 'cell') {
+                              const currentBold = cellObj.textStyle?.bold || false;
+                              await updateTextObject(cellId, {
+                                textStyle: { 
+                                  ...cellObj.textStyle,
+                                  bold: !currentBold
+                                }
+                              });
+                            }
+                          }
+                        }}
+                        className={`px-3 py-1 rounded-lg text-xs transition-colors ${
+                          // 첫 번째 선택된 셀의 bold 상태를 기준으로 표시
+                          (() => {
+                            const firstCell = textObjects.find(obj => obj.id === selectedCells[0]);
+                            return firstCell?.textStyle?.bold 
+                              ? 'bg-blue-500 text-white' 
+                              : 'bg-slate-100 hover:bg-slate-200 text-slate-700';
+                          })()
+                        }`}
+                      >
+                        굵게
+                      </button>
+                      <button 
+                        onClick={async () => {
+                          for (const cellId of selectedCells) {
+                            const cellObj = textObjects.find(obj => obj.id === cellId);
+                            if (cellObj && cellObj.cellType === 'cell') {
+                              const currentItalic = cellObj.textStyle?.italic || false;
+                              await updateTextObject(cellId, {
+                                textStyle: { 
+                                  ...cellObj.textStyle,
+                                  italic: !currentItalic
+                                }
+                              });
+                            }
+                          }
+                        }}
+                        className={`px-3 py-1 rounded-lg text-xs transition-colors ${
+                          // 첫 번째 선택된 셀의 italic 상태를 기준으로 표시
+                          (() => {
+                            const firstCell = textObjects.find(obj => obj.id === selectedCells[0]);
+                            return firstCell?.textStyle?.italic 
+                              ? 'bg-blue-500 text-white' 
+                              : 'bg-slate-100 hover:bg-slate-200 text-slate-700';
+                          })()
+                        }`}
+                      >
+                        기울임
+                      </button>
+                    </div>
+                  </div>
+                  
+                  {/* 정렬 */}
+                  <div>
+                    <label className="text-xs font-medium text-slate-600 mb-2 block">텍스트 정렬</label>
+                    <div className="space-y-2">
+                      {/* 가로 정렬 */}
+                      <div>
+                        <div className="text-xs text-slate-500 mb-1">가로</div>
+                        <div className="grid grid-cols-3 gap-1">
+                          {(['left', 'center', 'right'] as const).map(align => (
+                            <button 
+                              key={align}
+                              onClick={async () => {
+                                for (const cellId of selectedCells) {
+                                  const cellObj = textObjects.find(obj => obj.id === cellId);
+                                  if (cellObj && cellObj.cellType === 'cell') {
+                                    await updateTextObject(cellId, {
+                                      textStyle: { 
+                                        ...cellObj.textStyle,
+                                        horizontalAlign: align
+                                      }
+                                    });
+                                  }
+                                }
+                              }}
+                              className={`px-2 py-1 rounded text-xs transition-colors ${
+                                // 첫 번째 선택된 셀의 정렬 상태를 기준으로 표시
+                                (() => {
+                                  const firstCell = textObjects.find(obj => obj.id === selectedCells[0]);
+                                  return firstCell?.textStyle?.horizontalAlign === align
+                                    ? 'bg-blue-500 text-white'
+                                    : 'bg-slate-100 hover:bg-slate-200 text-slate-700';
+                                })()
+                              }`}
+                            >
+                              {align === 'left' ? '◀' : align === 'center' ? '●' : '▶'}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                      {/* 세로 정렬 */}
+                      <div>
+                        <div className="text-xs text-slate-500 mb-1">세로</div>
+                        <div className="grid grid-cols-3 gap-1">
+                          {(['top', 'middle', 'bottom'] as const).map(align => (
+                            <button 
+                              key={align}
+                              onClick={async () => {
+                                for (const cellId of selectedCells) {
+                                  const cellObj = textObjects.find(obj => obj.id === cellId);
+                                  if (cellObj && cellObj.cellType === 'cell') {
+                                    await updateTextObject(cellId, {
+                                      textStyle: { 
+                                        ...cellObj.textStyle,
+                                        verticalAlign: align
+                                      }
+                                    });
+                                  }
+                                }
+                              }}
+                              className={`px-2 py-1 rounded text-xs transition-colors ${
+                                // 첫 번째 선택된 셀의 정렬 상태를 기준으로 표시
+                                (() => {
+                                  const firstCell = textObjects.find(obj => obj.id === selectedCells[0]);
+                                  return firstCell?.textStyle?.verticalAlign === align
+                                    ? 'bg-blue-500 text-white'
+                                    : 'bg-slate-100 hover:bg-slate-200 text-slate-700';
+                                })()
+                              }`}
+                            >
+                              {align === 'top' ? '▲' : align === 'middle' ? '●' : '▼'}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 테두리 두께 */}
+                  <div>
+                    <label className="text-xs font-medium text-slate-600 mb-1 block">테두리 두께</label>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={async () => {
+                          for (const cellId of selectedCells) {
+                            const cellObj = textObjects.find(obj => obj.id === cellId);
+                            if (cellObj && cellObj.cellType === 'cell') {
+                              const currentBorderWidth = cellObj.boxStyle?.borderWidth || 0;
+                              await updateTextObject(cellId, {
+                                boxStyle: { 
+                                  ...cellObj.boxStyle,
+                                  borderWidth: Math.max(0, currentBorderWidth - 1)
+                                }
+                              });
+                            }
+                          }
+                        }}
+                        className="px-2 py-1 bg-slate-100 hover:bg-slate-200 rounded text-xs"
+                      >
+                        ▼
+                      </button>
+                      <span className="flex-1 text-center text-sm font-mono bg-slate-50 py-1 rounded border">
+                        일괄 변경
+                      </span>
+                      <button
+                        onClick={async () => {
+                          for (const cellId of selectedCells) {
+                            const cellObj = textObjects.find(obj => obj.id === cellId);
+                            if (cellObj && cellObj.cellType === 'cell') {
+                              const currentBorderWidth = cellObj.boxStyle?.borderWidth || 0;
+                              await updateTextObject(cellId, {
+                                boxStyle: { 
+                                  ...cellObj.boxStyle,
+                                  borderWidth: Math.min(10, currentBorderWidth + 1)
+                                }
+                              });
+                            }
+                          }
+                        }}
+                        className="px-2 py-1 bg-slate-100 hover:bg-slate-200 rounded text-xs"
+                      >
+                        ▲
+                      </button>
+                    </div>
+                  </div>
+                  
+                  {/* 제어 버튼 */}
+                  <div className="flex gap-2 pt-3 border-t border-slate-200">
+                    <button
+                      onClick={async () => {
+                        // 선택된 셀들의 텍스트 내용 삭제
+                        for (const cellId of selectedCells) {
+                          const cellObj = textObjects.find(obj => obj.id === cellId);
+                          if (cellObj && cellObj.cellType === 'cell') {
+                            await updateTextObject(cellId, { text: '' });
+                          }
+                        }
+                        console.log(`${selectedCount}개 셀의 텍스트가 삭제되었습니다.`);
+                      }}
+                      className="flex-1 px-3 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg text-xs font-medium transition-colors"
+                    >
+                      🗑️ 텍스트 삭제
+                    </button>
+                    <button
+                      onClick={() => {
+                        const { clearSelection } = useCellSelectionStore.getState();
+                        clearSelection();
+                      }}
+                      className="flex-1 px-3 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg text-xs font-medium transition-colors"
+                    >
+                      ❌ 선택 해제
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : null;
+          })()}
 
           {/* 4. 설정 */}
           <div className="bg-white rounded-xl shadow-sm border border-slate-200">
