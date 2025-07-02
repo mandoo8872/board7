@@ -598,6 +598,19 @@ const DrawLayer: React.FC<DrawLayerProps> = () => {
     }
   }, [drawObjects, isLoading]);
 
+  // 도구 변경 시 자동 전환 타이머 리셋 (필기↔지우개 전환 시)
+  useEffect(() => {
+    // 필기나 지우개 도구로 변경될 때 기존 자동 전환 타이머 취소
+    if ((currentTool === 'pen' || currentTool === 'eraser') && autoSwitchTimeoutRef.current) {
+      clearTimeout(autoSwitchTimeoutRef.current);
+      autoSwitchTimeoutRef.current = null;
+      
+      if (import.meta.env.DEV) {
+        console.log(`🔄 자동 선택 타이머 리셋됨: ${currentTool} 도구로 변경`);
+      }
+    }
+  }, [currentTool]);
+
   // 현재 스트로크 변경 시 실시간 렌더링
   useEffect(() => {
     if (isDrawing) {
