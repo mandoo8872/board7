@@ -107,7 +107,7 @@ const ViewFloatingToolbar: React.FC = () => {
     }
   };
 
-  // 마우스 이벤트 처리
+  // 마우스 및 터치 이벤트 처리
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
       if (isDragging) {
@@ -132,7 +132,43 @@ const ViewFloatingToolbar: React.FC = () => {
       }
     };
 
+    const handleTouchMove = (e: TouchEvent) => {
+      e.preventDefault(); // 스크롤 방지
+      if (e.touches.length === 1) {
+        const touch = e.touches[0];
+        if (isDragging) {
+          const newPosition = {
+            x: touch.clientX - dragOffset.x,
+            y: touch.clientY - dragOffset.y
+          };
+          const constrainedPosition = constrainToViewport(newPosition, size);
+          setPosition(constrainedPosition);
+        }
+        
+        if (isResizing) {
+          const rect = toolbarRef.current?.getBoundingClientRect();
+          if (rect) {
+            const newWidth = Math.max(120, touch.clientX - rect.left);
+            const newHeight = Math.max(80, touch.clientY - rect.top);
+            const newSize = { width: newWidth, height: newHeight };
+            const constrainedPosition = constrainToViewport(position, newSize);
+            setSize(newSize);
+            setPosition(constrainedPosition);
+          }
+        }
+      }
+    };
+
     const handleMouseUp = () => {
+      if (isDragging || isResizing) {
+        // 드래그나 리사이즈 종료 시 설정 저장
+        saveSettings(position, size);
+      }
+      setIsDragging(false);
+      setIsResizing(false);
+    };
+
+    const handleTouchEnd = () => {
       if (isDragging || isResizing) {
         // 드래그나 리사이즈 종료 시 설정 저장
         saveSettings(position, size);
@@ -144,11 +180,15 @@ const ViewFloatingToolbar: React.FC = () => {
     if (isDragging || isResizing) {
       document.addEventListener('mousemove', handleMouseMove);
       document.addEventListener('mouseup', handleMouseUp);
+      document.addEventListener('touchmove', handleTouchMove, { passive: false });
+      document.addEventListener('touchend', handleTouchEnd);
     }
 
     return () => {
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
+      document.removeEventListener('touchmove', handleTouchMove);
+      document.removeEventListener('touchend', handleTouchEnd);
     };
   }, [isDragging, isResizing, dragOffset, position, size]);
 
@@ -183,7 +223,31 @@ const ViewFloatingToolbar: React.FC = () => {
     }
   };
 
+  const handleToolbarTouchStart = (e: React.TouchEvent) => {
+    // 버튼이나 리사이즈 핸들이 아닌 경우에만 드래그 시작
+    const target = e.target as HTMLElement;
+    if (target.closest('button') || target.closest('.resize-handle')) return;
+    
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+    const rect = toolbarRef.current?.getBoundingClientRect();
+    if (rect && e.touches.length === 1) {
+      const touch = e.touches[0];
+      setDragOffset({
+        x: touch.clientX - rect.left,
+        y: touch.clientY - rect.top
+      });
+    }
+  };
+
   const handleResizeStart = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsResizing(true);
+  };
+
+  const handleResizeTouchStart = (e: React.TouchEvent) => {
     e.preventDefault();
     e.stopPropagation();
     setIsResizing(true);
@@ -288,6 +352,7 @@ const ViewFloatingToolbar: React.FC = () => {
         minHeight: 80
       }}
       onMouseDown={handleToolbarMouseDown}
+      onTouchStart={handleToolbarTouchStart}
       onClick={(e) => e.stopPropagation()}
     >
       {/* 툴바 내용 */}
@@ -452,6 +517,7 @@ const ViewFloatingToolbar: React.FC = () => {
       <div
         className="resize-handle absolute bottom-0 right-0 w-4 h-4 cursor-se-resize"
         onMouseDown={handleResizeStart}
+        onTouchStart={handleResizeTouchStart}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="absolute bottom-1 right-1 w-2 h-2 border-r-2 border-b-2 border-gray-400"></div>

@@ -444,6 +444,11 @@ const BaseLayer: React.FC<BaseLayerProps> = ({ isViewPage = false }) => {
       const gridSnapEnabled = settings?.admin?.gridSnapEnabled ?? false;
       const gridSize = settings?.admin?.gridSize ?? 32;
       
+      // 디버깅용 로그 (뷰페이지에서만)
+      if (isViewPage) {
+        console.log('Grid Snap Debug:', { gridSnapEnabled, gridSize, settings: settings?.admin });
+      }
+      
       if (gridSnapEnabled) {
         finalPosition = snapPositionToGrid(newPosition.x, newPosition.y, gridSize);
       }
@@ -577,6 +582,11 @@ const BaseLayer: React.FC<BaseLayerProps> = ({ isViewPage = false }) => {
       // 설정이 로드되지 않았을 때 기본값 제공
       const gridSnapEnabled = settings?.admin?.gridSnapEnabled ?? false;
       const gridSize = settings?.admin?.gridSize ?? 32;
+      
+      // 디버깅용 로그 (뷰페이지에서만)
+      if (isViewPage) {
+        console.log('Grid Snap Resize Debug:', { gridSnapEnabled, gridSize, settings: settings?.admin });
+      }
       
       if (gridSnapEnabled) {
         finalPosition = snapPositionToGrid(newX, newY, gridSize);

@@ -191,7 +191,7 @@ const ViewVirtualKeyboard: React.FC = () => {
     }
   }, [selectedObjectId, isVisible]);
 
-  // 마우스 이벤트 처리
+  // 마우스 및 터치 이벤트 처리
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
       if (isDragging) {
@@ -216,7 +216,43 @@ const ViewVirtualKeyboard: React.FC = () => {
       }
     };
 
+    const handleTouchMove = (e: TouchEvent) => {
+      e.preventDefault(); // 스크롤 방지
+      if (e.touches.length === 1) {
+        const touch = e.touches[0];
+        if (isDragging) {
+          const newPosition = {
+            x: touch.clientX - dragOffset.x,
+            y: touch.clientY - dragOffset.y
+          };
+          const constrainedPosition = constrainToViewport(newPosition, size);
+          setPosition(constrainedPosition);
+        }
+        
+        if (isResizing) {
+          const rect = keyboardRef.current?.getBoundingClientRect();
+          if (rect) {
+            const newWidth = Math.max(500, touch.clientX - rect.left);
+            const newHeight = Math.max(300, touch.clientY - rect.top);
+            const newSize = { width: newWidth, height: newHeight };
+            const constrainedPosition = constrainToViewport(position, newSize);
+            setSize(newSize);
+            setPosition(constrainedPosition);
+          }
+        }
+      }
+    };
+
     const handleMouseUp = () => {
+      if (isDragging || isResizing) {
+        // 드래그나 리사이즈 종료 시 설정 저장
+        saveSettings(position, size);
+      }
+      setIsDragging(false);
+      setIsResizing(false);
+    };
+
+    const handleTouchEnd = () => {
       if (isDragging || isResizing) {
         // 드래그나 리사이즈 종료 시 설정 저장
         saveSettings(position, size);
@@ -228,11 +264,15 @@ const ViewVirtualKeyboard: React.FC = () => {
     if (isDragging || isResizing) {
       document.addEventListener('mousemove', handleMouseMove);
       document.addEventListener('mouseup', handleMouseUp);
+      document.addEventListener('touchmove', handleTouchMove, { passive: false });
+      document.addEventListener('touchend', handleTouchEnd);
     }
 
     return () => {
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
+      document.removeEventListener('touchmove', handleTouchMove);
+      document.removeEventListener('touchend', handleTouchEnd);
     };
   }, [isDragging, isResizing, dragOffset, position, size]);
 
@@ -263,7 +303,27 @@ const ViewVirtualKeyboard: React.FC = () => {
     }
   }, []);
 
+  const handleHeaderTouchStart = useCallback((e: React.TouchEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+    const rect = keyboardRef.current?.getBoundingClientRect();
+    if (rect && e.touches.length === 1) {
+      const touch = e.touches[0];
+      setDragOffset({
+        x: touch.clientX - rect.left,
+        y: touch.clientY - rect.top
+      });
+    }
+  }, []);
+
   const handleResizeStart = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsResizing(true);
+  }, []);
+
+  const handleResizeTouchStart = useCallback((e: React.TouchEvent) => {
     e.preventDefault();
     e.stopPropagation();
     setIsResizing(true);
@@ -527,6 +587,7 @@ const ViewVirtualKeyboard: React.FC = () => {
           cursor: isDragging ? 'grabbing' : 'grab'
         }}
         onMouseDown={handleHeaderMouseDown}
+        onTouchStart={handleHeaderTouchStart}
         onClick={(e) => e.stopPropagation()}
         onPointerDown={(e) => e.stopPropagation()}
       >
@@ -737,6 +798,7 @@ const ViewVirtualKeyboard: React.FC = () => {
       <div
         className="absolute bottom-0 right-0 w-4 h-4 cursor-se-resize"
         onMouseDown={handleResizeStart}
+        onTouchStart={handleResizeTouchStart}
         onClick={(e) => e.stopPropagation()}
         onPointerDown={(e) => e.stopPropagation()}
       >
