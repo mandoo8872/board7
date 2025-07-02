@@ -444,7 +444,7 @@ const BaseLayer: React.FC<BaseLayerProps> = ({ isViewPage = false }) => {
       const gridSnapEnabled = settings?.admin?.gridSnapEnabled ?? false;
       const gridSize = settings?.admin?.gridSize ?? 32;
       
-      if (gridSnapEnabled && !isViewPage) {
+      if (gridSnapEnabled) {
         finalPosition = snapPositionToGrid(newPosition.x, newPosition.y, gridSize);
       }
 
@@ -578,7 +578,7 @@ const BaseLayer: React.FC<BaseLayerProps> = ({ isViewPage = false }) => {
       const gridSnapEnabled = settings?.admin?.gridSnapEnabled ?? false;
       const gridSize = settings?.admin?.gridSize ?? 32;
       
-      if (gridSnapEnabled && !isViewPage) {
+      if (gridSnapEnabled) {
         finalPosition = snapPositionToGrid(newX, newY, gridSize);
         finalSize = snapSizeToGrid(newWidth, newHeight, gridSize);
       }
