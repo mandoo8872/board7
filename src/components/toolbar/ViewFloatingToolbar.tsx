@@ -292,7 +292,7 @@ const ViewFloatingToolbar: React.FC = () => {
         backgroundOpacity: 1,
         borderColor: '#000000',
         borderWidth: 1,
-        borderRadius: 0,
+        borderRadius: 8, // 라운딩 처리 추가
       },
       fontSize: safeSettings.admin.defaultFontSize,
       textStyle: {
