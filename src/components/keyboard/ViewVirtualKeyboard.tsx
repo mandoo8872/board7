@@ -500,7 +500,23 @@ const ViewVirtualKeyboard: React.FC = () => {
         height: size.height,
         zIndex: 9999 // 더 높은 z-index
       }}
-      onClick={(e) => e.stopPropagation()} // 키보드 클릭 시 이벤트 버블링 방지
+      onClick={(e) => {
+        e.stopPropagation(); // 키보드 클릭 시 이벤트 버블링 방지
+        
+        // 가상 키보드 버튼 클릭 시에만 캔버스 포커스 해제
+        const target = e.target as HTMLElement;
+        const isKeyboardButton = target.tagName === 'BUTTON' || target.closest('button');
+        
+        if (isKeyboardButton) {
+          const activeElement = document.activeElement as HTMLElement;
+          // 캔버스 컨테이너만 정확히 타겟팅
+          if (activeElement && 
+              (activeElement.hasAttribute('data-canvas-container') || 
+               (activeElement.tabIndex === 0 && activeElement.tagName === 'DIV'))) {
+            activeElement.blur();
+          }
+        }
+      }}
       onPointerDown={(e) => e.stopPropagation()} // 터치 이벤트도 방지
       onMouseDown={(e) => e.stopPropagation()} // 마우스 다운 이벤트도 방지
     >

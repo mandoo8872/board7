@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback } from 'react';
 import { useAdminConfigStore } from '../../store/adminConfigStore';
 import { useEditorStore } from '../../store/editorStore';
 import { useCheckboxStore } from '../../store/checkboxStore';
@@ -260,43 +260,36 @@ const BaseLayer: React.FC<BaseLayerProps> = ({ isViewPage = false }) => {
     }
   }, [settings?.admin?.objectCreationPosition, addImageObject]);
 
-  // 키보드 단축키 핸들러
-  useEffect(() => {
-    const handleGlobalKeyDown = (e: KeyboardEvent) => {
-      // 인라인 편집 중이면 키보드 단축키 비활성화
-      if (editingObjectId) return;
-      
-      // Ctrl+V: 클립보드 이미지 붙여넣기 (ViewPage에서도 허용)
-      if (e.ctrlKey && e.key === 'v') {
-        e.preventDefault();
-        handleClipboardPaste();
-        return;
+  // 키보드 단축키 핸들러 (캔버스 포커스 시에만)
+  const handleCanvasKeyDown = useCallback((e: React.KeyboardEvent) => {
+    // 인라인 편집 중이면 키보드 단축키 비활성화
+    if (editingObjectId) return;
+    
+    // Ctrl+V: 클립보드 이미지 붙여넣기 (캔버스 포커스 시에만)
+    if (e.ctrlKey && e.key === 'v') {
+      e.preventDefault();
+      handleClipboardPaste();
+      return;
+    }
+    
+    // ViewPage에서는 나머지 키보드 단축키 비활성화
+    if (isViewPage) return;
+    
+    // Ctrl+D: 복제
+    if (e.ctrlKey && e.key === 'd') {
+      e.preventDefault();
+      if (selectedObjectId) {
+        handleDuplicateObject();
       }
-      
-      // ViewPage에서는 나머지 키보드 단축키 비활성화
-      if (isViewPage) return;
-      
-      // Ctrl+D: 복제
-      if (e.ctrlKey && e.key === 'd') {
-        e.preventDefault();
-        if (selectedObjectId) {
-          handleDuplicateObject();
-        }
+    }
+    
+    // Delete: 삭제
+    if (e.key === 'Delete') {
+      e.preventDefault();
+      if (selectedObjectId) {
+        handleDeleteObject();
       }
-      
-      // Delete: 삭제
-      if (e.key === 'Delete') {
-        e.preventDefault();
-        if (selectedObjectId) {
-          handleDeleteObject();
-        }
-      }
-    };
-
-    window.addEventListener('keydown', handleGlobalKeyDown);
-    return () => {
-      window.removeEventListener('keydown', handleGlobalKeyDown);
-    };
+    }
   }, [editingObjectId, selectedObjectId, isViewPage, handleDuplicateObject, handleDeleteObject, handleClipboardPaste]);
 
   // 포인터 다운 핸들러 (드래그 시작) - 마우스, 터치, 펜 모두 지원
@@ -743,6 +736,15 @@ const BaseLayer: React.FC<BaseLayerProps> = ({ isViewPage = false }) => {
 
   // 캔버스 빈 공간 클릭 핸들러 (선택 해제)
   const handleCanvasClick = useCallback((e: React.MouseEvent) => {
+    // 캔버스에 포커스 설정 (키보드 단축키 활성화용)
+    const canvasContainer = e.currentTarget as HTMLElement;
+    canvasContainer.focus();
+    
+    // 처음 캔버스를 클릭했을 때 사용법 안내 (개발 환경에서만)
+    if (import.meta.env.DEV) {
+      console.log('💡 캔버스 포커스 활성화: Ctrl+V로 이미지 붙여넣기 가능');
+    }
+    
     // 인라인 편집 중이면 편집 종료
     if (editingObjectId) {
       finishInlineEdit();
@@ -843,7 +845,9 @@ const BaseLayer: React.FC<BaseLayerProps> = ({ isViewPage = false }) => {
   return (
     <div 
       className="absolute inset-0"
+      tabIndex={0}  // 포커스 가능하게 설정
       onClick={handleCanvasClick}
+      onKeyDown={handleCanvasKeyDown}  // 캔버스 포커스 시에만 키보드 이벤트 처리
       // 포인터 이벤트 (터치, 펜, 마우스 모두 지원)
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
@@ -856,7 +860,8 @@ const BaseLayer: React.FC<BaseLayerProps> = ({ isViewPage = false }) => {
       onContextMenu={handleContextMenu}
       style={{
         touchAction: 'none', // 터치 스크롤 및 줌 방지
-        pointerEvents: (currentTool === 'pen' || currentTool === 'eraser') ? 'none' : 'auto'
+        pointerEvents: (currentTool === 'pen' || currentTool === 'eraser') ? 'none' : 'auto',
+        outline: 'none' // 포커스 아웃라인 제거 (시각적으로 깔끔하게)
       }}
     >
       {/* 모든 객체를 zIndex 순서대로 정렬하여 렌더링 */}

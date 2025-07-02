@@ -735,7 +735,30 @@ const Toolbar: React.FC = () => {
   }
 
   return (
-    <div className="h-full flex flex-col overflow-hidden bg-gradient-to-b from-slate-50 to-slate-100">
+    <div 
+      className="h-full flex flex-col overflow-hidden bg-gradient-to-b from-slate-50 to-slate-100"
+      onClick={(e) => {
+        // 툴바 클릭 시 캔버스 포커스 해제 (이미지 붙여넣기 방지)
+        e.stopPropagation();
+        
+        // 입력 필드 클릭 시에는 포커스 해제하지 않음
+        const target = e.target as HTMLElement;
+        const isInputElement = target.tagName === 'INPUT' || 
+                              target.tagName === 'TEXTAREA' || 
+                              target.isContentEditable ||
+                              target.closest('input, textarea, [contenteditable]');
+        
+        if (!isInputElement) {
+          const activeElement = document.activeElement as HTMLElement;
+          // 캔버스 컨테이너만 정확히 타겟팅 (data-canvas-container 또는 tabIndex가 0인 요소)
+          if (activeElement && 
+              (activeElement.hasAttribute('data-canvas-container') || 
+               (activeElement.tabIndex === 0 && activeElement.tagName === 'DIV'))) {
+            activeElement.blur();
+          }
+        }
+      }}
+    >
       {/* 헤더 */}
       <div className="p-4 border-b border-slate-200 bg-gradient-to-r from-pink-200 to-purple-200">
         <h1 className="text-lg font-bold text-gray-700 flex items-center gap-2">
@@ -815,6 +838,14 @@ const Toolbar: React.FC = () => {
                   });
                   window.dispatchEvent(event);
                 }}
+                onFocus={(e) => {
+                  // textarea 포커스 시 포커스 유지 보장
+                  e.stopPropagation();
+                }}
+                onClick={(e) => {
+                  // textarea 클릭 시 이벤트 전파 중단 (상위 포커스 해제 방지)
+                  e.stopPropagation();
+                }}
                     placeholder="엑셀에서 복사한 데이터를 붙여넣으세요..."
                     className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs resize-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     rows={3}
@@ -855,6 +886,8 @@ const Toolbar: React.FC = () => {
                       }
                     }
                   })}
+                  onFocus={(e) => e.stopPropagation()}
+                  onClick={(e) => e.stopPropagation()}
                         className="w-16 px-1 py-1 border border-slate-300 rounded text-xs text-center"
                       />
                       <button
@@ -902,6 +935,8 @@ const Toolbar: React.FC = () => {
                       }
                     }
                   })}
+                  onFocus={(e) => e.stopPropagation()}
+                  onClick={(e) => e.stopPropagation()}
                         className="w-16 px-1 py-1 border border-slate-300 rounded text-xs text-center"
                       />
                       <button
@@ -1029,6 +1064,8 @@ const Toolbar: React.FC = () => {
                       fontColor: e.target.value
                     }
                   })}
+                  onFocus={(e) => e.stopPropagation()}
+                  onClick={(e) => e.stopPropagation()}
                        className="w-full h-8 rounded border border-slate-300"
                 />
               </div>
@@ -1129,6 +1166,8 @@ const Toolbar: React.FC = () => {
                     <textarea
                       value={selectedObject.text}
                       onChange={(e) => debouncedUpdateTextObject(selectedObject.id, { text: e.target.value })}
+                      onFocus={(e) => e.stopPropagation()}
+                      onClick={(e) => e.stopPropagation()}
                       className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm resize-none focus:ring-2 focus:ring-blue-500"
                       rows={2}
                     />
@@ -1693,6 +1732,8 @@ const Toolbar: React.FC = () => {
                           checkedColor: e.target.value
                         }
                       })}
+                      onFocus={(e) => e.stopPropagation()}
+                      onClick={(e) => e.stopPropagation()}
                         className="w-full h-8 rounded border border-slate-300"
                     />
                   </div>
@@ -1707,6 +1748,8 @@ const Toolbar: React.FC = () => {
                           uncheckedColor: e.target.value
                         }
                       })}
+                      onFocus={(e) => e.stopPropagation()}
+                      onClick={(e) => e.stopPropagation()}
                         className="w-full h-8 rounded border border-slate-300"
                     />
                   </div>
@@ -1725,6 +1768,8 @@ const Toolbar: React.FC = () => {
                           checkedBackgroundColor: e.target.value
                         }
                       })}
+                      onFocus={(e) => e.stopPropagation()}
+                      onClick={(e) => e.stopPropagation()}
                         className="w-full h-8 rounded border border-slate-300"
                     />
                   </div>
@@ -1739,6 +1784,8 @@ const Toolbar: React.FC = () => {
                           uncheckedBackgroundColor: e.target.value
                         }
                       })}
+                      onFocus={(e) => e.stopPropagation()}
+                      onClick={(e) => e.stopPropagation()}
                         className="w-full h-8 rounded border border-slate-300"
                     />
                   </div>
