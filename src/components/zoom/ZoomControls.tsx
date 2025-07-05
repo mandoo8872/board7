@@ -25,14 +25,14 @@ const ZoomControls: React.FC = React.memo(() => {
       <button
         onClick={handleZoomIn}
         className="w-10 h-10 bg-white border border-gray-300 rounded-lg shadow-md hover:shadow-lg transition-shadow flex items-center justify-center text-lg font-semibold"
-        title="확대 (Ctrl + +)"
+        title="확대 (Ctrl + 휠 위 또는 Ctrl + +)"
       >
         +
       </button>
       <button
         onClick={handleZoomOut}
         className="w-10 h-10 bg-white border border-gray-300 rounded-lg shadow-md hover:shadow-lg transition-shadow flex items-center justify-center text-lg font-semibold"
-        title="축소 (Ctrl + -)"
+        title="축소 (Ctrl + 휠 아래 또는 Ctrl + -)"
       >
         -
       </button>

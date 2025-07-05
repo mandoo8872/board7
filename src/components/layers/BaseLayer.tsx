@@ -301,7 +301,11 @@ const BaseLayer: React.FC<BaseLayerProps> = ({ isViewPage = false }) => {
     
     // Ctrl+V: 클립보드 이미지 붙여넣기 (캔버스 포커스 시에만)
     if (e.ctrlKey && e.key === 'v') {
-      e.preventDefault();
+      try {
+        e.preventDefault();
+      } catch (error) {
+        console.debug('preventDefault failed in global keydown handler:', error);
+      }
       handleClipboardPaste();
       return;
     }
@@ -311,7 +315,11 @@ const BaseLayer: React.FC<BaseLayerProps> = ({ isViewPage = false }) => {
     
     // Ctrl+D: 복제
     if (e.ctrlKey && e.key === 'd') {
-      e.preventDefault();
+      try {
+        e.preventDefault();
+      } catch (error) {
+        console.debug('preventDefault failed in global keydown handler:', error);
+      }
       if (selectedObjectId) {
         handleDuplicateObject();
       }
@@ -319,7 +327,11 @@ const BaseLayer: React.FC<BaseLayerProps> = ({ isViewPage = false }) => {
     
     // Delete: 삭제 (엑셀 셀 다중선택 텍스트 내용 삭제 또는 일반 객체 삭제)
     if (e.key === 'Delete') {
-      e.preventDefault();
+      try {
+        e.preventDefault();
+      } catch (error) {
+        console.debug('preventDefault failed in global keydown handler:', error);
+      }
       
       // 다중선택된 엑셀 셀들이 있으면 텍스트 내용만 일괄 삭제
       const selectedCells = useCellSelectionStore.getState().getSelectedCells();
@@ -337,7 +349,7 @@ const BaseLayer: React.FC<BaseLayerProps> = ({ isViewPage = false }) => {
 
   // 포인터 다운 핸들러 (드래그 시작) - 마우스, 터치, 펜 모두 지원
   const handlePointerDown = useCallback((e: React.PointerEvent, id: string) => {
-    e.preventDefault();
+    // CSS touchAction: 'none'을 사용하므로 preventDefault() 불필요
     e.stopPropagation();
 
     if (editingObjectId) {
@@ -383,7 +395,7 @@ const BaseLayer: React.FC<BaseLayerProps> = ({ isViewPage = false }) => {
 
   // 크기조절 핸들 포인터 다운 - 마우스, 터치, 펜 모두 지원
   const handleResizePointerDown = useCallback((e: React.PointerEvent, handle: string, objectId: string) => {
-    e.preventDefault();
+    // CSS touchAction: 'none'을 사용하므로 preventDefault() 불필요
     e.stopPropagation();
 
     const obj = textObjects.find(o => o.id === objectId) || imageObjects.find(o => o.id === objectId);
@@ -934,18 +946,31 @@ const BaseLayer: React.FC<BaseLayerProps> = ({ isViewPage = false }) => {
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
+      try {
+        e.preventDefault();
+      } catch (error) {
+        console.debug('preventDefault failed in keydown handler:', error);
+      }
       finishInlineEdit();
     } else if (e.key === 'Escape') {
-      e.preventDefault();
+      try {
+        e.preventDefault();
+      } catch (error) {
+        console.debug('preventDefault failed in keydown handler:', error);
+      }
       cancelInlineEdit();
     }
   };
 
   // 컨텍스트 메뉴 방지 (우클릭, 터치 길게 누르기)
   const handleContextMenu = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
+    try {
+      e.preventDefault();
+      e.stopPropagation();
+    } catch (error) {
+      // passive event listener에서 preventDefault() 실패 시 무시
+      console.debug('preventDefault failed in context menu handler:', error);
+    }
     return false;
   };
 

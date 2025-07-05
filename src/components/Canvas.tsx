@@ -27,39 +27,16 @@ const Canvas: React.FC<CanvasProps> = ({ isViewPage = false }) => {
     gridSize: settings?.admin?.gridSize ?? 32
   };
 
-  // 마우스 휠 이벤트 핸들러
+  // 마우스 휠 이벤트 핸들러 (캔버스 영역 전용 - 일반 스크롤 허용)
   const handleWheel = useCallback((e: React.WheelEvent) => {
-    if (!containerRef.current || !canvasRef.current) return;
-    
-    // 마우스 위치 계산
-    const containerRect = containerRef.current.getBoundingClientRect();
-    const canvasRect = canvasRef.current.getBoundingClientRect();
-    
-    const mouseX = e.clientX;
-    const mouseY = e.clientY;
-    
-    // 마우스가 캔버스 영역 안에 있는지 확인
-    const isMouseOverCanvas = (
-      mouseX >= canvasRect.left &&
-      mouseX <= canvasRect.right &&
-      mouseY >= canvasRect.top &&
-      mouseY <= canvasRect.bottom
-    );
-    
-    // 캔버스 안에 있을 때만 확대/축소, 바깥쪽에서는 기본 스크롤 허용
-    if (isMouseOverCanvas) {
-      e.preventDefault(); // 기본 스크롤 동작 방지
-      
-      const mouseXRelative = e.clientX - containerRect.left;
-      const mouseYRelative = e.clientY - containerRect.top;
-      
-      // wheelDelta는 양수면 위로(확대), 음수면 아래로(축소)
-      const delta = -e.deltaY;
-      
-      zoomAtPoint(delta, mouseXRelative, mouseYRelative, containerRect);
+    // Ctrl 키가 눌린 상태에서는 전역 휠 이벤트에서 처리하므로 여기서는 무시
+    if (e.ctrlKey) {
+      return;
     }
-    // 캔버스 바깥쪽에서는 preventDefault를 호출하지 않아 기본 스크롤 동작 허용
-  }, [zoomAtPoint]);
+    
+    // 일반 휠 이벤트는 스크롤로 처리 (확대/축소 하지 않음)
+    // 기본 스크롤 동작 허용
+  }, []);
 
   // zoom이 비정상적으로 작으면 1.0으로 리셋
   useEffect(() => {
@@ -67,6 +44,89 @@ const Canvas: React.FC<CanvasProps> = ({ isViewPage = false }) => {
       setZoom(1.0);
     }
   }, [zoom, setZoom]);
+
+  // 전역 wheel 이벤트 리스너 (Ctrl + 휠 조합 전용)
+  useEffect(() => {
+    const handleGlobalWheel = (e: WheelEvent) => {
+      // Ctrl 키가 눌린 상태에서만 처리
+      if (e.ctrlKey) {
+        try {
+          e.preventDefault(); // 브라우저 기본 확대/축소 차단
+        } catch (error) {
+          console.debug('preventDefault failed in global wheel handler:', error);
+        }
+        
+        // 캔버스 컨테이너와 캔버스 요소가 있는지 확인
+        if (!containerRef.current || !canvasRef.current) return;
+        
+        const containerRect = containerRef.current.getBoundingClientRect();
+        
+        // 마우스 위치 계산 (컨테이너 기준)
+        const mouseXRelative = e.clientX - containerRect.left;
+        const mouseYRelative = e.clientY - containerRect.top;
+        
+        // wheelDelta는 양수면 위로(확대), 음수면 아래로(축소)
+        const delta = -e.deltaY;
+        
+        // 확대/축소 실행
+        zoomAtPoint(delta, mouseXRelative, mouseYRelative, containerRect);
+      }
+    };
+
+    // window에 wheel 이벤트 리스너 추가 (passive: false로 설정하여 preventDefault 허용)
+    window.addEventListener('wheel', handleGlobalWheel, { passive: false });
+    
+    return () => {
+      window.removeEventListener('wheel', handleGlobalWheel);
+    };
+  }, [zoomAtPoint]);
+
+  // 전역 키보드 이벤트 리스너 (Ctrl + +, Ctrl + - 조합)
+  useEffect(() => {
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      // Ctrl + Plus (확대)
+      if (e.ctrlKey && (e.key === '+' || e.key === '=')) {
+        try {
+          e.preventDefault();
+        } catch (error) {
+          console.debug('preventDefault failed in global keydown handler:', error);
+        }
+        
+        if (!containerRef.current || !canvasRef.current) return;
+        
+        const containerRect = containerRef.current.getBoundingClientRect();
+        // 화면 중앙을 기준으로 확대
+        const centerX = containerRect.width / 2;
+        const centerY = containerRect.height / 2;
+        
+        zoomAtPoint(120, centerX, centerY, containerRect); // 양수 값으로 확대
+      }
+      
+      // Ctrl + Minus (축소)
+      if (e.ctrlKey && e.key === '-') {
+        try {
+          e.preventDefault();
+        } catch (error) {
+          console.debug('preventDefault failed in global keydown handler:', error);
+        }
+        
+        if (!containerRef.current || !canvasRef.current) return;
+        
+        const containerRect = containerRef.current.getBoundingClientRect();
+        // 화면 중앙을 기준으로 축소
+        const centerX = containerRect.width / 2;
+        const centerY = containerRect.height / 2;
+        
+        zoomAtPoint(-120, centerX, centerY, containerRect); // 음수 값으로 축소
+      }
+    };
+
+    window.addEventListener('keydown', handleGlobalKeyDown);
+    
+    return () => {
+      window.removeEventListener('keydown', handleGlobalKeyDown);
+    };
+  }, [zoomAtPoint]);
 
   // Firebase 리스너는 상위 페이지(ViewPage/AdminPage)에서 초기화하므로 여기서는 제거
 
