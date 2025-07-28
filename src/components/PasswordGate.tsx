@@ -147,8 +147,14 @@ const PasswordGate: React.FC<PasswordGateProps> = ({ passwordKey, onSuccess }) =
 
       {/* 하단 - 저작권 */}
       <div className="flex-shrink-0 mb-8">
-        <div className="text-white text-xs sm:text-sm opacity-80 text-center font-medium">
-          © 2025 HYUNDAI GLOVIS. All rights reserved.
+        <div className="text-white text-xs sm:text-sm opacity-80 text-center font-medium space-y-1">
+          <div>© 2025 HYUNDAI GLOVIS. All rights reserved.</div>
+          <div className="text-xs opacity-60">
+            BOARD7 System v1.0 | Built with React, TypeScript, Tailwind CSS
+          </div>
+          <div className="text-xs opacity-60">
+            Firebase, Zustand, React Router | Open Source Components
+          </div>
         </div>
       </div>
     </div>
