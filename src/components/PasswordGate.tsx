@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import NumberKeyboard from './NumberKeyboard';
 
 interface PasswordGateProps {
   passwordKey: 'ADMIN' | 'VIEW';
@@ -8,6 +9,7 @@ interface PasswordGateProps {
 const PasswordGate: React.FC<PasswordGateProps> = ({ passwordKey, onSuccess }) => {
   const [password, setPassword] = useState<string[]>(['', '', '', '']);
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
+  const [showKeyboard, setShowKeyboard] = useState(false);
   
   // 환경변수에서 패스워드 가져오기
   const correctPassword = import.meta.env[`VITE_${passwordKey}_PASSWORD`] || '1004';
@@ -75,6 +77,46 @@ const PasswordGate: React.FC<PasswordGateProps> = ({ passwordKey, onSuccess }) =
     }
   };
 
+  // 가상키보드 키 입력 처리
+  const handleVirtualKeyPress = (key: string) => {
+    if (key === 'Backspace') {
+      // 현재 입력된 마지막 칸 찾기
+      let lastFilledIndex = -1;
+      for (let i = 3; i >= 0; i--) {
+        if (password[i] !== '') {
+          lastFilledIndex = i;
+          break;
+        }
+      }
+      
+      if (lastFilledIndex >= 0) {
+        const newPassword = [...password];
+        newPassword[lastFilledIndex] = '';
+        setPassword(newPassword);
+        
+        // 해당 input에 포커스
+        setTimeout(() => {
+          if (inputRefs.current[lastFilledIndex]) {
+            inputRefs.current[lastFilledIndex]?.focus();
+          }
+        }, 50);
+      }
+    } else if (/^\d$/.test(key)) {
+      // 숫자인 경우
+      const emptyIndex = password.findIndex(p => p === '');
+      if (emptyIndex >= 0) {
+        handleInputChange(emptyIndex, key);
+      }
+    }
+  };
+
+  // 입력칸 포커스 시 뷰페이지에서는 키보드 표시
+  const handleInputFocus = () => {
+    if (passwordKey === 'VIEW') {
+      setShowKeyboard(true);
+    }
+  };
+
   return (
     <div 
       className="h-screen flex flex-col justify-between items-center p-8"
@@ -117,26 +159,27 @@ const PasswordGate: React.FC<PasswordGateProps> = ({ passwordKey, onSuccess }) =
         
         <div className="flex space-x-3 sm:space-x-4 md:space-x-6">
           {password.map((digit, index) => (
-            <input
-              key={index}
-              ref={(el) => (inputRefs.current[index] = el)}
-              type="password"
-              value={digit}
-              onChange={(e) => handleInputChange(index, e.target.value)}
-              onKeyDown={(e) => handleKeyDown(index, e)}
-              maxLength={1}
-              className="w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14 
-                         text-center text-xl sm:text-2xl md:text-3xl font-bold
-                         border-2 border-white rounded-lg
-                         bg-transparent text-white placeholder-gray-300
-                         focus:outline-none focus:ring-2 focus:ring-white focus:ring-opacity-50
-                         transition-all duration-200"
-              style={{ 
-                color: digit ? 'transparent' : 'white',
-                textShadow: digit ? '0 0 0 white' : 'none',
-                caretColor: 'white'
-              }}
-            />
+                          <input
+                key={index}
+                ref={(el) => (inputRefs.current[index] = el)}
+                type="password"
+                value={digit}
+                onChange={(e) => handleInputChange(index, e.target.value)}
+                onKeyDown={(e) => handleKeyDown(index, e)}
+                onFocus={handleInputFocus}
+                maxLength={1}
+                className="w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14 
+                           text-center text-xl sm:text-2xl md:text-3xl font-bold
+                           border-2 border-white rounded-lg
+                           bg-transparent text-white placeholder-gray-300
+                           focus:outline-none focus:ring-2 focus:ring-white focus:ring-opacity-50
+                           transition-all duration-200"
+                style={{ 
+                  color: digit ? 'transparent' : 'white',
+                  textShadow: digit ? '0 0 0 white' : 'none',
+                  caretColor: 'white'
+                }}
+              />
           ))}
         </div>
         
@@ -157,6 +200,15 @@ const PasswordGate: React.FC<PasswordGateProps> = ({ passwordKey, onSuccess }) =
           </div>
         </div>
       </div>
+
+      {/* 가상키보드 (VIEW 페이지에서만) */}
+      {passwordKey === 'VIEW' && (
+        <NumberKeyboard
+          isVisible={showKeyboard}
+          onKeyPress={handleVirtualKeyPress}
+          onClose={() => setShowKeyboard(false)}
+        />
+      )}
     </div>
   );
 };
