@@ -193,11 +193,7 @@ const ViewVirtualKeyboard: React.FC = () => {
 
   // 마우스 및 터치 이벤트 처리
   useEffect(() => {
-    if (!isDragging && !isResizing) {
-      return; // 드래그나 리사이즈 중이 아니면 이벤트 리스너 추가하지 않음
-    }
-
-    const handlePointerMove = (e: PointerEvent) => {
+    const handleMouseMove = (e: MouseEvent) => {
       if (isDragging) {
         const newPosition = {
           x: e.clientX - dragOffset.x,
@@ -220,34 +216,65 @@ const ViewVirtualKeyboard: React.FC = () => {
       }
     };
 
-    const handlePointerUp = (e: PointerEvent) => {
+    const handleTouchMove = (e: TouchEvent) => {
+      e.preventDefault(); // 스크롤 방지
+      if (e.touches.length === 1) {
+        const touch = e.touches[0];
+        if (isDragging) {
+          const newPosition = {
+            x: touch.clientX - dragOffset.x,
+            y: touch.clientY - dragOffset.y
+          };
+          const constrainedPosition = constrainToViewport(newPosition, size);
+          setPosition(constrainedPosition);
+        }
+        
+        if (isResizing) {
+          const rect = keyboardRef.current?.getBoundingClientRect();
+          if (rect) {
+            const newWidth = Math.max(500, touch.clientX - rect.left);
+            const newHeight = Math.max(300, touch.clientY - rect.top);
+            const newSize = { width: newWidth, height: newHeight };
+            const constrainedPosition = constrainToViewport(position, newSize);
+            setSize(newSize);
+            setPosition(constrainedPosition);
+          }
+        }
+      }
+    };
+
+    const handleMouseUp = () => {
       if (isDragging || isResizing) {
         // 드래그나 리사이즈 종료 시 설정 저장
         saveSettings(position, size);
       }
       setIsDragging(false);
       setIsResizing(false);
-      
-      // 포인터 캡처 해제
-      if (keyboardRef.current) {
-        try {
-          keyboardRef.current.releasePointerCapture(e.pointerId);
-        } catch (error) {
-          // 포인터 캡처 해제 실패는 무시
-        }
-      }
     };
 
-    // 포인터 이벤트 리스너 추가 (포인터 캡처와 일관성 유지)
-    document.addEventListener('pointermove', handlePointerMove);
-    document.addEventListener('pointerup', handlePointerUp);
+    const handleTouchEnd = () => {
+      if (isDragging || isResizing) {
+        // 드래그나 리사이즈 종료 시 설정 저장
+        saveSettings(position, size);
+      }
+      setIsDragging(false);
+      setIsResizing(false);
+    };
+
+    if (isDragging || isResizing) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+      document.addEventListener('touchmove', handleTouchMove, { passive: false });
+      document.addEventListener('touchend', handleTouchEnd);
+    }
 
     return () => {
-      // cleanup - 추가된 이벤트 리스너만 제거
-      document.removeEventListener('pointermove', handlePointerMove);
-      document.removeEventListener('pointerup', handlePointerUp);
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+      document.removeEventListener('touchmove', handleTouchMove);
+      document.removeEventListener('touchend', handleTouchEnd);
     };
-  }, [isDragging, isResizing, dragOffset]);
+  }, [isDragging, isResizing, dragOffset, position, size]);
 
   // 윈도우 리사이즈 시 위치 조정
   useEffect(() => {

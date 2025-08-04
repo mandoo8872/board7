@@ -109,7 +109,11 @@ const ViewFloatingToolbar: React.FC = () => {
 
   // 마우스 및 터치 이벤트 처리
   useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
+    if (!isDragging && !isResizing) {
+      return; // 드래그나 리사이즈 중이 아니면 이벤트 리스너 추가하지 않음
+    }
+
+    const handlePointerMove = (e: PointerEvent) => {
       if (isDragging) {
         const newPosition = {
           x: e.clientX - dragOffset.x,
@@ -132,65 +136,34 @@ const ViewFloatingToolbar: React.FC = () => {
       }
     };
 
-    const handleTouchMove = (e: TouchEvent) => {
-      e.preventDefault(); // 스크롤 방지
-      if (e.touches.length === 1) {
-        const touch = e.touches[0];
-        if (isDragging) {
-          const newPosition = {
-            x: touch.clientX - dragOffset.x,
-            y: touch.clientY - dragOffset.y
-          };
-          const constrainedPosition = constrainToViewport(newPosition, size);
-          setPosition(constrainedPosition);
-        }
-        
-        if (isResizing) {
-          const rect = toolbarRef.current?.getBoundingClientRect();
-          if (rect) {
-            const newWidth = Math.max(120, touch.clientX - rect.left);
-            const newHeight = Math.max(80, touch.clientY - rect.top);
-            const newSize = { width: newWidth, height: newHeight };
-            const constrainedPosition = constrainToViewport(position, newSize);
-            setSize(newSize);
-            setPosition(constrainedPosition);
-          }
-        }
-      }
-    };
-
-    const handleMouseUp = () => {
+    const handlePointerUp = (e: PointerEvent) => {
       if (isDragging || isResizing) {
         // 드래그나 리사이즈 종료 시 설정 저장
         saveSettings(position, size);
       }
       setIsDragging(false);
       setIsResizing(false);
-    };
-
-    const handleTouchEnd = () => {
-      if (isDragging || isResizing) {
-        // 드래그나 리사이즈 종료 시 설정 저장
-        saveSettings(position, size);
+      
+      // 포인터 캡처 해제
+      if (toolbarRef.current) {
+        try {
+          toolbarRef.current.releasePointerCapture(e.pointerId);
+        } catch (error) {
+          // 포인터 캡처 해제 실패는 무시
+        }
       }
-      setIsDragging(false);
-      setIsResizing(false);
     };
 
-    if (isDragging || isResizing) {
-      document.addEventListener('mousemove', handleMouseMove);
-      document.addEventListener('mouseup', handleMouseUp);
-      document.addEventListener('touchmove', handleTouchMove, { passive: false });
-      document.addEventListener('touchend', handleTouchEnd);
-    }
+    // 포인터 이벤트 리스너 추가 (포인터 캡처와 일관성 유지)
+    document.addEventListener('pointermove', handlePointerMove);
+    document.addEventListener('pointerup', handlePointerUp);
 
     return () => {
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
-      document.removeEventListener('touchmove', handleTouchMove);
-      document.removeEventListener('touchend', handleTouchEnd);
+      // cleanup - 추가된 이벤트 리스너만 제거
+      document.removeEventListener('pointermove', handlePointerMove);
+      document.removeEventListener('pointerup', handlePointerUp);
     };
-  }, [isDragging, isResizing, dragOffset, position, size]);
+  }, [isDragging, isResizing, dragOffset]);
 
   // 윈도우 리사이즈 시 위치 조정
   useEffect(() => {
@@ -357,6 +330,7 @@ const ViewFloatingToolbar: React.FC = () => {
   return (
     <div
       ref={toolbarRef}
+      data-floating-toolbar="true"
       className="fixed bg-white bg-opacity-95 rounded-lg shadow-2xl border border-gray-300 select-none cursor-move"
       style={{
         left: position.x,
