@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { ref, onValue, set as firebaseSet, push, remove, Unsubscribe } from 'firebase/database';
 // import { update } from 'firebase/database'; // 현재 사용하지 않음
-import { database } from '../config/firebase';
+import { database, auth } from '../config/firebase';
 import { TextObject, ImageObject, DrawObject, FloorImage, Settings, AdminSettings, ViewSettings } from '../types';
 import { validateFirebaseUpdate } from '../utils/validation';
 import { lwwUpdateTextObject, lwwUpdateImageObject, getCurrentSessionId } from '../utils/lww';
@@ -98,6 +98,9 @@ export const useAdminConfigStore = create<AdminConfigStore>((set, get) => {
       
       const checkAllLoaded = () => {
         loadedCount++;
+        if (import.meta.env.DEV) {
+          console.log(`🔥 Firebase: Loaded ${loadedCount}/${totalLoaders} data types`);
+        }
         if (loadedCount >= totalLoaders) {
           if (import.meta.env.DEV) {
             console.log('🔥 Firebase: All data loaded successfully');
@@ -105,6 +108,44 @@ export const useAdminConfigStore = create<AdminConfigStore>((set, get) => {
           set({ isLoading: false });
         }
       };
+
+      // 성공/실패 카운터 분리
+      let successCount = 0;
+      let errorCount = 0;
+      
+      const checkSuccess = () => {
+        successCount++;
+        checkAllLoaded();
+      };
+      
+      const checkError = (source: string, error: any) => {
+        errorCount++;
+        if (import.meta.env.DEV) {
+          console.error(`❌ Firebase: ${source} 로드 실패:`, error);
+        }
+        checkAllLoaded();
+      };
+
+      // Firebase Auth 상태 상세 확인
+      if (import.meta.env.DEV) {
+        console.log('🔍 Firebase: Initializing listeners with auth state:', {
+          currentUser: auth.currentUser?.uid,
+          isAnonymous: auth.currentUser?.isAnonymous,
+          authToken: auth.currentUser ? 'EXISTS' : 'NULL',
+          authReady: !!auth.currentUser
+        });
+        
+        // 인증 토큰 추가 검증
+        if (auth.currentUser) {
+          auth.currentUser.getIdToken().then(token => {
+            console.log('🔑 Firebase: Auth token acquired:', token ? 'SUCCESS' : 'FAILED');
+          }).catch(error => {
+            console.error('❌ Firebase: Token acquisition failed:', error);
+          });
+        } else {
+          console.error('❌ Firebase: No authenticated user found when initializing listeners');
+        }
+      }
       
       // TextObjects 리스너
       const textObjectsRef = ref(database, 'textObjects');
@@ -115,7 +156,9 @@ export const useAdminConfigStore = create<AdminConfigStore>((set, get) => {
           console.log(`📝 Loaded ${textObjects.length} text objects`);
         }
         set({ textObjects });
-        checkAllLoaded();
+        checkSuccess();
+      }, (error) => {
+        checkError('TextObjects', error);
       });
       unsubscribeFunctions.push(unsubscribeTextObjects);
       
@@ -128,7 +171,9 @@ export const useAdminConfigStore = create<AdminConfigStore>((set, get) => {
           console.log(`🖼️ Loaded ${imageObjects.length} image objects`);
         }
         set({ imageObjects });
-        checkAllLoaded();
+        checkSuccess();
+      }, (error) => {
+        checkError('ImageObjects', error);
       });
       unsubscribeFunctions.push(unsubscribeImageObjects);
       
@@ -141,7 +186,9 @@ export const useAdminConfigStore = create<AdminConfigStore>((set, get) => {
           console.log(`✏️ Loaded ${drawObjects.length} draw objects`);
         }
         set({ drawObjects });
-        checkAllLoaded();
+        checkSuccess();
+      }, (error) => {
+        checkError('DrawObjects', error);
       });
       unsubscribeFunctions.push(unsubscribeDrawObjects);
       
@@ -153,7 +200,9 @@ export const useAdminConfigStore = create<AdminConfigStore>((set, get) => {
           console.log(`🏠 Loaded floor image: ${floorImage ? 'YES' : 'NO'}`);
         }
         set({ floorImage });
-        checkAllLoaded();
+        checkSuccess();
+      }, (error) => {
+        checkError('FloorImage', error);
       });
       unsubscribeFunctions.push(unsubscribeFloorImage);
       
@@ -167,7 +216,9 @@ export const useAdminConfigStore = create<AdminConfigStore>((set, get) => {
         if (import.meta.env.DEV) {
           console.log(`⚙️ Loaded settings`);
         }
-        checkAllLoaded();
+        checkSuccess();
+      }, (error) => {
+        checkError('Settings', error);
       });
       unsubscribeFunctions.push(unsubscribeSettings);
     },

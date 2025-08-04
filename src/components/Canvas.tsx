@@ -367,7 +367,7 @@ const Canvas: React.FC<CanvasProps> = ({ isViewPage = false }) => {
           zIndex: 10000,
           pointerEvents: (currentTool === 'pen' || currentTool === 'eraser') ? 'auto' : 'none',
         }}>
-          <DrawLayer key={`${finalScale}-${viewOffset.x}-${viewOffset.y}`} isViewPage={isViewPage} />
+          <DrawLayer isViewPage={isViewPage} />
         </div>
       </div>
 

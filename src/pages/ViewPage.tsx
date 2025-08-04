@@ -3,6 +3,7 @@ import Canvas from '../components/Canvas';
 import ViewFloatingToolbar from '../components/toolbar/ViewFloatingToolbar';
 import ViewVirtualKeyboard from '../components/keyboard/ViewVirtualKeyboard';
 import { useAdminConfigStore } from '../store/adminConfigStore';
+import { secureAnonymousLogin } from '../config/firebase';
 
 const ViewPage: React.FC = () => {
   const { initializeFirebaseListeners, settings } = useAdminConfigStore();
@@ -15,8 +16,14 @@ const ViewPage: React.FC = () => {
   const hideTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
-    // ViewPage에서도 Firebase 리스너 초기화
-    initializeFirebaseListeners();
+    // ViewPage 진입 시 보안 익명 로그인 수행
+    const initializeAuth = async () => {
+      await secureAnonymousLogin();
+      // 익명 로그인 완료 후 Firebase 리스너 초기화
+      initializeFirebaseListeners();
+    };
+
+    initializeAuth();
     
     // 컴포넌트 언마운트 시 정리
     return () => {

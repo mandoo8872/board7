@@ -1,11 +1,13 @@
 import React, { useCallback, useEffect } from 'react';
 import { useEditorStore, useAdminConfigStore } from '../../store';
+import { useCellSelectionStore } from '../../store/cellSelectionStore';
 import { TextObject, ImageObject } from '../../types';
 
 // 분리된 컴포넌트들 import
 import MainToolsSection from './sections/MainToolsSection';
 import ExcelDataSection from './sections/ExcelDataSection';
 import ObjectPropertiesSection from './sections/ObjectPropertiesSection';
+import ExcelCellPropertiesSection from './sections/ExcelCellPropertiesSection';
 import SettingsSection from './sections/SettingsSection';
 
 // 커스텀 hooks import
@@ -188,6 +190,10 @@ const ToolbarRefactored: React.FC = () => {
 
   // 현재 색상 가져오기
   const currentColor = getCurrentColor(selectedObject, colorMode);
+
+  // 엑셀 셀 선택 상태
+  const { getSelectedCount, clearSelection } = useCellSelectionStore.getState();
+  const selectedCellCount = getSelectedCount();
 
   // 객체 생성 함수들
   const handleCreateText = useCallback(async () => {
@@ -554,7 +560,7 @@ const ToolbarRefactored: React.FC = () => {
           />
 
           {/* 3. 선택된 객체 편집 */}
-          {selectedObject && !isExcelCellSelected(selectedObject) && (
+          {selectedObject && !isExcelCellSelected(selectedObject) && selectedCellCount === 0 && (
             <ObjectPropertiesSection
               selectedObject={selectedObject}
               colorMode={colorMode}
@@ -571,6 +577,15 @@ const ToolbarRefactored: React.FC = () => {
               getCurrentColor={() => currentColor}
             />
           )}
+
+          {/* 3-1. 다중선택된 엑셀 셀들 편집 */}
+          <ExcelCellPropertiesSection
+            textObjects={textObjects}
+            colorMode={colorMode}
+            onColorModeChange={setColorMode}
+            onUpdateTextObject={debouncedUpdateTextObject}
+            clearCellSelection={clearSelection}
+          />
 
           {/* 4. 설정 */}
           <SettingsSection

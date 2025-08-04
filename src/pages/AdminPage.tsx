@@ -4,13 +4,20 @@ import { default as Toolbar } from '../components/toolbar/Toolbar';
 import ZoomControls from '../components/zoom/ZoomControls';
 import DrawToolSettings from '../components/toolbar/DrawToolSettings';
 import { useAdminConfigStore } from '../store/adminConfigStore';
+import { secureAnonymousLogin } from '../config/firebase';
 
 const AdminPage: React.FC = () => {
   const { initializeFirebaseListeners } = useAdminConfigStore();
 
   useEffect(() => {
-    // AdminPage에서 Firebase 리스너 초기화
-    initializeFirebaseListeners();
+    // AdminPage 진입 시 보안 익명 로그인 수행
+    const initializeAuth = async () => {
+      await secureAnonymousLogin();
+      // 익명 로그인 완료 후 Firebase 리스너 초기화
+      initializeFirebaseListeners();
+    };
+
+    initializeAuth();
     
     // 컴포넌트 언마운트 시 정리
     return () => {
