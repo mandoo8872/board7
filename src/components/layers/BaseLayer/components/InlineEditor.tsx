@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 
 interface InlineEditorProps {
   text: string;
@@ -23,13 +23,31 @@ const InlineEditor: React.FC<InlineEditorProps> = ({
   onBlur,
   onKeyDown
 }) => {
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // 포커스 시 커서를 맨 뒤로 이동
+  useEffect(() => {
+    if (textareaRef.current) {
+      const textarea = textareaRef.current;
+      const textLength = text.length;
+      
+      // 포커스를 먼저 설정
+      textarea.focus();
+      
+      // 커서를 맨 뒤로 이동
+      setTimeout(() => {
+        textarea.setSelectionRange(textLength, textLength);
+      }, 0);
+    }
+  }, []); // 컴포넌트 마운트 시에만 실행
+
   return (
     <textarea
+      ref={textareaRef}
       value={text}
       onChange={(e) => onChange(e.target.value)}
       onBlur={onBlur}
       onKeyDown={onKeyDown}
-      autoFocus
       data-editing="true"
       className="w-full h-full bg-transparent border-none outline-none resize-none"
       style={{
