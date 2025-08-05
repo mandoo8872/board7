@@ -8,6 +8,7 @@ import MainToolsSection from './sections/MainToolsSection';
 import ExcelDataSection from './sections/ExcelDataSection';
 import ObjectPropertiesSection from './sections/ObjectPropertiesSection';
 import ExcelCellPropertiesSection from './sections/ExcelCellPropertiesSection';
+import DataManagementSection from './sections/DataManagementSection';
 import SettingsSection from './sections/SettingsSection';
 
 // 커스텀 hooks import
@@ -41,6 +42,8 @@ const ToolbarRefactored: React.FC = () => {
   const { 
     textObjects, 
     imageObjects,
+    drawObjects,
+    floorImage,
     addTextObject, 
     addImageObject,
     updateTextObject,
@@ -50,6 +53,7 @@ const ToolbarRefactored: React.FC = () => {
     deleteImageObject,
     settings,
     updateSettings,
+    initializeFirebaseListeners,
     isLoading
   } = useAdminConfigStore();
   
@@ -59,6 +63,7 @@ const ToolbarRefactored: React.FC = () => {
   const {
     isSettingsExpanded,
     isExcelPasteExpanded,
+    isDataManagementExpanded,
     excelPasteData,
     showPreview,
     colorMode,
@@ -68,6 +73,7 @@ const ToolbarRefactored: React.FC = () => {
     setColorMode,
     toggleSettings,
     toggleExcelPaste,
+    toggleDataManagement,
     clearUpdateTimer,
   } = useToolbarState();
 
@@ -587,7 +593,19 @@ const ToolbarRefactored: React.FC = () => {
             clearCellSelection={clearSelection}
           />
 
-          {/* 4. 설정 */}
+          {/* 4. 데이터 관리 */}
+          <DataManagementSection
+            isExpanded={isDataManagementExpanded}
+            onToggle={toggleDataManagement}
+            textObjects={textObjects}
+            imageObjects={imageObjects}
+            drawObjects={drawObjects}
+            floorImage={floorImage}
+            settings={settings}
+            initializeFirebaseListeners={initializeFirebaseListeners}
+          />
+
+          {/* 5. 설정 */}
           <SettingsSection
             isExpanded={isSettingsExpanded}
             onToggle={toggleSettings}

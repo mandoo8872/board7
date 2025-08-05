@@ -4,6 +4,7 @@ export const useToolbarState = () => {
   // 설정 메뉴 접기/펼치기 상태
   const [isSettingsExpanded, setIsSettingsExpanded] = useState(false);
   const [isExcelPasteExpanded, setIsExcelPasteExpanded] = useState(false);
+  const [isDataManagementExpanded, setIsDataManagementExpanded] = useState(false);
   const [excelPasteData, setExcelPasteData] = useState('');
   const [showPreview, setShowPreview] = useState(false);
 
@@ -15,6 +16,7 @@ export const useToolbarState = () => {
 
   const toggleSettings = () => setIsSettingsExpanded(!isSettingsExpanded);
   const toggleExcelPaste = () => setIsExcelPasteExpanded(!isExcelPasteExpanded);
+  const toggleDataManagement = () => setIsDataManagementExpanded(!isDataManagementExpanded);
 
   const resetExcelData = () => {
     setExcelPasteData('');
@@ -32,6 +34,7 @@ export const useToolbarState = () => {
     // 상태
     isSettingsExpanded,
     isExcelPasteExpanded,
+    isDataManagementExpanded,
     excelPasteData,
     showPreview,
     colorMode,
@@ -40,11 +43,13 @@ export const useToolbarState = () => {
     // 액션
     setIsSettingsExpanded,
     setIsExcelPasteExpanded,
+    setIsDataManagementExpanded,
     setExcelPasteData,
     setShowPreview,
     setColorMode,
     toggleSettings,
     toggleExcelPaste,
+    toggleDataManagement,
     resetExcelData,
     clearUpdateTimer,
   };
