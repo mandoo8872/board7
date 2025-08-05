@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import NumberKeyboard from './NumberKeyboard';
+import { useAdminConfigStore } from '../store/adminConfigStore';
 
 interface PasswordGateProps {
   passwordKey: 'ADMIN' | 'VIEW';
@@ -11,8 +12,9 @@ const PasswordGate: React.FC<PasswordGateProps> = ({ passwordKey, onSuccess }) =
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
   const [showKeyboard, setShowKeyboard] = useState(false);
   
-  // 환경변수에서 패스워드 가져오기
-  const correctPassword = import.meta.env[`VITE_${passwordKey}_PASSWORD`] || '1004';
+  // DB에서 패스워드 가져오기
+  const { getPassword } = useAdminConfigStore();
+  const correctPassword = getPassword(passwordKey.toLowerCase() as 'admin' | 'view');
 
   // 컴포넌트 마운트 시 첫 번째 입력 칸에 포커스
   useEffect(() => {

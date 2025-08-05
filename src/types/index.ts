@@ -174,6 +174,11 @@ export interface AdminSettings {
     maxRows: number;
     maxCols: number;
   };
+  // 페이지별 패스워드 설정
+  passwords: {
+    admin: string;
+    view: string;
+  };
 }
 
 export interface ViewSettings {

@@ -37,6 +37,11 @@ export interface AdminConfigStore {
   
   // Settings 관리
   updateSettings: (section: 'admin' | 'view', updates: Partial<AdminSettings | ViewSettings>) => Promise<void>;
+  
+  // 패스워드 관리
+  initializePasswords: () => Promise<void>;
+  updatePassword: (type: 'admin' | 'view', newPassword: string) => Promise<void>;
+  getPassword: (type: 'admin' | 'view') => string;
 }
 
 export const useAdminConfigStore = create<AdminConfigStore>((set, get) => {
@@ -78,6 +83,10 @@ export const useAdminConfigStore = create<AdminConfigStore>((set, get) => {
           backgroundColor: '#ffffff',
           maxRows: 50,
           maxCols: 50
+        },
+        passwords: {
+          admin: import.meta.env.VITE_ADMIN_PASSWORD || '1004',
+          view: import.meta.env.VITE_VIEW_PASSWORD || '1004'
         }
       },
       view: {
@@ -298,6 +307,67 @@ export const useAdminConfigStore = create<AdminConfigStore>((set, get) => {
       const settingsRef = ref(database, `settings/${section}`);
       const currentSettings = get().settings[section];
       await firebaseSet(settingsRef, { ...currentSettings, ...updates });
+    },
+
+    // 패스워드 초기화 (환경변수에서 DB로 마이그레이션)
+    initializePasswords: async () => {
+      const currentState = get();
+      const currentPasswords = currentState.settings.admin.passwords;
+      
+      // 환경변수의 패스워드가 있다면 DB에 저장
+      const envAdminPassword = import.meta.env.VITE_ADMIN_PASSWORD;
+      const envViewPassword = import.meta.env.VITE_VIEW_PASSWORD;
+      
+      if (envAdminPassword && envAdminPassword !== currentPasswords.admin) {
+        await get().updateSettings('admin', {
+          passwords: {
+            ...currentPasswords,
+            admin: envAdminPassword
+          }
+        });
+        if (import.meta.env.DEV) {
+          console.log('🔑 Admin password migrated from environment variable to DB');
+        }
+      }
+      
+      if (envViewPassword && envViewPassword !== currentPasswords.view) {
+        await get().updateSettings('admin', {
+          passwords: {
+            ...currentPasswords,
+            view: envViewPassword
+          }
+        });
+        if (import.meta.env.DEV) {
+          console.log('🔑 View password migrated from environment variable to DB');
+        }
+      }
+    },
+
+    // 패스워드 업데이트
+    updatePassword: async (type, newPassword) => {
+      if (!newPassword || newPassword.length !== 4 || !/^\d{4}$/.test(newPassword)) {
+        throw new Error('패스워드는 4자리 숫자여야 합니다.');
+      }
+
+      const currentState = get();
+      const currentPasswords = currentState.settings.admin.passwords;
+      
+      await get().updateSettings('admin', {
+        passwords: {
+          ...currentPasswords,
+          [type]: newPassword
+        }
+      });
+
+      if (import.meta.env.DEV) {
+        console.log(`🔑 ${type.toUpperCase()} password updated successfully`);
+      }
+    },
+
+    // 패스워드 조회
+    getPassword: (type) => {
+      const currentState = get();
+      return currentState.settings.admin.passwords[type] || '1004';
     },
   };
 }); 

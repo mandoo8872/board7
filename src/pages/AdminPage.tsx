@@ -7,7 +7,7 @@ import { useAdminConfigStore } from '../store/adminConfigStore';
 import { secureAnonymousLogin } from '../config/firebase';
 
 const AdminPage: React.FC = () => {
-  const { initializeFirebaseListeners } = useAdminConfigStore();
+  const { initializeFirebaseListeners, initializePasswords } = useAdminConfigStore();
 
   useEffect(() => {
     // AdminPage 진입 시 보안 익명 로그인 수행
@@ -15,6 +15,8 @@ const AdminPage: React.FC = () => {
       await secureAnonymousLogin();
       // 익명 로그인 완료 후 Firebase 리스너 초기화
       initializeFirebaseListeners();
+      // 패스워드 초기화 (환경변수에서 DB로 마이그레이션)
+      await initializePasswords();
     };
 
     initializeAuth();
