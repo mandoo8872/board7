@@ -85,8 +85,8 @@ export const useAdminConfigStore = create<AdminConfigStore>((set, get) => {
           maxCols: 50
         },
         passwords: {
-          admin: import.meta.env.VITE_ADMIN_PASSWORD || '1004',
-          view: import.meta.env.VITE_VIEW_PASSWORD || '1004'
+          admin: '1004',
+          view: '1004'
         }
       },
       view: {
@@ -309,37 +309,16 @@ export const useAdminConfigStore = create<AdminConfigStore>((set, get) => {
       await firebaseSet(settingsRef, { ...currentSettings, ...updates });
     },
 
-    // 패스워드 초기화 (환경변수에서 DB로 마이그레이션)
+    // 패스워드 초기화 (DB만 사용, 환경변수 의존성 제거)
     initializePasswords: async () => {
+      // 더 이상 환경변수를 사용하지 않음
+      // DB에 패스워드가 없는 경우에만 기본값 설정
       const currentState = get();
       const currentPasswords = currentState.settings.admin.passwords;
       
-      // 환경변수의 패스워드가 있다면 DB에 저장
-      const envAdminPassword = import.meta.env.VITE_ADMIN_PASSWORD;
-      const envViewPassword = import.meta.env.VITE_VIEW_PASSWORD;
-      
-      if (envAdminPassword && envAdminPassword !== currentPasswords.admin) {
-        await get().updateSettings('admin', {
-          passwords: {
-            ...currentPasswords,
-            admin: envAdminPassword
-          }
-        });
-        if (import.meta.env.DEV) {
-          console.log('🔑 Admin password migrated from environment variable to DB');
-        }
-      }
-      
-      if (envViewPassword && envViewPassword !== currentPasswords.view) {
-        await get().updateSettings('admin', {
-          passwords: {
-            ...currentPasswords,
-            view: envViewPassword
-          }
-        });
-        if (import.meta.env.DEV) {
-          console.log('🔑 View password migrated from environment variable to DB');
-        }
+      if (import.meta.env.DEV) {
+        console.log('🔑 Password initialization: DB-only mode');
+        console.log('🔑 Current passwords:', currentPasswords);
       }
     },
 
