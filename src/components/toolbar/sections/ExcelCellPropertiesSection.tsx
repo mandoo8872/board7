@@ -27,22 +27,14 @@ const ExcelCellPropertiesSection: React.FC<ExcelCellPropertiesSectionProps> = ({
   // 선택된 셀들의 최소 폰트 크기 계산
   const getMinFontSize = () => {
     let minFontSize = 72;
-    let validCellCount = 0;
-    
-    console.log('🔍 [DEBUG] 선택된 셀 IDs:', selectedCells);
-    console.log('🔍 [DEBUG] 전체 텍스트 객체 수:', textObjects.length);
     
     for (const cellId of selectedCells) {
       const cellObj = textObjects.find(obj => obj.id === cellId);
-      console.log(`🔍 [DEBUG] 셀 ${cellId}:`, cellObj ? `폰트크기 ${cellObj.fontSize}, 타입 ${cellObj.cellType}` : '객체 없음');
-      
       if (cellObj && cellObj.cellType === 'cell') {
         minFontSize = Math.min(minFontSize, cellObj.fontSize || 16);
-        validCellCount++;
       }
     }
     
-    console.log(`🔍 [DEBUG] 유효한 셀 수: ${validCellCount}, 최소 폰트 크기: ${minFontSize === 72 ? 16 : minFontSize}`);
     return minFontSize === 72 ? 16 : minFontSize; // 기본값 처리
   };
 
@@ -83,21 +75,13 @@ const ExcelCellPropertiesSection: React.FC<ExcelCellPropertiesSectionProps> = ({
                 const currentMinSize = getMinFontSize();
                 const newFontSize = Math.max(8, currentMinSize - 2);
                 
-                console.log(`🔄 [DEBUG] 폰트 크기 감소 시작: ${selectedCells.length}개 셀, ${currentMinSize}px → ${newFontSize}px`);
-                
                 // 병렬 처리로 모든 선택된 셀에 동일한 폰트 크기 적용
-                const updatePromises = selectedCells.map(async (cellId, index) => {
+                const updatePromises = selectedCells.map(async (cellId) => {
                   const cellObj = textObjects.find(obj => obj.id === cellId);
-                  console.log(`🔄 [DEBUG] 처리 중 ${index + 1}/${selectedCells.length}: 셀 ${cellId}`, cellObj ? `현재 ${cellObj.fontSize}px` : '객체 없음');
-                  
                   if (cellObj && cellObj.cellType === 'cell') {
-                    const result = await onUpdateTextObject(cellId, { 
+                    return onUpdateTextObject(cellId, { 
                       fontSize: newFontSize
                     });
-                    console.log(`✅ [DEBUG] 셀 ${cellId} 업데이트 완료: ${newFontSize}px`);
-                    return result;
-                  } else {
-                    console.warn(`⚠️ [DEBUG] 셀 ${cellId}를 찾을 수 없거나 유효하지 않음`);
                   }
                 });
                 
@@ -105,7 +89,7 @@ const ExcelCellPropertiesSection: React.FC<ExcelCellPropertiesSectionProps> = ({
                   await Promise.all(updatePromises.filter(p => p !== undefined));
                   console.log(`✅ ${selectedCount}개 셀의 폰트 크기를 ${newFontSize}px로 일괄 변경 완료`);
                 } catch (error) {
-                  console.error('❌ 폰트 크기 감소 일괄 변경 실패:', error);
+                  console.error('❌ 폰트 크기 일괄 변경 실패:', error);
                 }
               }}
               className="px-2 py-1 bg-slate-100 hover:bg-slate-200 rounded text-xs transition-colors"
@@ -121,21 +105,13 @@ const ExcelCellPropertiesSection: React.FC<ExcelCellPropertiesSectionProps> = ({
                 const currentMinSize = getMinFontSize();
                 const newFontSize = Math.min(72, currentMinSize + 2);
                 
-                console.log(`🔄 [DEBUG] 폰트 크기 증가 시작: ${selectedCells.length}개 셀, ${currentMinSize}px → ${newFontSize}px`);
-                
                 // 병렬 처리로 모든 선택된 셀에 동일한 폰트 크기 적용
-                const updatePromises = selectedCells.map(async (cellId, index) => {
+                const updatePromises = selectedCells.map(async (cellId) => {
                   const cellObj = textObjects.find(obj => obj.id === cellId);
-                  console.log(`🔄 [DEBUG] 처리 중 ${index + 1}/${selectedCells.length}: 셀 ${cellId}`, cellObj ? `현재 ${cellObj.fontSize}px` : '객체 없음');
-                  
                   if (cellObj && cellObj.cellType === 'cell') {
-                    const result = await onUpdateTextObject(cellId, { 
+                    return onUpdateTextObject(cellId, { 
                       fontSize: newFontSize
                     });
-                    console.log(`✅ [DEBUG] 셀 ${cellId} 업데이트 완료: ${newFontSize}px`);
-                    return result;
-                  } else {
-                    console.warn(`⚠️ [DEBUG] 셀 ${cellId}를 찾을 수 없거나 유효하지 않음`);
                   }
                 });
                 
@@ -143,7 +119,7 @@ const ExcelCellPropertiesSection: React.FC<ExcelCellPropertiesSectionProps> = ({
                   await Promise.all(updatePromises.filter(p => p !== undefined));
                   console.log(`✅ ${selectedCount}개 셀의 폰트 크기를 ${newFontSize}px로 일괄 변경 완료`);
                 } catch (error) {
-                  console.error('❌ 폰트 크기 증가 일괄 변경 실패:', error);
+                  console.error('❌ 폰트 크기 일괄 변경 실패:', error);
                 }
               }}
               className="px-2 py-1 bg-slate-100 hover:bg-slate-200 rounded text-xs transition-colors"
@@ -215,7 +191,7 @@ const ExcelCellPropertiesSection: React.FC<ExcelCellPropertiesSectionProps> = ({
                   });
                   
                   try {
-                    await Promise.all(updatePromises);
+                    await Promise.all(updatePromises.filter(p => p !== undefined));
                     console.log(`✅ ${selectedCount}개 셀의 배경을 투명으로 일괄 변경 완료`);
                   } catch (error) {
                     console.error('❌ 투명 배경 일괄 변경 실패:', error);
@@ -232,13 +208,9 @@ const ExcelCellPropertiesSection: React.FC<ExcelCellPropertiesSectionProps> = ({
               <button
                 key={color}
                 onClick={async () => {
-                  console.log(`🔄 [DEBUG] 색상 변경 시작: ${selectedCells.length}개 셀, 모드: ${colorMode}, 색상: ${color}`);
-                  
                   // 병렬 처리로 성능 향상
-                  const updatePromises = selectedCells.map(async (cellId, index) => {
+                  const updatePromises = selectedCells.map(async (cellId) => {
                     const cellObj = textObjects.find(obj => obj.id === cellId);
-                    console.log(`🔄 [DEBUG] 색상 처리 중 ${index + 1}/${selectedCells.length}: 셀 ${cellId}`, cellObj ? '객체 존재' : '객체 없음');
-                    
                     if (cellObj && cellObj.cellType === 'cell') {
                       if (colorMode === 'text') {
                         const currentTextStyle = cellObj.textStyle || {
@@ -249,11 +221,9 @@ const ExcelCellPropertiesSection: React.FC<ExcelCellPropertiesSectionProps> = ({
                           verticalAlign: 'middle',
                           fontFamily: 'Arial'
                         };
-                        const result = await onUpdateTextObject(cellId, {
+                        return onUpdateTextObject(cellId, {
                           textStyle: { ...currentTextStyle, color }
                         });
-                        console.log(`✅ [DEBUG] 셀 ${cellId} 텍스트 색상 업데이트 완료: ${color}`);
-                        return result;
                       } else if (colorMode === 'background') {
                         const currentBoxStyle = cellObj.boxStyle || {
                           backgroundColor: 'transparent',
@@ -262,11 +232,9 @@ const ExcelCellPropertiesSection: React.FC<ExcelCellPropertiesSectionProps> = ({
                           borderWidth: 0,
                           borderRadius: 0
                         };
-                        const result = await onUpdateTextObject(cellId, {
+                        return onUpdateTextObject(cellId, {
                           boxStyle: { ...currentBoxStyle, backgroundColor: color }
                         });
-                        console.log(`✅ [DEBUG] 셀 ${cellId} 배경 색상 업데이트 완료: ${color}`);
-                        return result;
                       } else if (colorMode === 'border') {
                         const currentBoxStyle = cellObj.boxStyle || {
                           backgroundColor: 'transparent',
@@ -275,14 +243,10 @@ const ExcelCellPropertiesSection: React.FC<ExcelCellPropertiesSectionProps> = ({
                           borderWidth: 0,
                           borderRadius: 0
                         };
-                        const result = await onUpdateTextObject(cellId, {
+                        return onUpdateTextObject(cellId, {
                           boxStyle: { ...currentBoxStyle, borderColor: color, borderWidth: 1 }
                         });
-                        console.log(`✅ [DEBUG] 셀 ${cellId} 테두리 색상 업데이트 완료: ${color}`);
-                        return result;
                       }
-                    } else {
-                      console.warn(`⚠️ [DEBUG] 셀 ${cellId}를 찾을 수 없거나 유효하지 않음`);
                     }
                   });
                   
@@ -325,7 +289,7 @@ const ExcelCellPropertiesSection: React.FC<ExcelCellPropertiesSectionProps> = ({
                 });
                 
                 try {
-                  await Promise.all(updatePromises);
+                  await Promise.all(updatePromises.filter(p => p !== undefined));
                   console.log(`✅ ${selectedCount}개 셀의 굵게 스타일 일괄 변경 완료`);
                 } catch (error) {
                   console.error('❌ 굵게 스타일 일괄 변경 실패:', error);
@@ -356,7 +320,7 @@ const ExcelCellPropertiesSection: React.FC<ExcelCellPropertiesSectionProps> = ({
                 });
                 
                 try {
-                  await Promise.all(updatePromises);
+                  await Promise.all(updatePromises.filter(p => p !== undefined));
                   console.log(`✅ ${selectedCount}개 셀의 기울임 스타일 일괄 변경 완료`);
                 } catch (error) {
                   console.error('❌ 기울임 스타일 일괄 변경 실패:', error);
@@ -396,7 +360,7 @@ const ExcelCellPropertiesSection: React.FC<ExcelCellPropertiesSectionProps> = ({
                   });
                   
                   try {
-                    await Promise.all(updatePromises);
+                    await Promise.all(updatePromises.filter(p => p !== undefined));
                     console.log(`✅ ${selectedCount}개 셀의 수평정렬을 ${align}로 일괄 변경 완료`);
                   } catch (error) {
                     console.error('❌ 수평정렬 일괄 변경 실패:', error);

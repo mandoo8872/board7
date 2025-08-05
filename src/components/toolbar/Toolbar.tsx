@@ -589,7 +589,7 @@ const ToolbarRefactored: React.FC = () => {
             textObjects={textObjects}
             colorMode={colorMode}
             onColorModeChange={setColorMode}
-            onUpdateTextObject={debouncedUpdateTextObject}
+            onUpdateTextObject={updateTextObject}
             clearCellSelection={clearSelection}
           />
 

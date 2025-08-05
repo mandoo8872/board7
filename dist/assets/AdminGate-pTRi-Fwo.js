@@ -1,0 +1,2 @@
+const __vite__mapDeps=(i,m=__vite__mapDeps,d=(m.f||(m.f=["assets/AdminPage-BM9zxfA2.js","assets/index-484102pf.js","assets/index-DhERstAQ.css","assets/Canvas-CQjE2HQd.js","assets/PasswordGate-DEJYhbL0.js"])))=>i.map(i=>d[i]);
+import{r,j as s,R as o,_ as n}from"./index-484102pf.js";import{P as c}from"./PasswordGate-DEJYhbL0.js";const i=o.lazy(()=>n(()=>import("./AdminPage-BM9zxfA2.js"),__vite__mapDeps([0,1,2,3,4]))),m=()=>{const[t,e]=r.useState(!1),a=()=>{e(!0)};return t?s.jsx(i,{}):s.jsx(c,{passwordKey:"ADMIN",onSuccess:a})};export{m as default};
