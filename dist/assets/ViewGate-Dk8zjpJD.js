@@ -1,0 +1,2 @@
+const __vite__mapDeps=(i,m=__vite__mapDeps,d=(m.f||(m.f=["assets/ViewPage-B68FE9t_.js","assets/index-CKmtg2Kd.js","assets/index-DhERstAQ.css","assets/Canvas-B9SZncmZ.js","assets/PasswordGate-Bi-1MXrx.js"])))=>i.map(i=>d[i]);
+import{r,j as s,R as o,_ as c}from"./index-CKmtg2Kd.js";import{P as i}from"./PasswordGate-Bi-1MXrx.js";const n=o.lazy(()=>c(()=>import("./ViewPage-B68FE9t_.js"),__vite__mapDeps([0,1,2,3,4]))),_=()=>{const[t,e]=r.useState(!1),a=()=>{e(!0)};return t?s.jsx(n,{}):s.jsx(i,{passwordKey:"VIEW",onSuccess:a})};export{_ as default};
