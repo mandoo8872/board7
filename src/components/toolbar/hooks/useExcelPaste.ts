@@ -88,7 +88,7 @@ export const useExcelPaste = ({
             resizable: false,
             deletable: false,
           },
-          zIndex: Date.now() + row * actualCols + col,
+          zIndex: 1000 + row * actualCols + col, // 엑셀 셀은 1000-9999 범위
           locked: true,
           visible: true,
           opacity: 1,

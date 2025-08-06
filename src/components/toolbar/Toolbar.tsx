@@ -20,7 +20,6 @@ import { useExcelPaste } from './hooks/useExcelPaste';
 import { 
   isExcelCellSelected,
   getCurrentColor,
-  getMaxZIndex,
   getMinZIndex,
   getNextHigherZIndex,
   getNextLowerZIndex,
@@ -232,7 +231,7 @@ const ToolbarRefactored: React.FC = () => {
         resizable: true,
         deletable: true,
       },
-      zIndex: Date.now(),
+      zIndex: 10000 + Date.now() % 100000, // 일반 객체는 10000 이후부터
       locked: false,
       visible: true,
       opacity: 1,
@@ -290,7 +289,7 @@ const ToolbarRefactored: React.FC = () => {
         resizable: true,
         deletable: true,
       },
-      zIndex: Date.now(),
+      zIndex: 10000 + Date.now() % 100000, // 일반 객체는 10000 이후부터
       locked: false,
       visible: true,
       opacity: 1,
@@ -336,7 +335,7 @@ const ToolbarRefactored: React.FC = () => {
               resizable: true,
               deletable: true,
             },
-            zIndex: Date.now(),
+            zIndex: 10000 + Date.now() % 100000, // 일반 객체는 10000 이후부터
             locked: false,
             visible: true,
             opacity: 1,
@@ -354,7 +353,13 @@ const ToolbarRefactored: React.FC = () => {
   const handleBringToFront = useCallback(async () => {
     if (!selectedObjectId) return;
     
-    const maxZIndex = getMaxZIndex(textObjects, imageObjects);
+    // 엑셀 셀이 아닌 객체들 중에서 최대 zIndex 찾기
+    const nonExcelObjects = [...textObjects, ...imageObjects].filter(obj => 
+      !('cellType' in obj) || obj.cellType !== 'cell'
+    );
+    const maxZIndex = nonExcelObjects.length > 0 
+      ? Math.max(...nonExcelObjects.map(obj => obj.zIndex || 0))
+      : 10000;
     
     const textObj = textObjects.find(obj => obj.id === selectedObjectId);
     if (textObj) {
@@ -374,7 +379,14 @@ const ToolbarRefactored: React.FC = () => {
     const currentObj = [...textObjects, ...imageObjects].find(obj => obj.id === selectedObjectId);
     if (!currentObj) return;
     
-    const nextZIndex = getNextHigherZIndex(currentObj.zIndex || 0, textObjects, imageObjects);
+    // 엑셀 셀이 아닌 객체들 중에서 다음 zIndex 찾기
+    const nonExcelTextObjects = textObjects.filter(obj => 
+      !('cellType' in obj) || obj.cellType !== 'cell'
+    );
+    const nonExcelImageObjects = imageObjects.filter(obj => 
+      !('cellType' in obj) || obj.cellType !== 'cell'
+    );
+    const nextZIndex = getNextHigherZIndex(currentObj.zIndex || 0, nonExcelTextObjects, nonExcelImageObjects);
     if (nextZIndex === null) return;
     
     const textObj = textObjects.find(obj => obj.id === selectedObjectId);
@@ -395,7 +407,14 @@ const ToolbarRefactored: React.FC = () => {
     const currentObj = [...textObjects, ...imageObjects].find(obj => obj.id === selectedObjectId);
     if (!currentObj) return;
     
-    const prevZIndex = getNextLowerZIndex(currentObj.zIndex || 0, textObjects, imageObjects);
+    // 엑셀 셀이 아닌 객체들 중에서 이전 zIndex 찾기
+    const nonExcelTextObjects = textObjects.filter(obj => 
+      !('cellType' in obj) || obj.cellType !== 'cell'
+    );
+    const nonExcelImageObjects = imageObjects.filter(obj => 
+      !('cellType' in obj) || obj.cellType !== 'cell'
+    );
+    const prevZIndex = getNextLowerZIndex(currentObj.zIndex || 0, nonExcelTextObjects, nonExcelImageObjects);
     if (prevZIndex === null) return;
     
     const textObj = textObjects.find(obj => obj.id === selectedObjectId);
@@ -413,8 +432,15 @@ const ToolbarRefactored: React.FC = () => {
   const handleSendToBack = useCallback(async () => {
     if (!selectedObjectId) return;
     
-    const minZIndex = getMinZIndex(textObjects, imageObjects);
-    const newZIndex = Math.max(1, minZIndex - 1);
+    // 엑셀 셀이 아닌 객체들 중에서 최소 zIndex 찾기
+    const nonExcelTextObjects = textObjects.filter(obj => 
+      !('cellType' in obj) || obj.cellType !== 'cell'
+    );
+    const nonExcelImageObjects = imageObjects.filter(obj => 
+      !('cellType' in obj) || obj.cellType !== 'cell'
+    );
+    const minZIndex = getMinZIndex(nonExcelTextObjects, nonExcelImageObjects);
+    const newZIndex = Math.max(10000, minZIndex - 1); // 최소 10000 보장
     
     const textObj = textObjects.find(obj => obj.id === selectedObjectId);
     if (textObj) {
