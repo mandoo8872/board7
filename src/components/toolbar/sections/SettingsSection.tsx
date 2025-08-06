@@ -100,7 +100,7 @@ const SettingsSection: React.FC<SettingsSectionProps> = ({
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => updateSettings('admin', { 
-                      gridSize: Math.max(8, safeSettings.admin.gridSize - 4) 
+                      gridSize: Math.max(5, safeSettings.admin.gridSize - 4) 
                     })}
                     className="px-2 py-1 bg-white hover:bg-slate-100 rounded text-xs border"
                   >
