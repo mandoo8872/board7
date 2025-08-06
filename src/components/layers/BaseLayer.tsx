@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback } from 'react';
 import { useAdminConfigStore } from '../../store/adminConfigStore';
 import { useEditorStore } from '../../store/editorStore';
 import { useCellSelectionStore } from '../../store/cellSelectionStore';
@@ -152,44 +152,6 @@ const BaseLayer: React.FC<BaseLayerProps> = ({ isViewPage = false }) => {
       }
     }
   }, [editingObjectId, selectedObjectId, isViewPage, handleDuplicateObject, handleDeleteObject, handleClipboardPaste, handleBulkClearCellText]);
-
-  // 전역 키보드 이벤트 리스너 (캔버스 포커스와 관계없이)
-  useEffect(() => {
-    const handleGlobalKeyDown = (e: KeyboardEvent) => {
-      // 인라인 편집 중이면 키보드 단축키 비활성화
-      if (editingObjectId) return;
-      
-      // ViewPage에서는 나머지 키보드 단축키 비활성화
-      if (isViewPage) return;
-      
-      // Delete: 삭제 (엑셀 셀 다중선택 텍스트 내용 삭제 또는 일반 객체 삭제)
-      if (e.key === 'Delete') {
-        try {
-          e.preventDefault();
-        } catch (error) {
-          console.debug('preventDefault failed in global keydown handler:', error);
-        }
-        
-        // 다중선택된 엑셀 셀들이 있으면 텍스트 내용만 일괄 삭제
-        const selectedCells = useCellSelectionStore.getState().getSelectedCells();
-        if (selectedCells.length > 0) {
-          handleBulkClearCellText();
-          return;
-        }
-        
-        // 일반 객체 삭제
-        if (selectedObjectId) {
-          handleDeleteObject(selectedObjectId);
-        }
-      }
-    };
-
-    document.addEventListener('keydown', handleGlobalKeyDown);
-    
-    return () => {
-      document.removeEventListener('keydown', handleGlobalKeyDown);
-    };
-  }, [editingObjectId, selectedObjectId, isViewPage, handleDeleteObject, handleBulkClearCellText]);
 
   // 단일 포인터 다운 핸들러
   const handlePointerDown = useCallback((e: React.PointerEvent, id: string) => {
@@ -547,18 +509,9 @@ const BaseLayer: React.FC<BaseLayerProps> = ({ isViewPage = false }) => {
     handleObjectClick
   ]);
 
-  // 캔버스 자동 포커스
-  useEffect(() => {
-    const canvasElement = document.querySelector('[data-canvas="true"]') as HTMLElement;
-    if (canvasElement && !isViewPage) {
-      canvasElement.focus();
-    }
-  }, [isViewPage]);
-
   return (
     <div 
       className="absolute inset-0"
-      data-canvas="true"
       tabIndex={0}
       onClick={handleCanvasClick}
       onKeyDown={handleCanvasKeyDown}
