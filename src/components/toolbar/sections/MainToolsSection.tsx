@@ -19,7 +19,8 @@ const MainToolsSection: React.FC<MainToolsSectionProps> = ({
   onCreateCheckbox,
   onCreateImage
 }) => {
-  const { undoStack, redoStack } = useUndoRedoStore();
+  const undoStack = useUndoRedoStore(state => state.undoStack);
+  const redoStack = useUndoRedoStore(state => state.redoStack);
   const { executeUndo, executeRedo } = useUndoRedoActions();
 
   const canUndo = undoStack.length > 0;
