@@ -1,6 +1,8 @@
 import React from 'react';
 import { Tool } from '../../../types';
 import { DEFAULT_TOOLS } from '../utils/toolbarHelpers';
+import { useUndoRedoStore } from '../../../store/undoRedoStore';
+import { useUndoRedoActions } from '../hooks/useUndoRedoActions';
 
 interface MainToolsSectionProps {
   currentTool: Tool;
@@ -17,6 +19,11 @@ const MainToolsSection: React.FC<MainToolsSectionProps> = ({
   onCreateCheckbox,
   onCreateImage
 }) => {
+  const { undoStack, redoStack } = useUndoRedoStore();
+  const { executeUndo, executeRedo } = useUndoRedoActions();
+
+  const canUndo = undoStack.length > 0;
+  const canRedo = redoStack.length > 0;
   const handleToolClick = (toolId: string) => {
     switch (toolId) {
       case 'select':
@@ -58,6 +65,41 @@ const MainToolsSection: React.FC<MainToolsSectionProps> = ({
             <span className="text-xs font-medium">{tool.label}</span>
           </button>
         ))}
+      </div>
+      
+      {/* Undo/Redo 버튼 */}
+      <div className="mt-3 pt-3 border-t border-slate-200">
+        <div className="flex gap-2">
+          <button
+            onClick={executeUndo}
+            disabled={!canUndo}
+            className={`
+              flex-1 px-3 py-2 text-xs font-medium rounded-lg border transition-colors
+              ${canUndo 
+                ? 'bg-white hover:bg-slate-100 border-slate-300 text-slate-700' 
+                : 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed'
+              }
+            `}
+            title="되돌리기 (Ctrl+Z)"
+          >
+            ↶ 되돌리기
+          </button>
+          
+          <button
+            onClick={executeRedo}
+            disabled={!canRedo}
+            className={`
+              flex-1 px-3 py-2 text-xs font-medium rounded-lg border transition-colors
+              ${canRedo 
+                ? 'bg-white hover:bg-slate-100 border-slate-300 text-slate-700' 
+                : 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed'
+              }
+            `}
+            title="다시 실행 (Ctrl+Y)"
+          >
+            ↷ 다시실행
+          </button>
+        </div>
       </div>
     </div>
   );

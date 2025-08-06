@@ -10,7 +10,8 @@ export const useObjectSelection = (
   addTextObject: (obj: Omit<TextObject, 'id'>) => Promise<string>,
   addImageObject: (obj: Omit<ImageObject, 'id'>) => Promise<string>,
   updateTextObject: (id: string, updates: Partial<TextObject>) => Promise<void>,
-  setSelectedObjectId: (id: string | null) => void
+  setSelectedObjectId: (id: string | null) => void,
+  recordDeleteAction?: (targetId: string, before: any) => void
 ) => {
   // 선택된 객체 복제
   const handleDuplicateObject = useCallback(async (selectedObjectId: string | null) => {
@@ -51,6 +52,10 @@ export const useObjectSelection = (
     // 텍스트 객체 삭제
     const textObj = textObjects.find(obj => obj.id === selectedObjectId);
     if (textObj && textObj.permissions?.deletable) {
+      // 삭제 Action 기록
+      if (recordDeleteAction) {
+        recordDeleteAction(selectedObjectId, textObj);
+      }
       await deleteTextObject(selectedObjectId);
       setSelectedObjectId(null);
       return;
@@ -59,11 +64,15 @@ export const useObjectSelection = (
     // 이미지 객체 삭제
     const imageObj = imageObjects.find(obj => obj.id === selectedObjectId);
     if (imageObj && imageObj.permissions?.deletable) {
+      // 삭제 Action 기록
+      if (recordDeleteAction) {
+        recordDeleteAction(selectedObjectId, imageObj);
+      }
       await deleteImageObject(selectedObjectId);
       setSelectedObjectId(null);
       return;
     }
-  }, [textObjects, imageObjects, deleteTextObject, deleteImageObject, setSelectedObjectId]);
+  }, [textObjects, imageObjects, deleteTextObject, deleteImageObject, setSelectedObjectId, recordDeleteAction]);
 
   // 다중선택된 엑셀 셀들의 텍스트 내용 일괄 삭제
   const handleBulkClearCellText = useCallback(async () => {

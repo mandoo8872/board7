@@ -4,7 +4,8 @@ import { TextObject } from '../../../../types';
 export const useInlineEdit = (
   updateTextObject: (id: string, updates: Partial<TextObject>) => Promise<void>,
   setSelectedObjectId: (id: string | null) => void,
-  isViewPage: boolean = false
+  isViewPage: boolean = false,
+  recordEditAction?: (targetId: string, before: any, after: any) => void
 ) => {
   const [editingObjectId, setEditingObjectId] = useState<string | null>(null);
   const [editingText, setEditingText] = useState<string>('');
@@ -39,6 +40,10 @@ export const useInlineEdit = (
 
   const finishInlineEdit = useCallback(async () => {
     if (editingObjectId && editingText !== undefined) {
+      // 편집 Action 기록
+      if (recordEditAction) {
+        recordEditAction(editingObjectId, { text: '' }, { text: editingText });
+      }
       await updateTextObject(editingObjectId, { 
         text: editingText,
         isEditing: false 
@@ -46,7 +51,7 @@ export const useInlineEdit = (
       setEditingObjectId(null);
       setEditingText('');
     }
-  }, [editingObjectId, editingText, updateTextObject]);
+  }, [editingObjectId, editingText, updateTextObject, recordEditAction]);
 
   const cancelInlineEdit = useCallback(() => {
     setEditingObjectId(null);

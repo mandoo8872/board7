@@ -1,6 +1,17 @@
 // 기본 도구 타입
 export type Tool = 'select' | 'text' | 'checkbox' | 'image' | 'pen' | 'eraser';
 
+// Undo/Redo Action 타입
+export type ActionType = 'move' | 'delete' | 'edit' | 'create';
+
+export interface Action {
+  type: ActionType;
+  targetId: string;
+  before: any;
+  after: any;
+  timestamp: number;
+}
+
 // 캔버스 관련 타입 정의
 export interface CanvasProps {
   isViewPage: boolean;

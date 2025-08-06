@@ -3,6 +3,7 @@ import { useAdminConfigStore } from '../../store/adminConfigStore';
 import { useEditorStore } from '../../store/editorStore';
 import { useCellSelectionStore } from '../../store/cellSelectionStore';
 import { TextObject } from '../../types';
+import { useUndoRedoActions } from '../toolbar/hooks/useUndoRedoActions';
 
 // 분리된 컴포넌트들 import
 import { TextObjectRenderer, ImageObjectRenderer } from './BaseLayer/components';
@@ -65,6 +66,18 @@ const BaseLayer: React.FC<BaseLayerProps> = ({ isViewPage = false }) => {
   // 리사이즈 상태 hook
   const { resizeState, startResize, updateResize, endResize, isResizingObject } = useResizeState();
 
+  // 클립보드 hook
+  const { handleClipboardPaste } = useClipboard(addImageObject, addTextObject, settings);
+
+  // Undo/Redo hook
+  const {
+    recordMoveAction,
+    recordDeleteAction,
+    recordEditAction,
+    executeUndo,
+    executeRedo
+  } = useUndoRedoActions();
+
   // 인라인 편집 hook
   const {
     editingObjectId,
@@ -73,10 +86,7 @@ const BaseLayer: React.FC<BaseLayerProps> = ({ isViewPage = false }) => {
     finishInlineEdit,
     cancelInlineEdit,
     updateEditingText
-  } = useInlineEdit(updateTextObject, setSelectedObjectId, isViewPage);
-
-  // 클립보드 hook
-  const { handleClipboardPaste } = useClipboard(addImageObject, addTextObject, settings);
+  } = useInlineEdit(updateTextObject, setSelectedObjectId, isViewPage, recordEditAction);
 
   // 객체 선택 hook
   const {
@@ -91,7 +101,8 @@ const BaseLayer: React.FC<BaseLayerProps> = ({ isViewPage = false }) => {
     addTextObject,
     addImageObject,
     updateTextObject,
-    setSelectedObjectId
+    setSelectedObjectId,
+    recordDeleteAction
   );
 
   // 트리플 클릭 감지를 위한 상태
@@ -118,6 +129,28 @@ const BaseLayer: React.FC<BaseLayerProps> = ({ isViewPage = false }) => {
     
     // ViewPage에서는 나머지 키보드 단축키 비활성화
     if (isViewPage) return;
+    
+    // Ctrl+Z: Undo
+    if (e.ctrlKey && e.key === 'z') {
+      try {
+        e.preventDefault();
+      } catch (error) {
+        console.debug('preventDefault failed in global keydown handler:', error);
+      }
+      executeUndo();
+      return;
+    }
+    
+    // Ctrl+Y: Redo
+    if (e.ctrlKey && e.key === 'y') {
+      try {
+        e.preventDefault();
+      } catch (error) {
+        console.debug('preventDefault failed in global keydown handler:', error);
+      }
+      executeRedo();
+      return;
+    }
     
     // Ctrl+D: 복제
     if (e.ctrlKey && e.key === 'd') {
@@ -151,7 +184,7 @@ const BaseLayer: React.FC<BaseLayerProps> = ({ isViewPage = false }) => {
         handleDeleteObject(selectedObjectId);
       }
     }
-  }, [editingObjectId, selectedObjectId, isViewPage, handleDuplicateObject, handleDeleteObject, handleClipboardPaste, handleBulkClearCellText]);
+  }, [editingObjectId, selectedObjectId, isViewPage, handleDuplicateObject, handleDeleteObject, handleClipboardPaste, handleBulkClearCellText, executeUndo, executeRedo]);
 
   // 단일 포인터 다운 핸들러
   const handlePointerDown = useCallback((e: React.PointerEvent, id: string) => {
@@ -309,10 +342,14 @@ const BaseLayer: React.FC<BaseLayerProps> = ({ isViewPage = false }) => {
       const imageObj = imageObjects.find(obj => obj.id === dragState.draggedObjectId);
       
       if (textObj) {
+        // 이동 Action 기록
+        recordMoveAction(dragState.draggedObjectId, { x: textObj.x, y: textObj.y }, finalPosition);
         updateTextObject(dragState.draggedObjectId, finalPosition).catch(error => {
           console.error('Failed to update text object position:', error);
         });
       } else if (imageObj) {
+        // 이동 Action 기록
+        recordMoveAction(dragState.draggedObjectId, { x: imageObj.x, y: imageObj.y }, finalPosition);
         updateImageObject(dragState.draggedObjectId, finalPosition).catch((error: any) => {
           console.error('Failed to update image object position:', error);
         });
@@ -338,10 +375,18 @@ const BaseLayer: React.FC<BaseLayerProps> = ({ isViewPage = false }) => {
         };
         
         if (textObj) {
+          // 편집 Action 기록 (크기/위치 변경)
+          recordEditAction(resizeState.resizedObjectId, 
+            { x: textObj.x, y: textObj.y, width: textObj.width, height: textObj.height }, 
+            updateData);
           updateTextObject(resizeState.resizedObjectId, updateData).catch(error => {
             console.error('Failed to update text object size/position:', error);
           });
         } else if (imageObj) {
+          // 편집 Action 기록 (크기/위치 변경)
+          recordEditAction(resizeState.resizedObjectId, 
+            { x: imageObj.x, y: imageObj.y, width: imageObj.width, height: imageObj.height }, 
+            updateData);
           updateImageObject(resizeState.resizedObjectId, updateData).catch((error: any) => {
             console.error('Failed to update image object size/position:', error);
           });
