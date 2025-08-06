@@ -76,7 +76,7 @@ const BaseLayer: React.FC<BaseLayerProps> = ({ isViewPage = false }) => {
   } = useInlineEdit(updateTextObject, setSelectedObjectId, isViewPage);
 
   // 클립보드 hook
-  const { handleClipboardPaste } = useClipboard(addImageObject, settings);
+  const { handleClipboardPaste } = useClipboard(addImageObject, addTextObject, settings);
 
   // 객체 선택 hook
   const {
