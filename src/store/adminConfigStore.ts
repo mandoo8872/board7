@@ -24,11 +24,13 @@ export interface AdminConfigStore {
   addTextObjects: (objects: Omit<TextObject, 'id'>[]) => Promise<string[]>;
   updateTextObject: (id: string, updates: Partial<TextObject>) => Promise<void>;
   deleteTextObject: (id: string) => Promise<void>;
+  deleteTextObjects: (ids: string[]) => Promise<void>;
   
   // ImageObject 관리
   addImageObject: (obj: Omit<ImageObject, 'id'>) => Promise<string>;
   updateImageObject: (id: string, updates: Partial<ImageObject>) => Promise<void>;
   deleteImageObject: (id: string) => Promise<void>;
+  deleteImageObjects: (ids: string[]) => Promise<void>;
   
   // DrawObject 관리 (ViewPage에서만 생성, 여기서는 동기화만)
   deleteDrawObject: (id: string) => Promise<void>;
@@ -295,6 +297,25 @@ export const useAdminConfigStore = create<AdminConfigStore>((set, get) => {
       await remove(objectRef);
     },
     
+    deleteTextObjects: async (ids) => {
+      if (ids.length === 0) return;
+      
+      if (ids.length === 1) {
+        // 단일 객체는 기존 함수 사용
+        await get().deleteTextObject(ids[0]);
+        return;
+      }
+      
+      // Firebase batch delete를 위한 updates 객체 생성
+      const updates: Record<string, null> = {};
+      ids.forEach((id) => {
+        updates[id] = null; // Firebase에서 null 값은 삭제를 의미
+      });
+      
+      // textObjects 노드에서 한 번의 Firebase 업데이트로 모든 객체 삭제
+      await firebaseSet(ref(database, 'textObjects'), updates);
+    },
+    
     addImageObject: async (obj) => {
       const imageObjectsRef = ref(database, 'imageObjects');
       const newRef = push(imageObjectsRef);
@@ -321,6 +342,25 @@ export const useAdminConfigStore = create<AdminConfigStore>((set, get) => {
     deleteImageObject: async (id) => {
       const objectRef = ref(database, `imageObjects/${id}`);
       await remove(objectRef);
+    },
+    
+    deleteImageObjects: async (ids) => {
+      if (ids.length === 0) return;
+      
+      if (ids.length === 1) {
+        // 단일 객체는 기존 함수 사용
+        await get().deleteImageObject(ids[0]);
+        return;
+      }
+      
+      // Firebase batch delete를 위한 updates 객체 생성
+      const updates: Record<string, null> = {};
+      ids.forEach((id) => {
+        updates[id] = null; // Firebase에서 null 값은 삭제를 의미
+      });
+      
+      // imageObjects 노드에서 한 번의 Firebase 업데이트로 모든 객체 삭제
+      await firebaseSet(ref(database, 'imageObjects'), updates);
     },
     
     deleteDrawObject: async (id) => {

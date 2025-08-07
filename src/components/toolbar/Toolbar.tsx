@@ -50,6 +50,7 @@ const ToolbarRefactored: React.FC = () => {
     updateImageObject,
     setFloorImage,
     deleteTextObject,
+    deleteTextObjects,
     deleteImageObject,
     settings,
     updateSettings,
@@ -182,6 +183,11 @@ const ToolbarRefactored: React.FC = () => {
     return await addTextObjects(objects);
   }, [addTextObjects]);
 
+  // Excel 붙여넣기용 deleteTextObjects wrapper (일괄 삭제용)
+  const deleteTextObjectsForExcel = useCallback(async (ids: string[]): Promise<void> => {
+    return await deleteTextObjects(ids);
+  }, [deleteTextObjects]);
+
   // Excel 붙여넣기 hook
   const { handleCreateExcelCells, handleDeleteExcelCellGroups } = useExcelPaste({
     excelPasteData,
@@ -189,7 +195,7 @@ const ToolbarRefactored: React.FC = () => {
     safeSettings,
     textObjects,
     addTextObjects: addTextObjectsForExcel,
-    deleteTextObject,
+    deleteTextObjects: deleteTextObjectsForExcel,
     onDataChange: setExcelPasteData,
     onPreviewChange: setShowPreview,
   });

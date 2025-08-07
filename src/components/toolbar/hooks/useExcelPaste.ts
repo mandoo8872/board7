@@ -11,7 +11,7 @@ interface UseExcelPasteProps {
   safeSettings: SafeSettings;
   textObjects: TextObject[];
   addTextObjects: (objects: Omit<TextObject, 'id'>[]) => Promise<string[]>;
-  deleteTextObject: (id: string) => Promise<void>;
+  deleteTextObjects: (ids: string[]) => Promise<void>;
   onDataChange: (data: string) => void;
   onPreviewChange: (show: boolean) => void;
 }
@@ -22,7 +22,7 @@ export const useExcelPaste = ({
   safeSettings,
   textObjects,
   addTextObjects,
-  deleteTextObject,
+  deleteTextObjects,
   onDataChange,
   onPreviewChange,
 }: UseExcelPasteProps) => {
@@ -149,16 +149,22 @@ export const useExcelPaste = ({
     }
 
     try {
-      for (const cell of excelCells) {
-        await deleteTextObject(cell.id);
-      }
+      // 모든 Excel 셀을 한 번에 일괄 삭제 (성능 최적화)
+      const cellIds = excelCells.map(cell => cell.id);
+      await deleteTextObjects(cellIds);
       
+      // Excel 셀 일괄 삭제 후 undo/redo 스냅샷 저장
+      setTimeout(() => {
+        saveSnapshot();
+      }, 100); // Firebase 동기화 완료 후 스냅샷 저장
+      
+      console.log(`🗑️ Excel 셀 일괄 삭제 완료: ${cellIds.length}개 (${groupCount}개 그룹)`);
       alert(`${groupCount}개 그룹 (${excelCells.length}개 셀)이 삭제되었습니다.`);
     } catch (error) {
       console.error('엑셀 셀 삭제 실패:', error);
       alert('셀 삭제 중 오류가 발생했습니다.');
     }
-  }, [textObjects, deleteTextObject]);
+  }, [textObjects, deleteTextObjects, saveSnapshot]);
 
   // 미리보기 업데이트
   useEffect(() => {
