@@ -218,7 +218,7 @@ const DataManagementSection: React.FC<DataManagementSectionProps> = ({
         className="w-full p-4 flex items-center justify-between text-sm font-bold text-slate-700 hover:bg-slate-50 rounded-t-xl transition-colors"
       >
         <span className="flex items-center gap-2">
-          <Database size={20} weight="bold" className="text-blue-600" /> 데이터 관리
+          <Database size={20} weight="duotone" color="#302929" /> 데이터 관리
         </span>
         <span className={`text-slate-400 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}>
           ▼
@@ -248,7 +248,7 @@ const DataManagementSection: React.FC<DataManagementSectionProps> = ({
               onClick={handleSaveData}
               className="w-full bg-blue-500 hover:bg-blue-600 text-white font-medium py-3 px-4 rounded-lg transition-colors flex items-center justify-center gap-2 text-sm"
             >
-              <FloppyDisk size={18} weight="bold" />
+              <FloppyDisk size={18} weight="duotone" color="#FFFFFF" />
               데이터 저장 (JSON 다운로드)
             </button>
 

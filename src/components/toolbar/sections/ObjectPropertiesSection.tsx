@@ -1,6 +1,7 @@
 import React from 'react';
 import { TextObject, ImageObject } from '../../../types';
 import { isTextObject, isImageObject } from '../utils/toolbarHelpers';
+import { Pencil } from 'phosphor-react';
 import ColorManagementSection from './ColorManagementSection';
 import LayoutControlSection from './LayoutControlSection';
 
@@ -75,7 +76,8 @@ const ObjectPropertiesSection: React.FC<ObjectPropertiesSectionProps> = ({
   return (
     <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
       <h3 className="text-sm font-bold text-slate-700 mb-3 flex items-center gap-2">
-        <span>✏️</span> 선택된 객체 편집
+        <Pencil size={16} weight="duotone" color="#302929" className="mr-1" />
+        선택된 객체 편집
       </h3>
       
       {isTextObject(selectedObject) && (

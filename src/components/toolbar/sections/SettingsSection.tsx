@@ -59,7 +59,7 @@ const SettingsSection: React.FC<SettingsSectionProps> = ({
         className="w-full p-4 flex items-center justify-between text-sm font-bold text-slate-700 hover:bg-slate-50 rounded-t-xl transition-colors"
       >
         <span className="flex items-center gap-2">
-          <Gear size={20} weight="bold" className="text-slate-600" /> 설정
+          <Gear size={20} weight="duotone" color="#302929" /> 설정
         </span>
         <span className={`text-slate-400 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}>
           ▼
@@ -208,10 +208,10 @@ const SettingsSection: React.FC<SettingsSectionProps> = ({
           {/* 배경 이미지 업로드 */}
           <div className="bg-slate-50 rounded-lg p-3">
             <h4 className="text-xs font-bold text-slate-600 mb-2 flex items-center gap-1">
-              <Image size={16} weight="bold" className="text-slate-600" /> 배경 이미지
+              <Image size={16} weight="duotone" color="#302929" /> 배경 이미지
             </h4>
             <label className="w-full px-4 py-2 bg-purple-500 hover:bg-purple-600 text-white rounded-lg transition-colors cursor-pointer text-sm font-medium flex items-center justify-center gap-2">
-              <FolderOpen size={18} weight="bold" />
+              <FolderOpen size={18} weight="duotone" color="#FFFFFF" />
               <span>이미지 업로드</span>
               <input
                 type="file"
@@ -291,7 +291,7 @@ const SettingsSection: React.FC<SettingsSectionProps> = ({
                   onClick={() => setPasswordChangeMode('view')}
                   className="w-full px-3 py-2 bg-green-500 hover:bg-green-600 text-white text-xs font-medium rounded-lg transition-colors flex items-center justify-center gap-2"
                 >
-                  <Eye size={16} weight="bold" />
+                  <Eye size={16} weight="duotone" color="#FFFFFF" />
                   <span>뷰어 패스워드 변경</span>
                 </button>
               </div>

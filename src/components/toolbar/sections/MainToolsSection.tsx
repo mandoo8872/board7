@@ -2,7 +2,17 @@ import React from 'react';
 import { Tool } from '../../../types';
 import { DEFAULT_TOOLS } from '../utils/toolbarHelpers';
 import { useUndoRedo } from '../../../hooks/useUndoRedo';
-import { ArrowCounterClockwise, ArrowClockwise, Lightning } from 'phosphor-react';
+import { 
+  ArrowCounterClockwise, 
+  ArrowClockwise, 
+  Lightning,
+  HandPointing,
+  TextAa,
+  CheckSquare,
+  ImageSquare,
+  Pencil,
+  Eraser
+} from 'phosphor-react';
 
 interface MainToolsSectionProps {
   currentTool: Tool;
@@ -20,6 +30,29 @@ const MainToolsSection: React.FC<MainToolsSectionProps> = ({
   onCreateImage
 }) => {
   const { executeUndo, executeRedo, canUndo, canRedo } = useUndoRedo();
+
+  // Phosphor Duotone 아이콘 매핑
+  const getToolIcon = (toolId: Tool) => {
+    const iconProps = { size: 20, weight: "duotone" as const, color: "#302929" };
+    
+    switch (toolId) {
+      case 'select':
+        return <HandPointing {...iconProps} />;
+      case 'text':
+        return <TextAa {...iconProps} />;
+      case 'checkbox':
+        return <CheckSquare {...iconProps} />;
+      case 'image':
+        return <ImageSquare {...iconProps} />;
+      case 'pen':
+        return <Pencil {...iconProps} />;
+      case 'eraser':
+        return <Eraser {...iconProps} />;
+      default:
+        return <HandPointing {...iconProps} />;
+    }
+  };
+
   const handleToolClick = (toolId: string) => {
     switch (toolId) {
       case 'select':
@@ -44,7 +77,7 @@ const MainToolsSection: React.FC<MainToolsSectionProps> = ({
   return (
     <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
       <h3 className="text-sm font-bold text-slate-700 mb-3 flex items-center gap-2">
-        <Lightning size={20} weight="bold" className="text-amber-500" /> 메인 도구
+        <Lightning size={20} weight="duotone" color="#302929" /> 메인 도구
       </h3>
       <div className="grid grid-cols-3 gap-2">
         {DEFAULT_TOOLS.map(tool => (
@@ -57,7 +90,7 @@ const MainToolsSection: React.FC<MainToolsSectionProps> = ({
                 : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200 hover:border-slate-300'
               }`}
           >
-            <span className="text-2xl">{tool.icon}</span>
+            {getToolIcon(tool.id as Tool)}
             <span className="text-xs font-medium">{tool.label}</span>
           </button>
         ))}
@@ -78,7 +111,7 @@ const MainToolsSection: React.FC<MainToolsSectionProps> = ({
             `}
             title="되돌리기 (Ctrl+Z)"
                              >
-                     <ArrowCounterClockwise size={16} weight="bold" className="mr-1" />
+                     <ArrowCounterClockwise size={16} weight="duotone" color="#302929" className="mr-1" />
                      되돌리기
                    </button>
           
@@ -94,7 +127,7 @@ const MainToolsSection: React.FC<MainToolsSectionProps> = ({
             `}
             title="다시 실행 (Ctrl+Y)"
                              >
-                     <ArrowClockwise size={16} weight="bold" className="mr-1" />
+                     <ArrowClockwise size={16} weight="duotone" color="#302929" className="mr-1" />
                      다시실행
                    </button>
         </div>

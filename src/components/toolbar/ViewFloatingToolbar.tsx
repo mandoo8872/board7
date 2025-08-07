@@ -2,7 +2,14 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useEditorStore, useAdminConfigStore, useDrawStore } from '../../store';
 import { useUndoRedo } from '../../hooks/useUndoRedo';
 import { Tool, TextObject } from '../../types';
-import { ArrowCounterClockwise, ArrowClockwise, Eraser } from 'phosphor-react';
+import { 
+  ArrowCounterClockwise, 
+  ArrowClockwise, 
+  Eraser,
+  HandPointing,
+  Pencil,
+  CheckSquare
+} from 'phosphor-react';
 
 interface Position {
   x: number;
@@ -368,7 +375,7 @@ const ViewFloatingToolbar: React.FC = () => {
             style={{ width: buttonSize, height: buttonSize }}
             title="선택 도구"
           >
-            <span style={{ fontSize: iconSize * 0.6 }}>👆</span>
+            <HandPointing size={iconSize * 0.8} weight="duotone" color="#302929" />
           </button>
           
           <button
@@ -384,7 +391,7 @@ const ViewFloatingToolbar: React.FC = () => {
             style={{ width: buttonSize, height: buttonSize }}
             title="필기 도구"
           >
-            <span style={{ fontSize: iconSize * 0.6 }}>✏️</span>
+            <Pencil size={iconSize * 0.8} weight="duotone" color="#302929" />
           </button>
           
           <button
@@ -400,7 +407,7 @@ const ViewFloatingToolbar: React.FC = () => {
             style={{ width: buttonSize, height: buttonSize }}
             title="지우개"
           >
-            <Eraser size={iconSize * 0.8} weight="bold" />
+            <Eraser size={iconSize * 0.8} weight="duotone" color="#302929" />
           </button>
           
           <button
@@ -412,7 +419,7 @@ const ViewFloatingToolbar: React.FC = () => {
             style={{ width: buttonSize, height: buttonSize }}
             title="체크박스 추가"
           >
-            <span style={{ fontSize: iconSize * 0.6 }}>☑️</span>
+            <CheckSquare size={iconSize * 0.8} weight="duotone" color="#302929" />
           </button>
 
           {/* Undo/Redo 버튼들 */}
@@ -430,7 +437,7 @@ const ViewFloatingToolbar: React.FC = () => {
             style={{ width: buttonSize, height: buttonSize }}
             title="되돌리기"
           >
-            <ArrowCounterClockwise size={iconSize * 0.8} weight="bold" />
+            <ArrowCounterClockwise size={iconSize * 0.8} weight="duotone" color="#302929" />
           </button>
           
           <button
@@ -447,7 +454,7 @@ const ViewFloatingToolbar: React.FC = () => {
             style={{ width: buttonSize, height: buttonSize }}
             title="다시 실행"
           >
-            <ArrowClockwise size={iconSize * 0.8} weight="bold" />
+            <ArrowClockwise size={iconSize * 0.8} weight="duotone" color="#302929" />
           </button>
 
           {/* 창맞춤 버튼 */}

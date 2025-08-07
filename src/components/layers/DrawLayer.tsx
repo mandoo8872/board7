@@ -473,7 +473,7 @@ const DrawLayer: React.FC<DrawLayerProps> = () => {
     }
     
     if (import.meta.env.DEV) {
-      console.log(`✏️ Drawing started with ${e.pointerType} (ID: ${e.pointerId})`);
+              console.log(`✨ Drawing started with ${e.pointerType} (ID: ${e.pointerId})`);
     }
   }, [currentTool, getCanvasCoordinates, startStroke, addPoint, renderAll, eraseAtPoint, isValidInputType]);
 
@@ -547,7 +547,7 @@ const DrawLayer: React.FC<DrawLayerProps> = () => {
         try {
           await lwwCreateDrawObject(drawObject);
           if (import.meta.env.DEV) {
-            console.log(`✏️ Stroke saved: ${inputType} input, ${pressureData.length} points, perfect-freehand: ${usePerfectFreehand}`);
+            console.log(`💾 Stroke saved: ${inputType} input, ${pressureData.length} points, perfect-freehand: ${usePerfectFreehand}`);
           }
         } catch (error) {
           console.error('❌ DrawLayer: Failed to save stroke:', error);
@@ -580,7 +580,7 @@ const DrawLayer: React.FC<DrawLayerProps> = () => {
     }
     
     if (import.meta.env.DEV) {
-      console.log(`✏️ Drawing ended with ${e.pointerType} (ID: ${e.pointerId})`);
+              console.log(`🔚 Drawing ended with ${e.pointerType} (ID: ${e.pointerId})`);
     }
   }, [isDrawing, currentTool, currentStroke, endStroke, penColor, penWidth, clearCurrentStroke, renderAll, scheduleAutoSwitch]);
 

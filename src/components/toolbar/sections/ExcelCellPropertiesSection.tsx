@@ -1,6 +1,7 @@
 import React from 'react';
 import { useCellSelectionStore } from '../../../store/cellSelectionStore';
 import { TextObject } from '../../../types';
+import { ChartBar } from 'phosphor-react';
 
 interface ExcelCellPropertiesSectionProps {
   textObjects: TextObject[];
@@ -50,7 +51,8 @@ const ExcelCellPropertiesSection: React.FC<ExcelCellPropertiesSectionProps> = ({
     <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-sm font-bold text-slate-700 flex items-center gap-2">
-          <span>📊</span> 선택된 엑셀 셀 ({selectedCount}개)
+          <ChartBar size={16} weight="duotone" color="#302929" className="mr-1" />
+          선택된 엑셀 셀 ({selectedCount}개)
         </h3>
         <button
           onClick={() => {

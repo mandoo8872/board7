@@ -97,7 +97,7 @@ const FloatingToolbar: React.FC<FloatingToolbarProps> = () => {
         className={getToolButtonClass('eraser')}
         title="지우개"
       >
-        <Eraser size={24} weight="bold" />
+        <Eraser size={24} weight="duotone" color="#FFFFFF" />
       </button>
       
       {/* T/T 생성 버튼 */}
@@ -106,7 +106,7 @@ const FloatingToolbar: React.FC<FloatingToolbarProps> = () => {
         className="p-3 rounded-full bg-green-500 text-white hover:bg-green-600 transition-all duration-200 shadow-lg hover:scale-105"
         title="T/T 항목 추가"
       >
-        <PencilSimple size={24} weight="bold" />
+        <PencilSimple size={24} weight="duotone" color="#FFFFFF" />
       </button>
 
       {/* 현재 도구 표시 */}
