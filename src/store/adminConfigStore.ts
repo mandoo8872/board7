@@ -271,11 +271,11 @@ export const useAdminConfigStore = create<AdminConfigStore>((set, get) => {
       // Firebase batch update를 위한 updates 객체 생성
       const updates: Record<string, TextObject> = {};
       newObjects.forEach((obj) => {
-        updates[`textObjects/${obj.id}`] = obj;
+        updates[obj.id] = obj;
       });
       
-      // 한 번의 Firebase 업데이트로 모든 객체 저장
-      await firebaseSet(ref(database), updates);
+      // textObjects 노드에 한 번의 Firebase 업데이트로 모든 객체 저장
+      await firebaseSet(ref(database, 'textObjects'), updates);
       
       // 생성된 모든 ID 반환
       return newObjects.map(obj => obj.id);
