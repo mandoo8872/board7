@@ -1,15 +1,20 @@
 // 기본 도구 타입
 export type Tool = 'select' | 'text' | 'checkbox' | 'image' | 'pen' | 'eraser';
 
-// Undo/Redo Action 타입
-export type ActionType = 'move' | 'delete' | 'edit' | 'create';
-
-export interface Action {
-  type: ActionType;
-  targetId: string;
-  before: any;
-  after: any;
+// Undo/Redo Snapshot 타입
+export interface CanvasSnapshot {
+  textObjects: TextObject[];
+  imageObjects: ImageObject[];
+  drawObjects: DrawObject[];
+  floorImage: FloorImage | null;
   timestamp: number;
+}
+
+export interface UndoRedoState {
+  past: CanvasSnapshot[];
+  present: CanvasSnapshot | null;
+  future: CanvasSnapshot[];
+  maxSteps: number;
 }
 
 // 캔버스 관련 타입 정의

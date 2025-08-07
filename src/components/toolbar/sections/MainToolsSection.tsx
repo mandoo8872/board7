@@ -1,8 +1,7 @@
 import React from 'react';
 import { Tool } from '../../../types';
 import { DEFAULT_TOOLS } from '../utils/toolbarHelpers';
-import { useUndoRedoStore } from '../../../store/undoRedoStore';
-import { useUndoRedoActions } from '../hooks/useUndoRedoActions';
+import { useUndoRedo } from '../../../hooks/useUndoRedo';
 
 interface MainToolsSectionProps {
   currentTool: Tool;
@@ -19,12 +18,7 @@ const MainToolsSection: React.FC<MainToolsSectionProps> = ({
   onCreateCheckbox,
   onCreateImage
 }) => {
-  const undoStack = useUndoRedoStore(state => state.undoStack);
-  const redoStack = useUndoRedoStore(state => state.redoStack);
-  const { executeUndo, executeRedo } = useUndoRedoActions();
-
-  const canUndo = undoStack.length > 0;
-  const canRedo = redoStack.length > 0;
+  const { executeUndo, executeRedo, canUndo, canRedo } = useUndoRedo();
   const handleToolClick = (toolId: string) => {
     switch (toolId) {
       case 'select':

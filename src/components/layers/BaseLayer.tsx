@@ -1,9 +1,9 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { useAdminConfigStore } from '../../store/adminConfigStore';
 import { useEditorStore } from '../../store/editorStore';
 import { useCellSelectionStore } from '../../store/cellSelectionStore';
 import { TextObject } from '../../types';
-import { useUndoRedoActions } from '../toolbar/hooks/useUndoRedoActions';
+import { useUndoRedo } from '../../hooks/useUndoRedo';
 
 // 분리된 컴포넌트들 import
 import { TextObjectRenderer, ImageObjectRenderer } from './BaseLayer/components';
@@ -70,13 +70,7 @@ const BaseLayer: React.FC<BaseLayerProps> = ({ isViewPage = false }) => {
   const { handleClipboardPaste } = useClipboard(addImageObject, addTextObject, settings);
 
   // Undo/Redo hook
-  const {
-    recordMoveAction,
-    recordDeleteAction,
-    recordEditAction,
-    executeUndo,
-    executeRedo
-  } = useUndoRedoActions();
+  const { saveSnapshot, executeUndo, executeRedo, initializePresent } = useUndoRedo();
 
   // 인라인 편집 hook
   const {
@@ -86,7 +80,7 @@ const BaseLayer: React.FC<BaseLayerProps> = ({ isViewPage = false }) => {
     finishInlineEdit,
     cancelInlineEdit,
     updateEditingText
-  } = useInlineEdit(updateTextObject, setSelectedObjectId, isViewPage, recordEditAction);
+  } = useInlineEdit(updateTextObject, setSelectedObjectId, isViewPage);
 
   // 객체 선택 hook
   const {
@@ -101,8 +95,7 @@ const BaseLayer: React.FC<BaseLayerProps> = ({ isViewPage = false }) => {
     addTextObject,
     addImageObject,
     updateTextObject,
-    setSelectedObjectId,
-    recordDeleteAction
+    setSelectedObjectId
   );
 
   // 트리플 클릭 감지를 위한 상태
@@ -110,6 +103,16 @@ const BaseLayer: React.FC<BaseLayerProps> = ({ isViewPage = false }) => {
     clickCount: 0,
     clickTimer: null
   });
+
+  // 초기 스냅샷 설정
+  useEffect(() => {
+    // 컴포넌트 마운트 후 잠시 대기하여 초기 상태 안정화
+    const timer = setTimeout(() => {
+      initializePresent();
+    }, 500);
+    
+    return () => clearTimeout(timer);
+  }, []); // 컴포넌트 마운트시에만 실행
 
   // 키보드 단축키 핸들러 (캔버스 포커스 시에만)
   const handleCanvasKeyDown = useCallback((e: React.KeyboardEvent) => {
@@ -181,10 +184,13 @@ const BaseLayer: React.FC<BaseLayerProps> = ({ isViewPage = false }) => {
       
       // 일반 객체 삭제
       if (selectedObjectId) {
-        handleDeleteObject(selectedObjectId);
+        handleDeleteObject(selectedObjectId).then(() => {
+          // 삭제 완료 후 스냅샷 저장
+          saveSnapshot();
+        });
       }
     }
-  }, [editingObjectId, selectedObjectId, isViewPage, handleDuplicateObject, handleDeleteObject, handleClipboardPaste, handleBulkClearCellText, executeUndo, executeRedo]);
+  }, [editingObjectId, selectedObjectId, isViewPage, handleDuplicateObject, handleDeleteObject, handleClipboardPaste, handleBulkClearCellText, executeUndo, executeRedo, saveSnapshot]);
 
   // 단일 포인터 다운 핸들러
   const handlePointerDown = useCallback((e: React.PointerEvent, id: string) => {
@@ -200,7 +206,10 @@ const BaseLayer: React.FC<BaseLayerProps> = ({ isViewPage = false }) => {
     }
 
     if (editingObjectId) {
-      finishInlineEdit();
+      finishInlineEdit().then(() => {
+        // 편집 완료 후 스냅샷 저장
+        saveSnapshot();
+      });
       return;
     }
 
@@ -222,7 +231,7 @@ const BaseLayer: React.FC<BaseLayerProps> = ({ isViewPage = false }) => {
     const offset = { x: e.clientX - rect.left, y: e.clientY - rect.top };
 
     startDrag(id, offset, { x: obj.x, y: obj.y });
-  }, [editingObjectId, finishInlineEdit, textObjects, imageObjects, setSelectedObjectId, setHoveredObjectId, updatePointerEventTime, isIPhone, startDrag]);
+  }, [editingObjectId, finishInlineEdit, textObjects, imageObjects, setSelectedObjectId, setHoveredObjectId, updatePointerEventTime, isIPhone, startDrag, saveSnapshot]);
 
   // 크기조절 핸들 포인터 다운
   const handleResizePointerDown = useCallback((e: React.PointerEvent, handle: string, objectId: string) => {
@@ -342,15 +351,17 @@ const BaseLayer: React.FC<BaseLayerProps> = ({ isViewPage = false }) => {
       const imageObj = imageObjects.find(obj => obj.id === dragState.draggedObjectId);
       
       if (textObj) {
-        // 이동 Action 기록
-        recordMoveAction(dragState.draggedObjectId, { x: textObj.x, y: textObj.y }, finalPosition);
-        updateTextObject(dragState.draggedObjectId, finalPosition).catch(error => {
+        updateTextObject(dragState.draggedObjectId, finalPosition).then(() => {
+          // 이동 완료 후 스냅샷 저장
+          saveSnapshot();
+        }).catch(error => {
           console.error('Failed to update text object position:', error);
         });
       } else if (imageObj) {
-        // 이동 Action 기록
-        recordMoveAction(dragState.draggedObjectId, { x: imageObj.x, y: imageObj.y }, finalPosition);
-        updateImageObject(dragState.draggedObjectId, finalPosition).catch((error: any) => {
+        updateImageObject(dragState.draggedObjectId, finalPosition).then(() => {
+          // 이동 완료 후 스냅샷 저장
+          saveSnapshot();
+        }).catch((error: any) => {
           console.error('Failed to update image object position:', error);
         });
       }
@@ -375,19 +386,17 @@ const BaseLayer: React.FC<BaseLayerProps> = ({ isViewPage = false }) => {
         };
         
         if (textObj) {
-          // 편집 Action 기록 (크기/위치 변경)
-          recordEditAction(resizeState.resizedObjectId, 
-            { x: textObj.x, y: textObj.y, width: textObj.width, height: textObj.height }, 
-            updateData);
-          updateTextObject(resizeState.resizedObjectId, updateData).catch(error => {
+          updateTextObject(resizeState.resizedObjectId, updateData).then(() => {
+            // 리사이즈 완료 후 스냅샷 저장
+            saveSnapshot();
+          }).catch(error => {
             console.error('Failed to update text object size/position:', error);
           });
         } else if (imageObj) {
-          // 편집 Action 기록 (크기/위치 변경)
-          recordEditAction(resizeState.resizedObjectId, 
-            { x: imageObj.x, y: imageObj.y, width: imageObj.width, height: imageObj.height }, 
-            updateData);
-          updateImageObject(resizeState.resizedObjectId, updateData).catch((error: any) => {
+          updateImageObject(resizeState.resizedObjectId, updateData).then(() => {
+            // 리사이즈 완료 후 스냅샷 저장
+            saveSnapshot();
+          }).catch((error: any) => {
             console.error('Failed to update image object size/position:', error);
           });
         }
@@ -404,7 +413,8 @@ const BaseLayer: React.FC<BaseLayerProps> = ({ isViewPage = false }) => {
     updateImageObject, 
     endDrag, 
     endResize,
-    isIPhone
+    isIPhone,
+    saveSnapshot
   ]);
 
   // 텍스트 객체 클릭 핸들러
