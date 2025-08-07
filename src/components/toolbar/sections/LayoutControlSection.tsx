@@ -1,4 +1,5 @@
 import React from 'react';
+import { Trash, Copy } from 'phosphor-react';
 
 interface LayoutControlSectionProps {
   onDuplicate: () => void;
@@ -25,13 +26,15 @@ const LayoutControlSection: React.FC<LayoutControlSectionProps> = ({
           onClick={onDuplicate}
           className="flex-1 px-3 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg text-xs font-medium transition-colors"
         >
-          📋 복사
+          <Copy size={14} weight="bold" className="mr-1" />
+          복사
         </button>
         <button
           onClick={onDelete}
           className="flex-1 px-3 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg text-xs font-medium transition-colors"
         >
-          🗑️ 삭제
+          <Trash size={14} weight="bold" className="mr-1" />
+          삭제
         </button>
       </div>
       

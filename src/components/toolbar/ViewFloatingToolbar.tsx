@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useEditorStore, useAdminConfigStore, useDrawStore } from '../../store';
 import { useUndoRedo } from '../../hooks/useUndoRedo';
 import { Tool, TextObject } from '../../types';
+import { ArrowCounterClockwise, ArrowClockwise, Eraser } from 'phosphor-react';
 
 interface Position {
   x: number;
@@ -399,7 +400,7 @@ const ViewFloatingToolbar: React.FC = () => {
             style={{ width: buttonSize, height: buttonSize }}
             title="지우개"
           >
-            <span style={{ fontSize: iconSize * 0.6 }}>🧽</span>
+            <Eraser size={iconSize * 0.8} weight="bold" />
           </button>
           
           <button
@@ -429,7 +430,7 @@ const ViewFloatingToolbar: React.FC = () => {
             style={{ width: buttonSize, height: buttonSize }}
             title="되돌리기"
           >
-            <span style={{ fontSize: iconSize * 0.6 }}>↶</span>
+            <ArrowCounterClockwise size={iconSize * 0.8} weight="bold" />
           </button>
           
           <button
@@ -446,7 +447,7 @@ const ViewFloatingToolbar: React.FC = () => {
             style={{ width: buttonSize, height: buttonSize }}
             title="다시 실행"
           >
-            <span style={{ fontSize: iconSize * 0.6 }}>↷</span>
+            <ArrowClockwise size={iconSize * 0.8} weight="bold" />
           </button>
 
           {/* 창맞춤 버튼 */}

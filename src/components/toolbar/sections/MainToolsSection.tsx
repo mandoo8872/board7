@@ -2,6 +2,7 @@ import React from 'react';
 import { Tool } from '../../../types';
 import { DEFAULT_TOOLS } from '../utils/toolbarHelpers';
 import { useUndoRedo } from '../../../hooks/useUndoRedo';
+import { ArrowCounterClockwise, ArrowClockwise, Lightning } from 'phosphor-react';
 
 interface MainToolsSectionProps {
   currentTool: Tool;
@@ -43,7 +44,7 @@ const MainToolsSection: React.FC<MainToolsSectionProps> = ({
   return (
     <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
       <h3 className="text-sm font-bold text-slate-700 mb-3 flex items-center gap-2">
-        <span>⚡</span> 메인 도구
+        <Lightning size={20} weight="bold" className="text-amber-500" /> 메인 도구
       </h3>
       <div className="grid grid-cols-3 gap-2">
         {DEFAULT_TOOLS.map(tool => (
@@ -76,9 +77,10 @@ const MainToolsSection: React.FC<MainToolsSectionProps> = ({
               }
             `}
             title="되돌리기 (Ctrl+Z)"
-          >
-            ↶ 되돌리기
-          </button>
+                             >
+                     <ArrowCounterClockwise size={16} weight="bold" className="mr-1" />
+                     되돌리기
+                   </button>
           
           <button
             onClick={executeRedo}
@@ -91,9 +93,10 @@ const MainToolsSection: React.FC<MainToolsSectionProps> = ({
               }
             `}
             title="다시 실행 (Ctrl+Y)"
-          >
-            ↷ 다시실행
-          </button>
+                             >
+                     <ArrowClockwise size={16} weight="bold" className="mr-1" />
+                     다시실행
+                   </button>
         </div>
       </div>
     </div>

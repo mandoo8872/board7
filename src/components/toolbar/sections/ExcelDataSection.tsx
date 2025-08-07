@@ -1,6 +1,7 @@
 import React from 'react';
 import { getExcelDataDimensions } from '../utils/toolbarHelpers';
 import type { SafeSettings } from '../types';
+import { Eye, Trash, Clipboard } from 'phosphor-react';
 
 interface ExcelDataSectionProps {
   isExpanded: boolean;
@@ -248,14 +249,16 @@ const ExcelDataSection: React.FC<ExcelDataSectionProps> = ({
                 disabled={!excelPasteData.trim()}
                 className="flex-1 px-4 py-2 bg-green-500 hover:bg-green-600 disabled:bg-gray-300 text-white rounded-lg text-sm font-medium transition-colors"
               >
-                📋 셀 생성
+                <Clipboard size={16} weight="bold" className="mr-1" />
+                셀 생성
               </button>
               <button
                 onClick={onPreviewToggle}
                 disabled={!excelPasteData.trim()}
                 className="px-4 py-2 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 text-white rounded-lg text-sm font-medium transition-colors"
               >
-                👁️ {showPreview ? '숨김' : '미리보기'}
+                <Eye size={16} weight="bold" className="mr-1" />
+                {showPreview ? '숨김' : '미리보기'}
               </button>
             </div>
             
@@ -264,7 +267,8 @@ const ExcelDataSection: React.FC<ExcelDataSectionProps> = ({
               className="w-full px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm font-medium transition-colors"
               title="생성된 모든 엑셀 셀 그룹을 삭제합니다"
             >
-              🗑️ 엑셀 셀 그룹 삭제
+              <Trash size={16} weight="bold" className="mr-1" />
+              엑셀 셀 그룹 삭제
             </button>
           </div>
         </div>

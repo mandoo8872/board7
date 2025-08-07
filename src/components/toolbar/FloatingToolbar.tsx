@@ -1,6 +1,7 @@
 import React from 'react';
 import { useEditorStore, useAdminConfigStore } from '../../store';
 import { Tool, TextObject } from '../../types';
+import { PencilSimple, Eraser } from 'phosphor-react';
 
 interface FloatingToolbarProps {
   currentTool?: Tool;
@@ -96,7 +97,7 @@ const FloatingToolbar: React.FC<FloatingToolbarProps> = () => {
         className={getToolButtonClass('eraser')}
         title="지우개"
       >
-        <span className="text-2xl">🧽</span>
+        <Eraser size={24} weight="bold" />
       </button>
       
       {/* T/T 생성 버튼 */}
@@ -105,7 +106,7 @@ const FloatingToolbar: React.FC<FloatingToolbarProps> = () => {
         className="p-3 rounded-full bg-green-500 text-white hover:bg-green-600 transition-all duration-200 shadow-lg hover:scale-105"
         title="T/T 항목 추가"
       >
-        <span className="text-2xl">📝</span>
+        <PencilSimple size={24} weight="bold" />
       </button>
 
       {/* 현재 도구 표시 */}

@@ -2,6 +2,7 @@ import React, { useRef } from 'react';
 import { ref, set as firebaseSet } from 'firebase/database';
 import { database } from '../../../config/firebase';
 import { TextObject, ImageObject, DrawObject, FloorImage, Settings } from '../../../types';
+import { FloppyDisk, Database } from 'phosphor-react';
 
 interface DataManagementSectionProps {
   isExpanded: boolean;
@@ -217,7 +218,7 @@ const DataManagementSection: React.FC<DataManagementSectionProps> = ({
         className="w-full p-4 flex items-center justify-between text-sm font-bold text-slate-700 hover:bg-slate-50 rounded-t-xl transition-colors"
       >
         <span className="flex items-center gap-2">
-          <span>💾</span> 데이터 관리
+          <Database size={20} weight="bold" className="text-blue-600" /> 데이터 관리
         </span>
         <span className={`text-slate-400 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}>
           ▼
@@ -247,7 +248,7 @@ const DataManagementSection: React.FC<DataManagementSectionProps> = ({
               onClick={handleSaveData}
               className="w-full bg-blue-500 hover:bg-blue-600 text-white font-medium py-3 px-4 rounded-lg transition-colors flex items-center justify-center gap-2 text-sm"
             >
-              <span>💾</span>
+              <FloppyDisk size={18} weight="bold" />
               데이터 저장 (JSON 다운로드)
             </button>
 
