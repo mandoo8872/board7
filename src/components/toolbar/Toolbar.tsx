@@ -44,6 +44,7 @@ const ToolbarRefactored: React.FC = () => {
     drawObjects,
     floorImage,
     addTextObject, 
+    addTextObjects,
     addImageObject,
     updateTextObject,
     updateImageObject,
@@ -176,10 +177,10 @@ const ToolbarRefactored: React.FC = () => {
     updateBoxStyle
   });
 
-  // Excel 붙여넣기용 addTextObject wrapper
-  const addTextObjectForExcel = useCallback(async (obj: Omit<TextObject, 'id'>): Promise<string> => {
-    return await addTextObject(obj);
-  }, [addTextObject]);
+  // Excel 붙여넣기용 addTextObjects wrapper (일괄 처리용)
+  const addTextObjectsForExcel = useCallback(async (objects: Omit<TextObject, 'id'>[]): Promise<string[]> => {
+    return await addTextObjects(objects);
+  }, [addTextObjects]);
 
   // Excel 붙여넣기 hook
   const { handleCreateExcelCells, handleDeleteExcelCellGroups } = useExcelPaste({
@@ -187,7 +188,7 @@ const ToolbarRefactored: React.FC = () => {
     showPreview,
     safeSettings,
     textObjects,
-    addTextObject: addTextObjectForExcel,
+    addTextObjects: addTextObjectsForExcel,
     deleteTextObject,
     onDataChange: setExcelPasteData,
     onPreviewChange: setShowPreview,

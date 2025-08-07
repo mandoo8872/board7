@@ -21,6 +21,7 @@ export interface AdminConfigStore {
   
   // TextObject 관리
   addTextObject: (obj: Omit<TextObject, 'id'>) => Promise<string>;
+  addTextObjects: (objects: Omit<TextObject, 'id'>[]) => Promise<string[]>;
   updateTextObject: (id: string, updates: Partial<TextObject>) => Promise<void>;
   deleteTextObject: (id: string) => Promise<void>;
   
@@ -249,6 +250,35 @@ export const useAdminConfigStore = create<AdminConfigStore>((set, get) => {
       };
       await firebaseSet(newRef, newObj);
       return newRef.key!; // 새로 생성된 객체의 ID 반환
+    },
+    
+    addTextObjects: async (objects) => {
+      if (objects.length === 0) return [];
+      
+      const textObjectsRef = ref(database, 'textObjects');
+      const sessionId = getCurrentSessionId();
+      const timestamp = Date.now();
+      
+      // 모든 객체에 대해 Firebase key를 미리 생성
+      const newRefs = objects.map(() => push(textObjectsRef));
+      const newObjects: TextObject[] = objects.map((obj, index) => ({
+        ...obj,
+        id: newRefs[index].key!,
+        lastModified: timestamp,
+        modifiedBy: sessionId
+      }));
+      
+      // Firebase batch update를 위한 updates 객체 생성
+      const updates: Record<string, TextObject> = {};
+      newObjects.forEach((obj) => {
+        updates[`textObjects/${obj.id}`] = obj;
+      });
+      
+      // 한 번의 Firebase 업데이트로 모든 객체 저장
+      await firebaseSet(ref(database), updates);
+      
+      // 생성된 모든 ID 반환
+      return newObjects.map(obj => obj.id);
     },
     
     updateTextObject: async (id, updates) => {

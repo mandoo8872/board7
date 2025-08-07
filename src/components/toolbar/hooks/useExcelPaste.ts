@@ -2,6 +2,7 @@ import { useCallback, useEffect } from 'react';
 import { TextObject } from '../../../types';
 import { parseExcelData, getExcelDataDimensions } from '../utils/toolbarHelpers';
 import { dispatchExcelPreviewEvent } from '../utils/fileHandlers';
+import { useUndoRedo } from '../../../hooks/useUndoRedo';
 import type { SafeSettings } from '../types';
 
 interface UseExcelPasteProps {
@@ -9,7 +10,7 @@ interface UseExcelPasteProps {
   showPreview: boolean;
   safeSettings: SafeSettings;
   textObjects: TextObject[];
-  addTextObject: (obj: Omit<TextObject, 'id'>) => Promise<string>;
+  addTextObjects: (objects: Omit<TextObject, 'id'>[]) => Promise<string[]>;
   deleteTextObject: (id: string) => Promise<void>;
   onDataChange: (data: string) => void;
   onPreviewChange: (show: boolean) => void;
@@ -20,11 +21,13 @@ export const useExcelPaste = ({
   showPreview,
   safeSettings,
   textObjects,
-  addTextObject,
+  addTextObjects,
   deleteTextObject,
   onDataChange,
   onPreviewChange,
 }: UseExcelPasteProps) => {
+  // Undo/Redo hook
+  const { saveSnapshot } = useUndoRedo();
 
   // 엑셀 데이터의 차원 계산
   const dataDimensions = getExcelDataDimensions(excelPasteData);
@@ -108,10 +111,15 @@ export const useExcelPaste = ({
     }
 
     try {
-      for (const cell of cells) {
-        await addTextObject(cell);
-      }
+      // 모든 셀을 한 번에 일괄 생성 (성능 최적화)
+      const cellIds = await addTextObjects(cells);
       
+      // Excel 셀 일괄 생성 후 undo/redo 스냅샷 저장
+      setTimeout(() => {
+        saveSnapshot();
+      }, 100); // Firebase 동기화 완료 후 스냅샷 저장
+      
+      console.log(`📊 Excel 셀 일괄 생성 완료: ${cellIds.length}개 (${actualRows}x${actualCols})`);
       alert(`${actualRows}x${actualCols} 셀이 생성되었습니다.`);
       onDataChange('');
       onPreviewChange(false);
@@ -120,7 +128,7 @@ export const useExcelPaste = ({
       console.error('엑셀 셀 생성 실패:', error);
       alert('셀 생성 중 오류가 발생했습니다.');
     }
-  }, [excelPasteData, safeSettings.admin.excelPasteSettings, addTextObject, onDataChange, onPreviewChange]);
+  }, [excelPasteData, safeSettings.admin.excelPasteSettings, addTextObjects, onDataChange, onPreviewChange, saveSnapshot]);
 
   // 엑셀 셀 그룹 삭제 함수
   const handleDeleteExcelCellGroups = useCallback(async () => {
