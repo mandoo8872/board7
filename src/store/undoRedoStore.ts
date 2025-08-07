@@ -54,6 +54,20 @@ export const useUndoRedoStore = create<UndoRedoStore>((set, get) => ({
     if (past.length === 0) return null;
     
     const previous = past[past.length - 1];
+    
+    // 초기 상태로 돌아가는 것을 방지하는 안전장치
+    const isInitialState = (snapshot: CanvasSnapshot) => {
+      return snapshot.textObjects.length === 0 && 
+             snapshot.imageObjects.length === 0 && 
+             snapshot.drawObjects.length === 0 && 
+             !snapshot.floorImage;
+    };
+    
+    // 이전 상태가 초기 상태이고 현재 상태에 콘텐츠가 있다면 undo 방지
+    if (isInitialState(previous) && present && !isInitialState(present)) {
+      return null; // 조용히 무시
+    }
+    
     const newPast = past.slice(0, -1);
     
     // 현재 상태를 future에 추가

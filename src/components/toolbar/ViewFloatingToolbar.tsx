@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useEditorStore, useAdminConfigStore, useDrawStore } from '../../store';
+import { useUndoRedo } from '../../hooks/useUndoRedo';
 import { Tool, TextObject } from '../../types';
 
 interface Position {
@@ -16,6 +17,7 @@ const ViewFloatingToolbar: React.FC = () => {
   const { currentTool, setCurrentTool, fitToWindow, setSelectedObjectId } = useEditorStore();
   const { addTextObject, settings } = useAdminConfigStore();
   const { penColor, penWidth, setPenColor, setPenWidth } = useDrawStore();
+  const { executeUndo, executeRedo, canUndo, canRedo } = useUndoRedo();
   
   // 간소화된 색상 팔레트
   const simpleColors = ['#000000', '#ff0000', '#0000ff', '#ffff00', '#ffffff'];
@@ -410,6 +412,41 @@ const ViewFloatingToolbar: React.FC = () => {
             title="체크박스 추가"
           >
             <span style={{ fontSize: iconSize * 0.6 }}>☑️</span>
+          </button>
+
+          {/* Undo/Redo 버튼들 */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              executeUndo();
+            }}
+            disabled={!canUndo}
+            className={`rounded transition-all duration-200 flex items-center justify-center ${
+              canUndo 
+                ? 'bg-orange-500 text-white hover:bg-orange-600 shadow-md' 
+                : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+            }`}
+            style={{ width: buttonSize, height: buttonSize }}
+            title="되돌리기"
+          >
+            <span style={{ fontSize: iconSize * 0.6 }}>↶</span>
+          </button>
+          
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              executeRedo();
+            }}
+            disabled={!canRedo}
+            className={`rounded transition-all duration-200 flex items-center justify-center ${
+              canRedo 
+                ? 'bg-purple-500 text-white hover:bg-purple-600 shadow-md' 
+                : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+            }`}
+            style={{ width: buttonSize, height: buttonSize }}
+            title="다시 실행"
+          >
+            <span style={{ fontSize: iconSize * 0.6 }}>↷</span>
           </button>
 
           {/* 창맞춤 버튼 */}
