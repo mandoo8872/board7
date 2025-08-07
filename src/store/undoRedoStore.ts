@@ -55,11 +55,10 @@ export const useUndoRedoStore = create<UndoRedoStore>((set, get) => ({
     
     const previous = past[past.length - 1];
     
-    // 초기 상태로 돌아가는 것을 방지하는 안전장치
+    // 초기 상태로 돌아가는 것을 방지하는 안전장치 (Draw 상태 제외)
     const isInitialState = (snapshot: CanvasSnapshot) => {
       return snapshot.textObjects.length === 0 && 
              snapshot.imageObjects.length === 0 && 
-             snapshot.drawObjects.length === 0 && 
              !snapshot.floorImage;
     };
     

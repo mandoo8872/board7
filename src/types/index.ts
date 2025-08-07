@@ -1,11 +1,10 @@
 // 기본 도구 타입
 export type Tool = 'select' | 'text' | 'checkbox' | 'image' | 'pen' | 'eraser';
 
-// Undo/Redo Snapshot 타입
+// Undo/Redo Snapshot 타입 (Draw 상태 제외)
 export interface CanvasSnapshot {
   textObjects: TextObject[];
   imageObjects: ImageObject[];
-  drawObjects: DrawObject[];
   floorImage: FloorImage | null;
   timestamp: number;
 }

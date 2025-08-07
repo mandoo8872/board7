@@ -16,39 +16,42 @@ export const useUndoRedo = () => {
   const {
     textObjects,
     imageObjects,
-    drawObjects,
     floorImage
   } = useAdminConfigStore();
 
-  // 현재 캔버스 상태로 스냅샷 생성
+  // 현재 캔버스 상태로 스냅샷 생성 (Draw 상태 제외)
   const createSnapshot = useCallback((): CanvasSnapshot => {
     return {
       textObjects: JSON.parse(JSON.stringify(textObjects)),
       imageObjects: JSON.parse(JSON.stringify(imageObjects)),
-      drawObjects: JSON.parse(JSON.stringify(drawObjects)),
       floorImage: floorImage ? JSON.parse(JSON.stringify(floorImage)) : null,
       timestamp: Date.now()
     };
-  }, [textObjects, imageObjects, drawObjects, floorImage]);
+  }, [textObjects, imageObjects, floorImage]);
 
-  // 스냅샷을 캔버스에 복원
+  // 스냅샷을 캔버스에 복원 (Draw 상태 유지)
   const restoreSnapshot = useCallback(async (snapshot: CanvasSnapshot) => {
     try {
+      // 기존 스냅샷 데이터 마이그레이션 처리 (drawObjects가 있을 수 있음)
+      const safeSnapshot = {
+        textObjects: snapshot.textObjects || [],
+        imageObjects: snapshot.imageObjects || [],
+        floorImage: snapshot.floorImage || null
+      };
+
       // Firebase 리스너를 일시적으로 중단하여 무한 루프 방지
       const adminConfigStore = useAdminConfigStore.getState();
       
-      // 각 객체 상태 복원
-      adminConfigStore.textObjects = snapshot.textObjects;
-      adminConfigStore.imageObjects = snapshot.imageObjects;
-      adminConfigStore.drawObjects = snapshot.drawObjects;
-      adminConfigStore.floorImage = snapshot.floorImage;
+      // Draw 상태를 제외한 객체 상태만 복원
+      adminConfigStore.textObjects = safeSnapshot.textObjects;
+      adminConfigStore.imageObjects = safeSnapshot.imageObjects;
+      adminConfigStore.floorImage = safeSnapshot.floorImage;
       
-      // 상태 강제 업데이트
+      // 상태 강제 업데이트 (Draw 상태 제외)
       useAdminConfigStore.setState({
-        textObjects: snapshot.textObjects,
-        imageObjects: snapshot.imageObjects,
-        drawObjects: snapshot.drawObjects,
-        floorImage: snapshot.floorImage
+        textObjects: safeSnapshot.textObjects,
+        imageObjects: safeSnapshot.imageObjects,
+        floorImage: safeSnapshot.floorImage
       });
       
     } catch (error) {
