@@ -298,6 +298,115 @@ const SettingsSection: React.FC<SettingsSectionProps> = ({
             )}
           </div>
 
+          {/* 체크박스 기본값 설정 */}
+          <div className="bg-slate-50 rounded-lg p-3 space-y-3">
+            <h4 className="text-xs font-bold text-slate-600 flex items-center gap-1">체크박스 기본값</h4>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-medium text-slate-600 mb-1 block">체크 색상</label>
+                <input
+                  type="color"
+                  value={safeSettings.admin.defaultCheckboxSettings.checkedColor}
+                  onChange={(e) => updateSettings('admin', {
+                    defaultCheckboxSettings: {
+                      ...safeSettings.admin.defaultCheckboxSettings,
+                      checkedColor: e.target.value
+                    }
+                  })}
+                  className="w-full h-8 border rounded"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-slate-600 mb-1 block">언체크 색상</label>
+                <input
+                  type="color"
+                  value={safeSettings.admin.defaultCheckboxSettings.uncheckedColor}
+                  onChange={(e) => updateSettings('admin', {
+                    defaultCheckboxSettings: {
+                      ...safeSettings.admin.defaultCheckboxSettings,
+                      uncheckedColor: e.target.value
+                    }
+                  })}
+                  className="w-full h-8 border rounded"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-slate-600 mb-1 block">체크 배경색</label>
+                <input
+                  type="color"
+                  value={safeSettings.admin.defaultCheckboxSettings.checkedBackgroundColor}
+                  onChange={(e) => updateSettings('admin', {
+                    defaultCheckboxSettings: {
+                      ...safeSettings.admin.defaultCheckboxSettings,
+                      checkedBackgroundColor: e.target.value
+                    }
+                  })}
+                  className="w-full h-8 border rounded"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-slate-600 mb-1 block">언체크 배경색</label>
+                <input
+                  type="color"
+                  value={safeSettings.admin.defaultCheckboxSettings.uncheckedBackgroundColor}
+                  onChange={(e) => updateSettings('admin', {
+                    defaultCheckboxSettings: {
+                      ...safeSettings.admin.defaultCheckboxSettings,
+                      uncheckedBackgroundColor: e.target.value
+                    }
+                  })}
+                  className="w-full h-8 border rounded"
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-medium text-slate-600 mb-1 block">체크 배경 투명도</label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="range"
+                    min={0}
+                    max={1}
+                    step={0.05}
+                    value={1 - safeSettings.admin.defaultCheckboxSettings.checkedBackgroundOpacity}
+                    onChange={(e) => updateSettings('admin', {
+                      defaultCheckboxSettings: {
+                        ...safeSettings.admin.defaultCheckboxSettings,
+                        checkedBackgroundOpacity: 1 - Number(e.target.value)
+                      }
+                    })}
+                    className="w-16"
+                  />
+                  <span className="text-xs w-12 text-right">
+                    {Math.round((1 - safeSettings.admin.defaultCheckboxSettings.checkedBackgroundOpacity) * 100)}%
+                  </span>
+                </div>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-slate-600 mb-1 block">언체크 배경 투명도</label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="range"
+                    min={0}
+                    max={1}
+                    step={0.05}
+                    value={1 - safeSettings.admin.defaultCheckboxSettings.uncheckedBackgroundOpacity}
+                    onChange={(e) => updateSettings('admin', {
+                      defaultCheckboxSettings: {
+                        ...safeSettings.admin.defaultCheckboxSettings,
+                        uncheckedBackgroundOpacity: 1 - Number(e.target.value)
+                      }
+                    })}
+                    className="w-16"
+                  />
+                  <span className="text-xs w-12 text-right">
+                    {Math.round((1 - safeSettings.admin.defaultCheckboxSettings.uncheckedBackgroundOpacity) * 100)}%
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+
           {/* 기타 설정 */}
           <div className="bg-slate-50 rounded-lg p-3 space-y-2">
             <h4 className="text-xs font-bold text-slate-600 flex items-center gap-1">

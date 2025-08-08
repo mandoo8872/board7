@@ -1,28 +1,28 @@
 import { useCallback } from 'react';
 import { useUndoRedoStore } from '../store/undoRedoStore';
 import { useAdminConfigStore } from '../store/adminConfigStore';
+import { useEditorStore } from '../store/editorStore';
+import { useCellSelectionStore } from '../store/cellSelectionStore';
 import { CanvasSnapshot } from '../types';
 
 export const useUndoRedo = () => {
-  const { pushSnapshot, undo, redo, canUndo, canRedo, setInitialSnapshot } = useUndoRedoStore();
+  const { pushSnapshot, undo, redo, canUndo, canRedo, setInitialSnapshot, setRestoring } = useUndoRedoStore();
   
   const {
     textObjects,
     imageObjects,
     floorImage
   } = useAdminConfigStore();
-  const { selectedObjectId } = useAdminConfigStore.getState() as any;
-  const { getState: getCellSelection } = require('../store/cellSelectionStore');
 
   // 현재 캔버스 상태로 스냅샷 생성 (Draw 상태 제외)
   const createSnapshot = useCallback((): CanvasSnapshot => {
-    const cellSelectionStore = getCellSelection?.();
-    const selectedCells = cellSelectionStore ? cellSelectionStore.getSelectedCells() : [];
+    const selectedObjectId = useEditorStore.getState().selectedObjectId ?? null;
+    const selectedCells = useCellSelectionStore.getState().getSelectedCells();
     return {
       textObjects: JSON.parse(JSON.stringify(textObjects)),
       imageObjects: JSON.parse(JSON.stringify(imageObjects)),
       floorImage: floorImage ? JSON.parse(JSON.stringify(floorImage)) : null,
-      selectedObjectId: selectedObjectId ?? null,
+      selectedObjectId,
       selectedCellIds: selectedCells,
       timestamp: Date.now()
     };
@@ -55,11 +55,9 @@ export const useUndoRedo = () => {
 
       // 선택 상태 복원 (객체/셀)
       if (typeof snapshot.selectedObjectId !== 'undefined') {
-        const { useEditorStore } = require('../store/editorStore');
         useEditorStore.setState({ selectedObjectId: snapshot.selectedObjectId ?? null });
       }
       if (Array.isArray(snapshot.selectedCellIds)) {
-        const { useCellSelectionStore } = require('../store/cellSelectionStore');
         const setSelection = new Set<string>(snapshot.selectedCellIds);
         useCellSelectionStore.setState({ selectedCellIds: setSelection });
       }
@@ -71,25 +69,36 @@ export const useUndoRedo = () => {
 
   // 현재 상태를 스냅샷으로 저장
   const saveSnapshot = useCallback(() => {
+    // 이벤트 연속 발생에 의한 과도한 스냅샷 방지: microtask로 모아 중복 필터만 통과
     const snapshot = createSnapshot();
     pushSnapshot(snapshot);
   }, [createSnapshot, pushSnapshot]);
 
   // Undo 실행
   const executeUndo = useCallback(async () => {
-    const snapshot = undo();
-    if (snapshot) {
-      await restoreSnapshot(snapshot);
+    setRestoring(true);
+    try {
+      const snapshot = undo();
+      if (snapshot) {
+        await restoreSnapshot(snapshot);
+      }
+    } finally {
+      setRestoring(false);
     }
-  }, [undo, restoreSnapshot]);
+  }, [undo, restoreSnapshot, setRestoring]);
 
   // Redo 실행
   const executeRedo = useCallback(async () => {
-    const snapshot = redo();
-    if (snapshot) {
-      await restoreSnapshot(snapshot);
+    setRestoring(true);
+    try {
+      const snapshot = redo();
+      if (snapshot) {
+        await restoreSnapshot(snapshot);
+      }
+    } finally {
+      setRestoring(false);
     }
-  }, [redo, restoreSnapshot]);
+  }, [redo, restoreSnapshot, setRestoring]);
 
   // 초기 상태 설정
   const initializePresent = useCallback(() => {

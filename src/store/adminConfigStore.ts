@@ -1,6 +1,5 @@
 import { create } from 'zustand';
-import { ref, onValue, set as firebaseSet, push, remove, Unsubscribe } from 'firebase/database';
-// import { update } from 'firebase/database'; // 현재 사용하지 않음
+import { ref, onValue, set as firebaseSet, update as firebaseUpdate, push, remove, Unsubscribe } from 'firebase/database';
 import { database, auth } from '../config/firebase';
 import { TextObject, ImageObject, DrawObject, FloorImage, Settings, AdminSettings, ViewSettings } from '../types';
 import { validateFirebaseUpdate } from '../utils/validation';
@@ -270,14 +269,12 @@ export const useAdminConfigStore = create<AdminConfigStore>((set, get) => {
         modifiedBy: sessionId
       }));
       
-      // Firebase batch update를 위한 updates 객체 생성
+      // Firebase batch update (merge) - 루트에서 경로 기반 업데이트
       const updates: Record<string, TextObject> = {};
       newObjects.forEach((obj) => {
-        updates[obj.id] = obj;
+        updates[`textObjects/${obj.id}`] = obj;
       });
-      
-      // textObjects 노드에 한 번의 Firebase 업데이트로 모든 객체 저장
-      await firebaseSet(ref(database, 'textObjects'), updates);
+      await firebaseUpdate(ref(database), updates);
       
       // 생성된 모든 ID 반환
       return newObjects.map(obj => obj.id);
@@ -306,14 +303,12 @@ export const useAdminConfigStore = create<AdminConfigStore>((set, get) => {
         return;
       }
       
-      // Firebase batch delete를 위한 updates 객체 생성
+      // Firebase batch delete (merge) - 루트에서 경로 기반 삭제
       const updates: Record<string, null> = {};
       ids.forEach((id) => {
-        updates[id] = null; // Firebase에서 null 값은 삭제를 의미
+        updates[`textObjects/${id}`] = null; // Firebase update에서 null은 해당 경로 삭제
       });
-      
-      // textObjects 노드에서 한 번의 Firebase 업데이트로 모든 객체 삭제
-      await firebaseSet(ref(database, 'textObjects'), updates);
+      await firebaseUpdate(ref(database), updates);
     },
     
     addImageObject: async (obj) => {
@@ -353,14 +348,12 @@ export const useAdminConfigStore = create<AdminConfigStore>((set, get) => {
         return;
       }
       
-      // Firebase batch delete를 위한 updates 객체 생성
+      // Firebase batch delete (merge) - 루트에서 경로 기반 삭제
       const updates: Record<string, null> = {};
       ids.forEach((id) => {
-        updates[id] = null; // Firebase에서 null 값은 삭제를 의미
+        updates[`imageObjects/${id}`] = null;
       });
-      
-      // imageObjects 노드에서 한 번의 Firebase 업데이트로 모든 객체 삭제
-      await firebaseSet(ref(database, 'imageObjects'), updates);
+      await firebaseUpdate(ref(database), updates);
     },
     
     deleteDrawObject: async (id) => {

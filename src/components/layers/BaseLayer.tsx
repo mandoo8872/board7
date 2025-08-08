@@ -4,6 +4,7 @@ import { useEditorStore } from '../../store/editorStore';
 import { useCellSelectionStore } from '../../store/cellSelectionStore';
 import { TextObject } from '../../types';
 import { useUndoRedo } from '../../hooks/useUndoRedo';
+import { queueSnapshotPush, pushSnapshotImmediate } from '../../utils/snapshot';
 
 // 분리된 컴포넌트들 import
 import { TextObjectRenderer, ImageObjectRenderer } from './BaseLayer/components';
@@ -208,7 +209,7 @@ const BaseLayer: React.FC<BaseLayerProps> = ({ isViewPage = false }) => {
     if (editingObjectId) {
       finishInlineEdit().then(() => {
         // 편집 완료 후 스냅샷 저장
-        saveSnapshot();
+        pushSnapshotImmediate();
       });
       return;
     }
@@ -353,14 +354,14 @@ const BaseLayer: React.FC<BaseLayerProps> = ({ isViewPage = false }) => {
       if (textObj) {
         updateTextObject(dragState.draggedObjectId, finalPosition).then(() => {
           // 이동 완료 후 스냅샷 저장
-          saveSnapshot();
+          pushSnapshotImmediate();
         }).catch(error => {
           console.error('Failed to update text object position:', error);
         });
       } else if (imageObj) {
         updateImageObject(dragState.draggedObjectId, finalPosition).then(() => {
           // 이동 완료 후 스냅샷 저장
-          saveSnapshot();
+          pushSnapshotImmediate();
         }).catch((error: any) => {
           console.error('Failed to update image object position:', error);
         });
@@ -388,14 +389,14 @@ const BaseLayer: React.FC<BaseLayerProps> = ({ isViewPage = false }) => {
         if (textObj) {
           updateTextObject(resizeState.resizedObjectId, updateData).then(() => {
             // 리사이즈 완료 후 스냅샷 저장
-            saveSnapshot();
+            pushSnapshotImmediate();
           }).catch(error => {
             console.error('Failed to update text object size/position:', error);
           });
         } else if (imageObj) {
           updateImageObject(resizeState.resizedObjectId, updateData).then(() => {
             // 리사이즈 완료 후 스냅샷 저장
-            saveSnapshot();
+            pushSnapshotImmediate();
           }).catch((error: any) => {
             console.error('Failed to update image object size/position:', error);
           });
@@ -432,9 +433,11 @@ const BaseLayer: React.FC<BaseLayerProps> = ({ isViewPage = false }) => {
         const { clearSelection } = useCellSelectionStore.getState();
         clearSelection();
         
-        setSelectedObjectId(id);
-        // 선택 직후 스냅샷 저장 (사용자 인지 상태 변경)
-        saveSnapshot();
+        // 선택 상태 변경 전에 현재와 동일한 경우는 스냅샷 스킵
+        if (selectedObjectId !== id) {
+          setSelectedObjectId(id);
+          queueSnapshotPush(120);
+        }
         if (e) {
           e.stopPropagation();
         }
@@ -459,19 +462,24 @@ const BaseLayer: React.FC<BaseLayerProps> = ({ isViewPage = false }) => {
     if (!isViewPage && currentTool === 'select') {
       // 객체가 아닌 빈 공간을 클릭했을 때만 선택 해제
       if (e.target === e.currentTarget) {
-        setSelectedObjectId(null);
+        if (selectedObjectId !== null) setSelectedObjectId(null);
         const { clearSelection } = useCellSelectionStore.getState();
-        clearSelection();
-        // 빈 공간 선택(선택 해제)도 스냅샷
-        saveSnapshot();
+        const hadSelection = useCellSelectionStore.getState().getSelectedCount() > 0;
+        if (hadSelection) clearSelection();
+        if (selectedObjectId !== null || hadSelection) {
+          queueSnapshotPush(120);
+        }
       }
     } else if (isViewPage) {
       // ViewPage에서는 빈 공간 클릭 시 선택 해제만
       if (e.target === e.currentTarget) {
-        setSelectedObjectId(null);
+        if (selectedObjectId !== null) setSelectedObjectId(null);
         const { clearSelection } = useCellSelectionStore.getState();
-        clearSelection();
-        saveSnapshot();
+        const hadSelection = useCellSelectionStore.getState().getSelectedCount() > 0;
+        if (hadSelection) clearSelection();
+        if (selectedObjectId !== null || hadSelection) {
+          queueSnapshotPush(120);
+        }
       }
     }
   }, [editingObjectId, finishInlineEdit, setSelectedObjectId, isViewPage, currentTool, isGhostClick]);
@@ -513,21 +521,34 @@ const BaseLayer: React.FC<BaseLayerProps> = ({ isViewPage = false }) => {
             if (lastSelectedCell && lastSelectedCell.cellType === 'cell' && 
                 lastSelectedCell.cellPosition && obj.cellPosition) {
               const rangeCellIds = calculateCellRange(lastSelectedCell, obj as TextObjectData, textObjects as TextObjectData[]);
+              // 변경 여부 판단
+              const before = new Set(getSelectedCells());
               selectCellsInRange(rangeCellIds);
-              saveSnapshot();
+              const afterArr = getSelectedCells();
+              const changed = afterArr.length !== before.size || afterArr.some((id) => !before.has(id));
+              if (changed) queueSnapshotPush(80);
             }
           } else {
+            const before = new Set(getSelectedCells());
             selectCell(obj.id, false);
-            saveSnapshot();
+            const afterArr = getSelectedCells();
+            const changed = afterArr.length !== before.size || afterArr.some((id) => !before.has(id));
+            if (changed) queueSnapshotPush(80);
           }
         } else if (isCtrlPressed) {
           // Ctrl + 클릭: 토글 선택
+          const before = new Set(getSelectedCells());
           selectCell(obj.id, true);
-          saveSnapshot();
+          const afterArr = getSelectedCells();
+          const changed = afterArr.length !== before.size || afterArr.some((id) => !before.has(id));
+          if (changed) queueSnapshotPush(80);
         } else {
           // 일반 클릭: 새로 선택
+          const before = new Set(getSelectedCells());
           selectCell(obj.id, false);
-          saveSnapshot();
+          const afterArr = getSelectedCells();
+          const changed = afterArr.length !== before.size || afterArr.some((id) => !before.has(id));
+          if (changed) queueSnapshotPush(80);
         }
         
         // 일반 객체 선택도 해제
@@ -591,7 +612,15 @@ const BaseLayer: React.FC<BaseLayerProps> = ({ isViewPage = false }) => {
     >
       {/* 모든 객체를 zIndex 순서대로 정렬하여 렌더링 */}
       {[...textObjects, ...imageObjects]
-        .sort((a, b) => (a.zIndex || 0) - (b.zIndex || 0))
+        // 안정 정렬: zIndex 우선, 동률일 때 id로 2차 정렬
+        .sort((a: any, b: any) => {
+          const za = a.zIndex || 0;
+          const zb = b.zIndex || 0;
+          if (za !== zb) return za - zb;
+          const ida = (a.id || '').toString();
+          const idb = (b.id || '').toString();
+          return ida.localeCompare(idb);
+        })
         .map((obj) => {
           const isTextObject = 'text' in obj;
           const isImageObject = 'src' in obj;

@@ -14,11 +14,26 @@ interface UndoRedoStore extends UndoRedoState {
   canRedo: () => boolean;
   // 전체 초기화
   clear: () => void;
+  // 복원 중 여부 (복원 중에는 push 금지)
+  isRestoring: boolean;
+  setRestoring: (restoring: boolean) => void;
 }
 
-const deepEqual = (a: any, b: any) => {
+// 스냅샷 동등성 비교: timestamp 등 비본질 필드는 무시
+const normalizeSnapshot = (s: CanvasSnapshot) => ({
+  textObjects: s.textObjects,
+  imageObjects: s.imageObjects,
+  floorImage: s.floorImage,
+  selectedObjectId: s.selectedObjectId ?? null,
+  // 선택 셀은 순서에 덜 민감하므로 정렬하여 비교 안정화
+  selectedCellIds: Array.isArray(s.selectedCellIds)
+    ? [...s.selectedCellIds].slice().sort()
+    : [],
+});
+
+const deepEqual = (a: CanvasSnapshot, b: CanvasSnapshot) => {
   try {
-    return JSON.stringify(a) === JSON.stringify(b);
+    return JSON.stringify(normalizeSnapshot(a)) === JSON.stringify(normalizeSnapshot(b));
   } catch {
     return false;
   }
@@ -27,13 +42,16 @@ const deepEqual = (a: any, b: any) => {
 export const useUndoRedoStore = create<UndoRedoStore>((set, get) => ({
   history: [],
   cursor: -1,
+  isRestoring: false,
 
   setInitialSnapshot: (snapshot) => {
     set({ history: [snapshot], cursor: 0 });
   },
 
   pushSnapshot: (snapshot) => {
-    const { history, cursor } = get();
+    const { history, cursor, isRestoring } = get();
+
+    if (isRestoring) return; // 복원 중에는 기록하지 않음
 
     // 중복 방지: 현재 스냅샷과 동일하면 무시
     if (cursor >= 0 && cursor < history.length) {
@@ -91,5 +109,7 @@ export const useUndoRedoStore = create<UndoRedoStore>((set, get) => ({
 
   clear: () => {
     set({ history: [], cursor: -1 });
-  }
+  },
+
+  setRestoring: (restoring) => set({ isRestoring: restoring })
 }));

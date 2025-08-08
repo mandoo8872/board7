@@ -4,6 +4,7 @@ import { useCellSelectionStore } from '../../../../store/cellSelectionStore';
 import { useCheckboxStore } from '../../../../store/checkboxStore';
 import InlineEditor from './InlineEditor';
 import ResizeHandles from './ResizeHandles';
+import { pushSnapshotImmediate } from '../../../../utils/snapshot';
 
 interface TextObjectRendererProps {
   obj: TextObjectData;
@@ -87,15 +88,18 @@ const TextObjectRenderer: React.FC<TextObjectRendererProps> = ({
     fontFamily: 'Arial'
   };
 
-  const handleCheckboxClick = (e: React.MouseEvent) => {
+  const handleCheckboxClick = async (e: React.MouseEvent) => {
     e.stopPropagation();
     const isChecked = !obj.checkboxChecked;
-    updateTextObject(obj.id, { 
-      checkboxChecked: isChecked,
-      // 체크박스 색상이 없으면 기본값 적용
-      checkboxCheckedColor: obj.checkboxCheckedColor || defaultCheckedColor,
-      checkboxUncheckedColor: obj.checkboxUncheckedColor || defaultUncheckedColor
-    });
+    try {
+      await updateTextObject(obj.id, { 
+        checkboxChecked: isChecked,
+        // 체크박스 색상이 없으면 기본값 적용
+        checkboxCheckedColor: obj.checkboxCheckedColor || defaultCheckedColor,
+        checkboxUncheckedColor: obj.checkboxUncheckedColor || defaultUncheckedColor
+      });
+      pushSnapshotImmediate();
+    } catch {}
   };
 
   const handleCheckboxPointerDown = (e: React.PointerEvent) => {
