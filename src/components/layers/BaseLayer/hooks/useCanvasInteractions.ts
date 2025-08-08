@@ -82,12 +82,13 @@ export function useCanvasInteractions(isViewPage: boolean) {
 
   const [clickState, setClickState] = useState<ClickState>({ clickCount: 0, clickTimer: null });
 
+  // 최초 마운트 시에만 초기 스냅샷 설정 (기존 동작과 동일)
   useEffect(() => {
     const timer = setTimeout(() => {
       initializePresent();
     }, 500);
     return () => clearTimeout(timer);
-  }, [initializePresent]);
+  }, []);
 
   const onCanvasKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (editingObjectId) return;

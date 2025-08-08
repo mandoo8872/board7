@@ -1,7 +1,6 @@
-import React, { useCallback, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { useEditorStore, useAdminConfigStore } from '../../store';
 import { useCellSelectionStore } from '../../store/cellSelectionStore';
-import { TextObject, ImageObject } from '../../types';
 
 // 분리된 컴포넌트들 import
 import MainToolsSection from './sections/MainToolsSection';
@@ -14,25 +13,17 @@ import SettingsSection from './sections/SettingsSection';
 // 커스텀 hooks import
 import { useToolbarState } from './hooks/useToolbarState';
 import { useColorPalette } from './hooks/useColorPalette';
-import { useExcelPaste } from './hooks/useExcelPaste';
+// 사용처 이동됨
+import { useToolbarActions } from './hooks/useToolbarActions';
 
 // 유틸리티 함수들 import
 import { 
   isExcelCellSelected,
-  getCurrentColor,
-  getMinZIndex,
-  getNextHigherZIndex,
-  getNextLowerZIndex,
   isInputElement,
   isCanvasContainer
 } from './utils/toolbarHelpers';
 
-import { 
-  convertImageToBase64, 
-  getImageDimensions, 
-  openFileDialog,
-  calculateOptimalImageSize
-} from './utils/fileHandlers';
+// 파일 처리 유틸 사용 없음 (핸들러 이동)
 
 import type { SafeSettings } from './types';
 
@@ -43,22 +34,14 @@ const ToolbarRefactored: React.FC = () => {
     imageObjects,
     drawObjects,
     floorImage,
-    addTextObject, 
-    addTextObjects,
-    addImageObject,
     updateTextObject,
-    updateImageObject,
-    setFloorImage,
-    deleteTextObject,
-    deleteTextObjects,
-    deleteImageObject,
     settings,
     updateSettings,
     initializeFirebaseListeners,
     isLoading
   } = useAdminConfigStore();
   
-  const { currentTool, setCurrentTool, selectedObjectId, setSelectedObjectId } = useEditorStore();
+  const { currentTool, setCurrentTool } = useEditorStore();
 
   // 커스텀 hooks
   const {
@@ -114,423 +97,39 @@ const ToolbarRefactored: React.FC = () => {
     }
   };
 
-  // 선택된 객체 가져오기
-  const selectedObject = selectedObjectId 
-    ? textObjects.find(obj => obj.id === selectedObjectId) || imageObjects.find(obj => obj.id === selectedObjectId)
-    : null;
+  // 동작 훅으로 콜백/핸들러 집약 (UI/동작 동일)
+  const actions = useToolbarActions({
+    safeSettings,
+    excelPasteData,
+    showPreview,
+    colorMode,
+    setExcelPasteData,
+    setShowPreview,
+    updateTimerRef,
+  });
 
-  // 디바운싱된 업데이트 함수들
-  const debouncedUpdateTextObject = useCallback((id: string, updates: any) => {
-    if (updateTimerRef.current) {
-      clearTimeout(updateTimerRef.current);
-    }
-    updateTimerRef.current = setTimeout(() => {
-      updateTextObject(id, updates);
-    }, 300);
-  }, [updateTextObject]);
-
-  const debouncedUpdateImageObject = useCallback((id: string, updates: any) => {
-    if (updateTimerRef.current) {
-      clearTimeout(updateTimerRef.current);
-    }
-    updateTimerRef.current = setTimeout(() => {
-      updateImageObject(id, updates);
-    }, 300);
-  }, [updateImageObject]);
-
-  // 텍스트 스타일 업데이트
-  const updateTextStyle = useCallback(async (updates: any) => {
-    if (selectedObject && 'text' in selectedObject) {
-      const currentTextStyle = selectedObject.textStyle || {
-        color: '#000000',
-        bold: false,
-        italic: false,
-        horizontalAlign: 'left',
-        verticalAlign: 'middle',
-        fontFamily: 'Arial'
-      };
-      await updateTextObject(selectedObject.id, {
-        textStyle: { ...currentTextStyle, ...updates }
-      });
-    }
-  }, [selectedObject, updateTextObject]);
-
-  const updateBoxStyle = useCallback(async (updates: any) => {
-    if (selectedObject && 'text' in selectedObject) {
-      const currentBoxStyle = selectedObject.boxStyle || {
-        backgroundColor: 'transparent',
-        backgroundOpacity: 1,
-        borderColor: '#000000',
-        borderWidth: 0,
-        borderRadius: 0
-      };
-      await updateTextObject(selectedObject.id, {
-        boxStyle: { ...currentBoxStyle, ...updates }
-      });
-    }
-  }, [selectedObject, updateTextObject]);
+  // 동작 훅을 사용하므로, Toolbar 내부 임시 구현은 제거
 
   // 색상 팔레트 hook
   const { handleColorSelect } = useColorPalette({
-    selectedObject,
+    selectedObject: actions.selectedObject,
     colorMode,
-    updateTextStyle,
-    updateBoxStyle
+    updateTextStyle: actions.updateTextStyle,
+    updateBoxStyle: actions.updateBoxStyle,
   });
 
-  // Excel 붙여넣기용 addTextObjects wrapper (일괄 처리용)
-  const addTextObjectsForExcel = useCallback(async (objects: Omit<TextObject, 'id'>[]): Promise<string[]> => {
-    return await addTextObjects(objects);
-  }, [addTextObjects]);
-
-  // Excel 붙여넣기용 deleteTextObjects wrapper (일괄 삭제용)
-  const deleteTextObjectsForExcel = useCallback(async (ids: string[]): Promise<void> => {
-    return await deleteTextObjects(ids);
-  }, [deleteTextObjects]);
-
-  // Excel 붙여넣기 hook
-  const { handleCreateExcelCells, handleDeleteExcelCellGroups } = useExcelPaste({
-    excelPasteData,
-    showPreview,
-    safeSettings,
-    textObjects,
-    addTextObjects: addTextObjectsForExcel,
-    deleteTextObjects: deleteTextObjectsForExcel,
-    onDataChange: setExcelPasteData,
-    onPreviewChange: setShowPreview,
-  });
+  // Excel 붙여넣기 핸들러는 actions에 통합되어 전달됨
+  // 로컬 참조 제거: 아래에서 actions.* 직접 전달
 
   // 현재 색상 가져오기
-  const currentColor = getCurrentColor(selectedObject, colorMode);
+  const currentColor = actions.currentColor;
 
   // 엑셀 셀 선택 상태
-  const { getSelectedCount, clearSelection } = useCellSelectionStore.getState();
-  const selectedCellCount = getSelectedCount();
+  const { clearSelection } = useCellSelectionStore.getState();
 
-  // 객체 생성 함수들
-  const handleCreateText = useCallback(async () => {
-    const { x, y } = safeSettings.admin.objectCreationPosition;
-    const newTextObject: Omit<TextObject, 'id'> = {
-      x,
-      y,
-      width: safeSettings.admin.defaultBoxWidth,
-      height: safeSettings.admin.defaultBoxHeight,
-      text: '새 텍스트',
-      fontSize: safeSettings.admin.defaultFontSize,
-      textStyle: {
-        color: '#000000',
-        bold: false,
-        italic: false,
-        horizontalAlign: 'left',
-        verticalAlign: 'middle',
-        fontFamily: 'Arial'
-      },
-      boxStyle: {
-        backgroundColor: 'transparent',
-        backgroundOpacity: 1,
-        borderColor: '#000000',
-        borderWidth: 0,
-        borderRadius: 0
-      },
-      permissions: {
-        editable: true,
-        movable: true,
-        resizable: true,
-        deletable: true,
-      },
-      zIndex: 10000 + Date.now() % 100000, // 일반 객체는 10000 이후부터
-      locked: false,
-      visible: true,
-      opacity: 1,
-      hasCheckbox: false,
-      checkboxChecked: false,
-      checkboxCheckedColor: '#22c55e',
-      checkboxUncheckedColor: '#f3f4f6',
-      isEditing: false,
-      lastModified: Date.now()
-    };
+  // 객체 생성/삭제/정렬 핸들러는 actions에 통합됨
 
-    try {
-      await addTextObject(newTextObject);
-    } catch (error) {
-      console.error('텍스트 객체 생성 실패:', error);
-    }
-  }, [addTextObject, safeSettings]);
-
-  const handleCreateCheckbox = useCallback(async () => {
-    const { x, y } = safeSettings.admin.objectCreationPosition;
-    const { 
-      checkedColor, 
-      uncheckedColor,
-      checkedBackgroundColor,
-      uncheckedBackgroundColor,
-      checkedBackgroundOpacity,
-      uncheckedBackgroundOpacity
-    } = safeSettings.admin.defaultCheckboxSettings;
-    
-    const newCheckboxObject: Omit<TextObject, 'id'> = {
-      x,
-      y,
-      width: safeSettings.admin.defaultBoxWidth,
-      height: safeSettings.admin.defaultBoxHeight,
-      text: '새 체크박스',
-      fontSize: safeSettings.admin.defaultFontSize,
-      textStyle: {
-        color: '#000000',
-        bold: true,
-        italic: false,
-        horizontalAlign: 'left',
-        verticalAlign: 'middle',
-        fontFamily: 'Arial'
-      },
-      boxStyle: {
-        backgroundColor: 'transparent',
-        backgroundOpacity: 1,
-        borderColor: '#000000',
-        borderWidth: 1,
-        borderRadius: 8
-      },
-      permissions: {
-        editable: true,
-        movable: true,
-        resizable: true,
-        deletable: true,
-      },
-      zIndex: 10000 + Date.now() % 100000, // 일반 객체는 10000 이후부터
-      locked: false,
-      visible: true,
-      opacity: 1,
-      hasCheckbox: true,
-      checkboxChecked: false,
-      checkboxCheckedColor: checkedColor,
-      checkboxUncheckedColor: uncheckedColor,
-      checkedBackgroundColor: checkedBackgroundColor,
-      uncheckedBackgroundColor: uncheckedBackgroundColor,
-      checkedBackgroundOpacity: checkedBackgroundOpacity,
-      uncheckedBackgroundOpacity: uncheckedBackgroundOpacity,
-      isEditing: false,
-      lastModified: Date.now()
-    };
-
-    try {
-      await addTextObject(newCheckboxObject);
-    } catch (error) {
-      console.error('체크박스 객체 생성 실패:', error);
-    }
-  }, [addTextObject, safeSettings]);
-
-  const handleCreateImage = useCallback(async () => {
-    try {
-      const file = await openFileDialog('image/*');
-      if (!file) return;
-
-      const src = await convertImageToBase64(file);
-      const { width: naturalWidth, height: naturalHeight } = await getImageDimensions(src);
-      const { width, height } = calculateOptimalImageSize(naturalWidth, naturalHeight, 200);
-      
-          const { x, y } = safeSettings.admin.objectCreationPosition;
-          
-          const newImageObject: Omit<ImageObject, 'id'> = {
-            x,
-            y,
-        width,
-        height,
-            src,
-            permissions: {
-              editable: true,
-              movable: true,
-              resizable: true,
-              deletable: true,
-            },
-            zIndex: 10000 + Date.now() % 100000, // 일반 객체는 10000 이후부터
-            locked: false,
-            visible: true,
-            opacity: 1,
-        maintainAspectRatio: true,
-            lastModified: Date.now()
-          };
-
-          await addImageObject(newImageObject);
-      } catch (error) {
-        console.error('이미지 객체 생성 실패:', error);
-      }
-  }, [addImageObject, safeSettings]);
-
-  // 레이어 순서 조정 함수들
-  const handleBringToFront = useCallback(async () => {
-    if (!selectedObjectId) return;
-    
-    // 엑셀 셀이 아닌 객체들 중에서 최대 zIndex 찾기
-    const nonExcelObjects = [...textObjects, ...imageObjects].filter(obj => 
-      !('cellType' in obj) || obj.cellType !== 'cell'
-    );
-    const maxZIndex = nonExcelObjects.length > 0 
-      ? Math.max(...nonExcelObjects.map(obj => obj.zIndex || 0))
-      : 10000;
-    
-    const textObj = textObjects.find(obj => obj.id === selectedObjectId);
-    if (textObj) {
-      await updateTextObject(selectedObjectId, { zIndex: maxZIndex + 1 });
-      return;
-    }
-
-    const imageObj = imageObjects.find(obj => obj.id === selectedObjectId);
-    if (imageObj) {
-      await updateImageObject(selectedObjectId, { zIndex: maxZIndex + 1 });
-    }
-  }, [selectedObjectId, textObjects, imageObjects, updateTextObject, updateImageObject]);
-
-  const handleBringForward = useCallback(async () => {
-    if (!selectedObjectId) return;
-    
-    const currentObj = [...textObjects, ...imageObjects].find(obj => obj.id === selectedObjectId);
-    if (!currentObj) return;
-    
-    // 엑셀 셀이 아닌 객체들 중에서 다음 zIndex 찾기
-    const nonExcelTextObjects = textObjects.filter(obj => 
-      !('cellType' in obj) || obj.cellType !== 'cell'
-    );
-    const nonExcelImageObjects = imageObjects.filter(obj => 
-      !('cellType' in obj) || obj.cellType !== 'cell'
-    );
-    const nextZIndex = getNextHigherZIndex(currentObj.zIndex || 0, nonExcelTextObjects, nonExcelImageObjects);
-    if (nextZIndex === null) return;
-    
-    const textObj = textObjects.find(obj => obj.id === selectedObjectId);
-    if (textObj) {
-      await updateTextObject(selectedObjectId, { zIndex: nextZIndex + 1 });
-      return;
-    }
-
-    const imageObj = imageObjects.find(obj => obj.id === selectedObjectId);
-    if (imageObj) {
-      await updateImageObject(selectedObjectId, { zIndex: nextZIndex + 1 });
-    }
-  }, [selectedObjectId, textObjects, imageObjects, updateTextObject, updateImageObject]);
-
-  const handleSendBackward = useCallback(async () => {
-    if (!selectedObjectId) return;
-    
-    const currentObj = [...textObjects, ...imageObjects].find(obj => obj.id === selectedObjectId);
-    if (!currentObj) return;
-    
-    // 엑셀 셀이 아닌 객체들 중에서 이전 zIndex 찾기
-    const nonExcelTextObjects = textObjects.filter(obj => 
-      !('cellType' in obj) || obj.cellType !== 'cell'
-    );
-    const nonExcelImageObjects = imageObjects.filter(obj => 
-      !('cellType' in obj) || obj.cellType !== 'cell'
-    );
-    const prevZIndex = getNextLowerZIndex(currentObj.zIndex || 0, nonExcelTextObjects, nonExcelImageObjects);
-    if (prevZIndex === null) return;
-    
-    const textObj = textObjects.find(obj => obj.id === selectedObjectId);
-    if (textObj) {
-      await updateTextObject(selectedObjectId, { zIndex: prevZIndex - 1 });
-      return;
-    }
-    
-    const imageObj = imageObjects.find(obj => obj.id === selectedObjectId);
-    if (imageObj) {
-      await updateImageObject(selectedObjectId, { zIndex: prevZIndex - 1 });
-    }
-  }, [selectedObjectId, textObjects, imageObjects, updateTextObject, updateImageObject]);
-
-  const handleSendToBack = useCallback(async () => {
-    if (!selectedObjectId) return;
-    
-    // 엑셀 셀이 아닌 객체들 중에서 최소 zIndex 찾기
-    const nonExcelTextObjects = textObjects.filter(obj => 
-      !('cellType' in obj) || obj.cellType !== 'cell'
-    );
-    const nonExcelImageObjects = imageObjects.filter(obj => 
-      !('cellType' in obj) || obj.cellType !== 'cell'
-    );
-    const minZIndex = getMinZIndex(nonExcelTextObjects, nonExcelImageObjects);
-    const newZIndex = Math.max(10000, minZIndex - 1); // 최소 10000 보장
-    
-    const textObj = textObjects.find(obj => obj.id === selectedObjectId);
-    if (textObj) {
-      await updateTextObject(selectedObjectId, { zIndex: newZIndex });
-      return;
-    }
-    
-    const imageObj = imageObjects.find(obj => obj.id === selectedObjectId);
-    if (imageObj) {
-      await updateImageObject(selectedObjectId, { zIndex: newZIndex });
-    }
-  }, [selectedObjectId, textObjects, imageObjects, updateTextObject, updateImageObject]);
-
-  // 객체 복제 및 삭제
-  const handleDuplicateObject = useCallback(async () => {
-    if (!selectedObjectId) return;
-    
-    const textObj = textObjects.find(obj => obj.id === selectedObjectId);
-    if (textObj) {
-      const duplicatedObj = {
-        ...textObj,
-        x: textObj.x + 20,
-        y: textObj.y + 20,
-        isEditing: false
-      };
-      delete (duplicatedObj as any).id;
-      await addTextObject(duplicatedObj);
-      return;
-    }
-    
-    const imageObj = imageObjects.find(obj => obj.id === selectedObjectId);
-    if (imageObj) {
-      const duplicatedObj = {
-        ...imageObj,
-        x: imageObj.x + 20,
-        y: imageObj.y + 20
-      };
-      delete (duplicatedObj as any).id;
-      await addImageObject(duplicatedObj);
-    }
-  }, [selectedObjectId, textObjects, imageObjects, addTextObject, addImageObject]);
-
-  const handleDeleteObject = useCallback(async () => {
-    if (!selectedObjectId) return;
-    
-    const textObj = textObjects.find(obj => obj.id === selectedObjectId);
-    if (textObj && textObj.permissions?.deletable) {
-      await deleteTextObject(selectedObjectId);
-      setSelectedObjectId(null);
-      return;
-    }
-    
-    const imageObj = imageObjects.find(obj => obj.id === selectedObjectId);
-    if (imageObj && imageObj.permissions?.deletable) {
-      await deleteImageObject(selectedObjectId);
-      setSelectedObjectId(null);
-    }
-  }, [selectedObjectId, textObjects, imageObjects, deleteTextObject, deleteImageObject, setSelectedObjectId]);
-
-  // 배경 이미지 업로드
-  const handleImageUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      try {
-        const base64 = await convertImageToBase64(file);
-        await setFloorImage({ path: base64 });
-      } catch (error) {
-        console.error('배경 이미지 업로드 실패:', error);
-      }
-    }
-  }, [setFloorImage]);
-
-  // 미리보기 토글
-  const handlePreviewToggle = useCallback(() => {
-    setShowPreview(!showPreview);
-    const event = new CustomEvent('excel-preview-update', {
-      detail: {
-        data: excelPasteData,
-        show: !showPreview
-      }
-    });
-    window.dispatchEvent(event);
-  }, [showPreview, excelPasteData, setShowPreview]);
+  // 정렬/복제/삭제/업로드/프리뷰 핸들러는 actions에 통합됨
 
   // 컴포넌트 언마운트 시 타이머 정리
   useEffect(() => {
@@ -579,9 +178,9 @@ const ToolbarRefactored: React.FC = () => {
           <MainToolsSection
             currentTool={currentTool}
             onToolSelect={setCurrentTool}
-            onCreateText={handleCreateText}
-            onCreateCheckbox={handleCreateCheckbox}
-            onCreateImage={handleCreateImage}
+            onCreateText={actions.handleCreateText}
+            onCreateCheckbox={actions.handleCreateCheckbox}
+            onCreateImage={actions.handleCreateImage}
           />
 
           {/* 2. 엑셀 데이터 입력 */}
@@ -592,27 +191,27 @@ const ToolbarRefactored: React.FC = () => {
             showPreview={showPreview}
             safeSettings={safeSettings}
             onDataChange={setExcelPasteData}
-            onPreviewToggle={handlePreviewToggle}
-            onCreateCells={handleCreateExcelCells}
-            onDeleteCellGroups={handleDeleteExcelCellGroups}
+            onPreviewToggle={actions.handlePreviewToggle}
+            onCreateCells={actions.handleCreateExcelCells}
+            onDeleteCellGroups={actions.handleDeleteExcelCellGroups}
             updateSettings={updateSettings}
           />
 
           {/* 3. 선택된 객체 편집 */}
-          {selectedObject && !isExcelCellSelected(selectedObject) && selectedCellCount === 0 && (
+          {actions.selectedObject && !isExcelCellSelected(actions.selectedObject) && actions.selectedCellCount === 0 && (
             <ObjectPropertiesSection
-              selectedObject={selectedObject}
+              selectedObject={actions.selectedObject}
               colorMode={colorMode}
               onColorModeChange={setColorMode}
               onColorSelect={handleColorSelect}
-              onUpdateTextObject={debouncedUpdateTextObject}
-              onUpdateImageObject={debouncedUpdateImageObject}
-              onDuplicate={handleDuplicateObject}
-              onDelete={handleDeleteObject}
-              onBringToFront={handleBringToFront}
-              onBringForward={handleBringForward}
-              onSendBackward={handleSendBackward}
-              onSendToBack={handleSendToBack}
+              onUpdateTextObject={actions.debouncedUpdateTextObject}
+              onUpdateImageObject={actions.debouncedUpdateImageObject}
+              onDuplicate={actions.handleDuplicateObject}
+              onDelete={actions.handleDeleteObject}
+              onBringToFront={actions.handleBringToFront}
+              onBringForward={actions.handleBringForward}
+              onSendBackward={actions.handleSendBackward}
+              onSendToBack={actions.handleSendToBack}
               getCurrentColor={() => currentColor}
             />
           )}
@@ -644,7 +243,7 @@ const ToolbarRefactored: React.FC = () => {
             onToggle={toggleSettings}
             safeSettings={safeSettings}
             updateSettings={updateSettings}
-            onImageUpload={handleImageUpload}
+            onImageUpload={actions.handleImageUpload}
           />
                       </div>
                     </div>
