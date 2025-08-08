@@ -58,17 +58,13 @@ export const useKeyboardState = () => {
     }
   }, []);
 
-  // 경계 체크 및 조정
+  // 경계 체크 및 조정 (툴바와 동일: 화면 밖으로 나가지 않도록 8px 여백 보장)
   const constrainToViewport = useCallback((pos: Position, sz: Size): Position => {
-    const margin = 0.2; // 20% 여백 허용
-    const minVisibleWidth = sz.width * margin;
-    const minVisibleHeight = sz.height * margin;
-    
-    const maxX = window.innerWidth - minVisibleWidth;
-    const maxY = window.innerHeight - minVisibleHeight;
-    const minX = -sz.width + minVisibleWidth;
-    const minY = -sz.height + minVisibleHeight;
-    
+    const margin = 8;
+    const maxX = Math.max(margin, window.innerWidth - sz.width - margin);
+    const maxY = Math.max(margin, window.innerHeight - sz.height - margin);
+    const minX = margin;
+    const minY = margin;
     return {
       x: Math.max(minX, Math.min(maxX, pos.x)),
       y: Math.max(minY, Math.min(maxY, pos.y))

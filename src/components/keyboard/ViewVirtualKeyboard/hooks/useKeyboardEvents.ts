@@ -49,8 +49,8 @@ export const useKeyboardEvents = ({
               if (isResizing) {
         const rect = keyboardRef.current?.getBoundingClientRect();
         if (rect) {
-          const newWidth = Math.max(400, Math.min(800, e.clientX - rect.left));
-          const newHeight = Math.max(250, Math.min(400, e.clientY - rect.top));
+          const newWidth = Math.max(400, Math.min(1600, e.clientX - rect.left));
+          const newHeight = Math.max(270, Math.min(800, e.clientY - rect.top));
           const newSize = { width: newWidth, height: newHeight };
           const constrainedPosition = constrainToViewport(position, newSize);
           setSize(newSize);

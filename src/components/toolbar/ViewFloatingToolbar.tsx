@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useEditorStore, useAdminConfigStore, useDrawStore } from '../../store';
 import { useUndoRedo } from '../../hooks/useUndoRedo';
 import { Tool, TextObject } from '../../types';
@@ -8,7 +8,10 @@ import {
   Eraser,
   HandPointing,
   Pencil,
-  CheckSquare
+  CheckSquare,
+  House,
+  Palette,
+  Circle
 } from 'phosphor-react';
 
 interface Position {
@@ -27,8 +30,7 @@ const ViewFloatingToolbar: React.FC = () => {
   const { penColor, penWidth, setPenColor, setPenWidth } = useDrawStore();
   const { executeUndo, executeRedo, canUndo, canRedo } = useUndoRedo();
   
-  // 간소화된 색상 팔레트
-  const simpleColors = ['#000000', '#ff0000', '#0000ff', '#ffff00', '#ffffff'];
+  // 간소화된 색상 팔레트 (확장 팔레트에서 사용)
   
   // 저장된 위치와 크기 로드
   const loadSettings = () => {
@@ -69,6 +71,7 @@ const ViewFloatingToolbar: React.FC = () => {
   const [isResizing, setIsResizing] = useState(false);
   const [dragOffset, setDragOffset] = useState<Position>({ x: 0, y: 0 });
   const [showColorPalette, setShowColorPalette] = useState(false);
+  const [showSizeAdjuster, setShowSizeAdjuster] = useState(false);
   
   const toolbarRef = useRef<HTMLDivElement>(null);
 
@@ -84,15 +87,15 @@ const ViewFloatingToolbar: React.FC = () => {
 
   // 경계 체크 및 조정 함수
   const constrainToViewport = (pos: Position, sz: Size): Position => {
-    const margin = 0.2; // 20% 여백 허용 (80% 벗어나면 조정)
-    const minVisibleWidth = sz.width * margin;
-    const minVisibleHeight = sz.height * margin;
-    
-    const maxX = window.innerWidth - minVisibleWidth;
-    const maxY = window.innerHeight - minVisibleHeight;
-    const minX = -sz.width + minVisibleWidth;
-    const minY = -sz.height + minVisibleHeight;
-    
+    const rectW = sz.width;
+    const expandHeight = (showColorPalette || showSizeAdjuster) ? 110 : 0;
+    const rectH = sz.height + expandHeight;
+
+    const maxX = Math.max(8, window.innerWidth - rectW - 8);
+    const maxY = Math.max(8, window.innerHeight - rectH - 8);
+    const minX = 8;
+    const minY = 8;
+
     return {
       x: Math.max(minX, Math.min(maxX, pos.x)),
       y: Math.max(minY, Math.min(maxY, pos.y))
@@ -187,13 +190,48 @@ const ViewFloatingToolbar: React.FC = () => {
 
     window.addEventListener('resize', handleWindowResize);
     return () => window.removeEventListener('resize', handleWindowResize);
-  }, [position, size]);
+  }, [position, size, showColorPalette, showSizeAdjuster]);
+
+  // 툴바 리사이즈/내용 변화 자동 보정
+  useEffect(() => {
+    if (!toolbarRef.current) return;
+    const ro = new ResizeObserver(() => {
+      const constrainedPosition = constrainToViewport(position, size);
+      if (constrainedPosition.x !== position.x || constrainedPosition.y !== position.y) {
+        setPosition(constrainedPosition);
+        saveSettings(constrainedPosition, size);
+      }
+    });
+    ro.observe(toolbarRef.current);
+    return () => ro.disconnect();
+  }, [position, size, showColorPalette, showSizeAdjuster]);
+
+  // 외부 클릭 시 확장 패널 닫기
+  useEffect(() => {
+    const onDocPointerDown = (e: PointerEvent) => {
+      const target = e.target as HTMLElement;
+      if (!toolbarRef.current) return;
+      if (!toolbarRef.current.contains(target)) {
+        setShowColorPalette(false);
+        setShowSizeAdjuster(false);
+      }
+    };
+    document.addEventListener('pointerdown', onDocPointerDown);
+    return () => document.removeEventListener('pointerdown', onDocPointerDown);
+  }, []);
 
   // 통합 포인터 툴바 드래그 핸들러 (iPhone/iPad Safari 호환)
   const handleToolbarPointerDown = (e: React.PointerEvent) => {
     // 버튼이나 리사이즈 핸들이 아닌 경우에만 드래그 시작
     const target = e.target as HTMLElement;
-    if (target.closest('button') || target.closest('.resize-handle')) return;
+    if (
+      target.closest('button') ||
+      target.closest('.resize-handle') ||
+      target.closest('input') ||
+      target.classList.contains('no-drag')
+    ) {
+      return;
+    }
     
     e.preventDefault();
     e.stopPropagation();
@@ -241,6 +279,7 @@ const ViewFloatingToolbar: React.FC = () => {
     setCurrentTool(tool);
     if (tool !== 'pen') {
       setShowColorPalette(false);
+      setShowSizeAdjuster(false);
     }
   };
 
@@ -327,15 +366,23 @@ const ViewFloatingToolbar: React.FC = () => {
     setShowColorPalette(false);
   };
 
-  const adjustPenWidth = (delta: number) => {
-    const newWidth = Math.max(1, Math.min(20, penWidth + delta));
-    setPenWidth(newWidth);
-  };
+  // 토글 핸들러는 인라인에서 구현하여 미사용 경고 제거
 
-  // 툴바 크기에 따른 아이콘 크기 계산
-  const iconScale = Math.min(size.width / 180, size.height / 120);
-  const iconSize = Math.max(24, Math.min(40, 32 * iconScale));
-  const buttonSize = iconSize + 8;
+  // 3x3 그리드에 맞춘 동적 버튼/아이콘 크기 계산
+  const layoutPadding = 8; // p-2
+  const layoutGap = 8; // gap-2
+  const { buttonSize, iconSize, minW, minH } = useMemo(() => {
+    const gridCols = 3;
+    const gridRows = 3;
+    const availableW = Math.max(0, size.width - layoutPadding * 2 - layoutGap * (gridCols - 1));
+    const availableH = Math.max(0, size.height - layoutPadding * 2 - layoutGap * (gridRows - 1));
+    const rawButton = Math.floor(Math.min(availableW / gridCols, availableH / gridRows));
+    const clampedButton = Math.max(36, Math.min(72, rawButton || 36));
+    const computedIcon = Math.floor(clampedButton * 0.72);
+    const minW = layoutPadding * 2 + gridCols * clampedButton + layoutGap * (gridCols - 1);
+    const minH = layoutPadding * 2 + gridRows * clampedButton + layoutGap * (gridRows - 1);
+    return { buttonSize: clampedButton, iconSize: computedIcon, minW, minH };
+  }, [size.width, size.height]);
 
   return (
     <div
@@ -348,8 +395,8 @@ const ViewFloatingToolbar: React.FC = () => {
         width: size.width,
         height: size.height,
         zIndex: 9999,
-        minWidth: 120,
-        minHeight: 80,
+        minWidth: minW,
+        minHeight: minH,
         touchAction: 'none' // iOS Safari에서 터치 스크롤 방지
       }}
       onPointerDown={handleToolbarPointerDown}
@@ -357,11 +404,8 @@ const ViewFloatingToolbar: React.FC = () => {
     >
       {/* 툴바 내용 */}
       <div className="p-2 h-full flex flex-col">
-        {/* 도구 버튼들 - 유연한 그리드 */}
-        <div 
-          className="flex flex-wrap gap-1 flex-1 content-start"
-          style={{ minHeight: buttonSize }}
-        >
+        {/* 3x3 고정 그리드 */}
+        <div className="grid grid-cols-3 gap-2" style={{ minHeight: buttonSize * 3 }}>
           <button
             onClick={(e) => {
               e.stopPropagation();
@@ -467,66 +511,43 @@ const ViewFloatingToolbar: React.FC = () => {
             style={{ width: buttonSize, height: buttonSize }}
             title="창맞춤"
           >
-            <span style={{ fontSize: iconSize * 0.6 }}>⌂</span>
+            <House size={iconSize * 0.8} weight="duotone" color="#302929" />
           </button>
 
-          {/* 필기 도구 설정 - 펜 선택 시에만 표시 */}
-          {currentTool === 'pen' && (
-            <>
-              {/* 색상 선택 버튼 */}
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setShowColorPalette(!showColorPalette);
-                }}
-                className="rounded border flex items-center justify-center bg-white hover:bg-gray-50"
-                style={{ width: buttonSize, height: buttonSize }}
-                title="색상 선택"
-              >
-                <div 
-                  className="rounded"
-                  style={{ 
-                    backgroundColor: penColor,
-                    width: iconSize * 0.6,
-                    height: iconSize * 0.6,
-                    border: '1px solid #ccc'
-                  }}
-                />
-              </button>
+          {/* 8: Color Picker */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowColorPalette((v) => !v);
+              setShowSizeAdjuster(false);
+            }}
+            className="rounded border flex items-center justify-center bg-white hover:bg-gray-50"
+            style={{ width: buttonSize, height: buttonSize }}
+            title="색상 선택"
+          >
+            <Palette size={iconSize * 0.9} weight="duotone" color="#302929" />
+          </button>
 
-              {/* 굵기 조절 버튼들 */}
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  adjustPenWidth(1);
-                }}
-                className="rounded bg-gray-100 hover:bg-gray-200 flex items-center justify-center"
-                style={{ width: buttonSize, height: buttonSize }}
-                title="굵기 증가"
-              >
-                <span style={{ fontSize: iconSize * 0.5 }}>▲</span>
-              </button>
-
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  adjustPenWidth(-1);
-                }}
-                className="rounded bg-gray-100 hover:bg-gray-200 flex items-center justify-center"
-                style={{ width: buttonSize, height: buttonSize }}
-                title="굵기 감소"
-              >
-                <span style={{ fontSize: iconSize * 0.5 }}>▼</span>
-              </button>
-            </>
-          )}
+          {/* 9: Size Toggle */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowSizeAdjuster((v) => !v);
+              setShowColorPalette(false);
+            }}
+            className="rounded border flex items-center justify-center bg-white hover:bg-gray-50"
+            style={{ width: buttonSize, height: buttonSize }}
+            title="크기 조절"
+          >
+            <Circle size={iconSize * 0.9} weight="duotone" color="#302929" />
+          </button>
         </div>
 
-        {/* 색상 팔레트 */}
-        {showColorPalette && currentTool === 'pen' && (
-          <div className="mt-2 p-2 bg-gray-50 rounded border-t">
-            <div className="flex flex-wrap gap-1 justify-center">
-              {simpleColors.map((color) => (
+        {/* 확장 영역: 색상 팔레트 */}
+        {showColorPalette && (
+          <div className="mt-2 p-2 bg-gray-50 rounded border">
+            <div className="flex flex-wrap gap-2 justify-center">
+              {['#000000', '#ff0000', '#00a854', '#1d4ed8', '#ff9900', '#ffff00', '#ffffff', '#7c3aed'].map((color) => (
                 <button
                   key={color}
                   onClick={(e) => {
@@ -537,13 +558,30 @@ const ViewFloatingToolbar: React.FC = () => {
                   style={{
                     backgroundColor: color,
                     borderColor: penColor === color ? '#000' : '#ccc',
-                    width: Math.max(20, iconSize * 0.6),
-                    height: Math.max(20, iconSize * 0.6)
+                    width: 24,
+                    height: 24
                   }}
                   title={color}
                 />
               ))}
             </div>
+          </div>
+        )}
+
+        {/* 확장 영역: 크기 슬라이더 */}
+        {showSizeAdjuster && (
+          <div className="mt-2 p-2 bg-gray-50 rounded border flex items-center gap-3">
+            <span className="text-xs text-slate-600">굵기</span>
+            <input
+              type="range"
+              min={1}
+              max={20}
+              step={1}
+              value={penWidth}
+              onChange={(e) => setPenWidth(Number(e.target.value))}
+              className="w-40 no-drag"
+            />
+            <span className="text-xs font-mono w-6 text-right">{penWidth}</span>
           </div>
         )}
       </div>

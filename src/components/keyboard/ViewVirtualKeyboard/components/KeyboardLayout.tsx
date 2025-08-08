@@ -59,29 +59,38 @@ const KeyboardLayout: React.FC<KeyboardLayoutProps> = ({
   const layout = getCurrentLayout();
 
   // 키보드 영역 크기에 따른 키 크기 계산
-  const availableWidth = keyboardWidth - 32; // padding 제외
-  const availableHeight = keyboardHeight - 140; // 헤더, 텍스트영역 등 제외
+  const availableWidth = Math.max(200, keyboardWidth - 32); // padding 제외
+  const availableHeight = Math.max(140, keyboardHeight - 140); // 헤더, 텍스트영역 등 제외
   
   // 각 행의 키 개수에 맞춰 키 크기 계산
-  const maxKeysPerRow = Math.max(layout.numbers.length, layout.row1.length, layout.row2.length, layout.row3.length + 2); // +2 for shift and backspace
-  const keySize = Math.min(Math.max(24, Math.floor(availableWidth / maxKeysPerRow) - 4), 60); // 최소 24px, 최대 60px
-  const keyHeight = Math.min(Math.max(24, Math.floor(availableHeight / 5) - 4), 50); // 5행, 최소 24px, 최대 50px
+  const maxKeysPerRow = Math.max(
+    layout.numbers.length,
+    layout.row1.length,
+    layout.row2.length,
+    layout.row3.length + 2 // +2 for shift and backspace
+  );
+  // 키보드 최대 크기(가로 1600, 세로 800)에 맞춰 최대 키 크기도 자동 제한
+  const keySize = Math.floor(availableWidth / maxKeysPerRow) - 4; // 가로 기준
+  const rowCount = 5; // numbers + row1 + row2 + row3 + bottom
+  const keyHeightCandidate = Math.floor(availableHeight / rowCount) - 4;
+  const finalKeySize = Math.max(24, Math.min(60, keySize));
+  const finalKeyHeight = Math.max(24, Math.min(50, keyHeightCandidate));
 
   const keyStyle = {
-    width: `${keySize}px`,
-    height: `${keyHeight}px`,
-    fontSize: `${Math.max(10, keySize * 0.4)}px`
-  };
+    width: `${finalKeySize}px`,
+    height: `${finalKeyHeight}px`,
+    fontSize: `${Math.max(10, finalKeySize * 0.4)}px`
+  } as React.CSSProperties;
 
   const wideKeyStyle = {
     ...keyStyle,
-    width: `${keySize * 1.5}px`
-  };
+    width: `${finalKeySize * 1.5}px`
+  } as React.CSSProperties;
 
   const spaceKeyStyle = {
     ...keyStyle,
-    width: `${keySize * 4}px`
-  };
+    width: `${finalKeySize * 4}px`
+  } as React.CSSProperties;
 
   return (
     <div className="flex-1 p-4" style={{ minHeight: `${availableHeight}px` }}>

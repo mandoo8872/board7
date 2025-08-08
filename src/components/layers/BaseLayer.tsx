@@ -124,13 +124,13 @@ const BaseLayer: React.FC<BaseLayerProps> = ({ isViewPage = false }) => {
     if (e.ctrlKey && e.key === 'v') {
       try {
         e.preventDefault();
-      } catch (error) {
+    } catch (error) {
         console.debug('preventDefault failed in global keydown handler:', error);
       }
       handleClipboardPaste();
-      return;
-    }
-    
+        return;
+      }
+
     // ViewPage에서는 나머지 키보드 단축키 비활성화
     if (isViewPage) return;
     
@@ -138,7 +138,7 @@ const BaseLayer: React.FC<BaseLayerProps> = ({ isViewPage = false }) => {
     if (e.ctrlKey && e.key === 'z') {
       try {
         e.preventDefault();
-      } catch (error) {
+              } catch (error) {
         console.debug('preventDefault failed in global keydown handler:', error);
       }
       executeUndo();
@@ -435,7 +435,7 @@ const BaseLayer: React.FC<BaseLayerProps> = ({ isViewPage = false }) => {
         
         // 선택 상태 변경 전에 현재와 동일한 경우는 스냅샷 스킵
         if (selectedObjectId !== id) {
-          setSelectedObjectId(id);
+        setSelectedObjectId(id);
           queueSnapshotPush(120);
         }
         if (e) {
@@ -479,8 +479,8 @@ const BaseLayer: React.FC<BaseLayerProps> = ({ isViewPage = false }) => {
         if (hadSelection) clearSelection();
         if (selectedObjectId !== null || hadSelection) {
           queueSnapshotPush(120);
-        }
       }
+    }
     }
   }, [editingObjectId, finishInlineEdit, setSelectedObjectId, isViewPage, currentTool, isGhostClick]);
 
