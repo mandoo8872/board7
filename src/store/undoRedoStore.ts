@@ -52,9 +52,18 @@ export const useUndoRedoStore = create<UndoRedoStore>((set, get) => ({
   undo: () => {
     const { history, cursor } = get();
     if (cursor <= 0) return null; // 경계 보호
-    const newCursor = cursor - 1;
-    set({ cursor: newCursor });
-    return history[newCursor] || null;
+
+    // 초기 빈 보드로의 복원을 방지하기 위한 최소 커서 계산
+    const isEmptySnapshot = (s: CanvasSnapshot) =>
+      (!s.floorImage) && (s.textObjects?.length === 0) && (s.imageObjects?.length === 0);
+    const firstNonEmptyIndex = history.findIndex((s) => !isEmptySnapshot(s));
+    const minAllowedCursor = firstNonEmptyIndex === -1 ? 0 : firstNonEmptyIndex;
+
+    const candidate = cursor - 1;
+    if (candidate < minAllowedCursor) return null; // 초기값(컨텐츠 로드 전)로는 이동 금지
+
+    set({ cursor: candidate });
+    return history[candidate] || null;
   },
 
   redo: () => {
@@ -66,8 +75,13 @@ export const useUndoRedoStore = create<UndoRedoStore>((set, get) => ({
   },
 
   canUndo: () => {
-    const { cursor } = get();
-    return cursor > 0;
+    const { history, cursor } = get();
+    if (cursor <= 0) return false;
+    const isEmptySnapshot = (s: CanvasSnapshot) =>
+      (!s.floorImage) && (s.textObjects?.length === 0) && (s.imageObjects?.length === 0);
+    const firstNonEmptyIndex = history.findIndex((s) => !isEmptySnapshot(s));
+    const minAllowedCursor = firstNonEmptyIndex === -1 ? 0 : firstNonEmptyIndex;
+    return cursor - 1 >= minAllowedCursor;
   },
 
   canRedo: () => {

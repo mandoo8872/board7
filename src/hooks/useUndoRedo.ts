@@ -11,13 +11,19 @@ export const useUndoRedo = () => {
     imageObjects,
     floorImage
   } = useAdminConfigStore();
+  const { selectedObjectId } = useAdminConfigStore.getState() as any;
+  const { getState: getCellSelection } = require('../store/cellSelectionStore');
 
   // 현재 캔버스 상태로 스냅샷 생성 (Draw 상태 제외)
   const createSnapshot = useCallback((): CanvasSnapshot => {
+    const cellSelectionStore = getCellSelection?.();
+    const selectedCells = cellSelectionStore ? cellSelectionStore.getSelectedCells() : [];
     return {
       textObjects: JSON.parse(JSON.stringify(textObjects)),
       imageObjects: JSON.parse(JSON.stringify(imageObjects)),
       floorImage: floorImage ? JSON.parse(JSON.stringify(floorImage)) : null,
+      selectedObjectId: selectedObjectId ?? null,
+      selectedCellIds: selectedCells,
       timestamp: Date.now()
     };
   }, [textObjects, imageObjects, floorImage]);
@@ -46,6 +52,17 @@ export const useUndoRedo = () => {
         imageObjects: safeSnapshot.imageObjects,
         floorImage: safeSnapshot.floorImage
       });
+
+      // 선택 상태 복원 (객체/셀)
+      if (typeof snapshot.selectedObjectId !== 'undefined') {
+        const { useEditorStore } = require('../store/editorStore');
+        useEditorStore.setState({ selectedObjectId: snapshot.selectedObjectId ?? null });
+      }
+      if (Array.isArray(snapshot.selectedCellIds)) {
+        const { useCellSelectionStore } = require('../store/cellSelectionStore');
+        const setSelection = new Set<string>(snapshot.selectedCellIds);
+        useCellSelectionStore.setState({ selectedCellIds: setSelection });
+      }
       
     } catch (error) {
       console.error('스냅샷 복원 실패:', error);

@@ -433,6 +433,8 @@ const BaseLayer: React.FC<BaseLayerProps> = ({ isViewPage = false }) => {
         clearSelection();
         
         setSelectedObjectId(id);
+        // 선택 직후 스냅샷 저장 (사용자 인지 상태 변경)
+        saveSnapshot();
         if (e) {
           e.stopPropagation();
         }
@@ -460,6 +462,8 @@ const BaseLayer: React.FC<BaseLayerProps> = ({ isViewPage = false }) => {
         setSelectedObjectId(null);
         const { clearSelection } = useCellSelectionStore.getState();
         clearSelection();
+        // 빈 공간 선택(선택 해제)도 스냅샷
+        saveSnapshot();
       }
     } else if (isViewPage) {
       // ViewPage에서는 빈 공간 클릭 시 선택 해제만
@@ -467,6 +471,7 @@ const BaseLayer: React.FC<BaseLayerProps> = ({ isViewPage = false }) => {
         setSelectedObjectId(null);
         const { clearSelection } = useCellSelectionStore.getState();
         clearSelection();
+        saveSnapshot();
       }
     }
   }, [editingObjectId, finishInlineEdit, setSelectedObjectId, isViewPage, currentTool, isGhostClick]);
@@ -509,16 +514,20 @@ const BaseLayer: React.FC<BaseLayerProps> = ({ isViewPage = false }) => {
                 lastSelectedCell.cellPosition && obj.cellPosition) {
               const rangeCellIds = calculateCellRange(lastSelectedCell, obj as TextObjectData, textObjects as TextObjectData[]);
               selectCellsInRange(rangeCellIds);
+              saveSnapshot();
             }
           } else {
             selectCell(obj.id, false);
+            saveSnapshot();
           }
         } else if (isCtrlPressed) {
           // Ctrl + 클릭: 토글 선택
           selectCell(obj.id, true);
+          saveSnapshot();
         } else {
           // 일반 클릭: 새로 선택
           selectCell(obj.id, false);
+          saveSnapshot();
         }
         
         // 일반 객체 선택도 해제

@@ -6,6 +6,9 @@ export interface CanvasSnapshot {
   textObjects: TextObject[];
   imageObjects: ImageObject[];
   floorImage: FloorImage | null;
+  // UI 인지 가능한 편집 상태 포함
+  selectedObjectId?: string | null;
+  selectedCellIds?: string[];
   timestamp: number;
 }
 
