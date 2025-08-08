@@ -4,14 +4,7 @@ import { useAdminConfigStore } from '../store/adminConfigStore';
 import { CanvasSnapshot } from '../types';
 
 export const useUndoRedo = () => {
-  const { 
-    pushSnapshot, 
-    undo, 
-    redo, 
-    canUndo, 
-    canRedo, 
-    setPresent 
-  } = useUndoRedoStore();
+  const { pushSnapshot, undo, redo, canUndo, canRedo, setInitialSnapshot } = useUndoRedoStore();
   
   const {
     textObjects,
@@ -84,8 +77,8 @@ export const useUndoRedo = () => {
   // 초기 상태 설정
   const initializePresent = useCallback(() => {
     const snapshot = createSnapshot();
-    setPresent(snapshot);
-  }, [createSnapshot, setPresent]);
+    setInitialSnapshot(snapshot);
+  }, [createSnapshot, setInitialSnapshot]);
 
   return {
     saveSnapshot,

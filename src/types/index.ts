@@ -10,10 +10,8 @@ export interface CanvasSnapshot {
 }
 
 export interface UndoRedoState {
-  past: CanvasSnapshot[];
-  present: CanvasSnapshot | null;
-  future: CanvasSnapshot[];
-  maxSteps: number;
+  history: CanvasSnapshot[];
+  cursor: number;
 }
 
 // 캔버스 관련 타입 정의
