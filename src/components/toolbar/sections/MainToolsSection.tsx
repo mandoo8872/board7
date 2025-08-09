@@ -75,8 +75,8 @@ const MainToolsSection: React.FC<MainToolsSectionProps> = ({
   };
 
   return (
-    <div className={`${import.meta.env.DEV ? 'bg-[#F8FAFC]' : 'bg-white'} rounded-xl shadow-sm border ${import.meta.env.DEV ? 'border-[#E5EAF0]' : 'border-slate-200'} p-4`}>
-      <h3 className={`${import.meta.env.DEV ? 'text-[#0f172a]' : 'text-slate-700'} text-sm font-bold mb-3 flex items-center gap-2`}>
+    <div className={`bg-[#F8FAFC] rounded-xl shadow-sm border border-[#E5EAF0] p-4`}>
+      <h3 className={`text-[#0f172a] text-sm font-bold mb-3 flex items-center gap-2`}>
         <Lightning size={20} weight="duotone" color="#302929" /> 메인 도구
       </h3>
       <div className="grid grid-cols-3 gap-2">
@@ -86,12 +86,12 @@ const MainToolsSection: React.FC<MainToolsSectionProps> = ({
             onClick={() => handleToolClick(tool.id)}
             className={`p-3 rounded-lg flex flex-col items-center gap-1 transition-colors border-2
               ${currentTool === tool.id 
-                ? `${import.meta.env.DEV ? 'bg-[#244166] text-white border-[#2f4e79] shadow' : 'bg-blue-500 text-white border-blue-600 shadow-lg'} ` 
-                : `${import.meta.env.DEV ? 'bg-white text-[#334155] border-[#E5EAF0] hover:bg-[#F1F5F9]' : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200 hover:border-slate-300'}`
+                ? 'bg-[#244166] text-white border-[#2f4e79] shadow' 
+                : 'bg-white text-[#334155] border-[#E5EAF0] hover:bg-[#F1F5F9]'
               }`}
           >
             {getToolIcon(tool.id as Tool)}
-            <span className={`${import.meta.env.DEV ? 'text-[#0f172a]' : ''} text-xs font-medium`}>{tool.label}</span>
+            <span className={`text-[#0f172a] text-xs font-medium`}>{tool.label}</span>
           </button>
         ))}
       </div>
@@ -105,8 +105,8 @@ const MainToolsSection: React.FC<MainToolsSectionProps> = ({
             className={`
               flex-1 px-3 py-2 text-xs font-medium rounded-lg border transition-colors
               ${canUndo 
-                ? `${import.meta.env.DEV ? 'bg-white hover:bg-[#F1F5F9] border-[#E5EAF0] text-[#1F2937]' : 'bg-white hover:bg-slate-100 border-slate-300 text-slate-700'}` 
-                : `${import.meta.env.DEV ? 'bg-[#F1F5F9] border-[#E5EAF0] text-[#9CA3AF] cursor-not-allowed' : 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed'}`
+                ? 'bg-white hover:bg-[#F1F5F9] border-[#E5EAF0] text-[#1F2937]' 
+                : 'bg-[#F1F5F9] border-[#E5EAF0] text-[#9CA3AF] cursor-not-allowed'
               }
             `}
             title="되돌리기 (Ctrl+Z)"
@@ -121,8 +121,8 @@ const MainToolsSection: React.FC<MainToolsSectionProps> = ({
             className={`
               flex-1 px-3 py-2 text-xs font-medium rounded-lg border transition-colors
               ${canRedo 
-                ? `${import.meta.env.DEV ? 'bg-white hover:bg-[#F1F5F9] border-[#E5EAF0] text-[#1F2937]' : 'bg-white hover:bg-slate-100 border-slate-300 text-slate-700'}` 
-                : `${import.meta.env.DEV ? 'bg-[#F1F5F9] border-[#E5EAF0] text-[#9CA3AF] cursor-not-allowed' : 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed'}`
+                ? 'bg-white hover:bg-[#F1F5F9] border-[#E5EAF0] text-[#1F2937]' 
+                : 'bg-[#F1F5F9] border-[#E5EAF0] text-[#9CA3AF] cursor-not-allowed'
               }
             `}
             title="다시 실행 (Ctrl+Y)"
