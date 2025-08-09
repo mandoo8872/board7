@@ -240,7 +240,8 @@ const ViewFloatingToolbar: React.FC = () => {
               step={1}
               value={penWidth}
               onChange={(e) => setPenWidth(Number(e.target.value))}
-              className="w-40 no-drag"
+              className="no-drag"
+              style={{ width: Math.max(80, size.width - 90) }}
             />
             <span className="text-xs font-mono w-6 text-right">{penWidth}</span>
           </div>

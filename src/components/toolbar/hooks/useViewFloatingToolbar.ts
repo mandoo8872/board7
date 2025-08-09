@@ -293,6 +293,12 @@ export function useViewFloatingToolbar() {
   const handleColorSelect = (color: string) => {
     setPenColor(color);
     setShowColorPalette(false);
+    setCurrentTool('pen');
+  };
+
+  const handleSetPenWidth = (width: number) => {
+    setPenWidth(width);
+    setCurrentTool('pen');
   };
 
   // 3x3 그리드 동적 크기 계산
@@ -328,7 +334,7 @@ export function useViewFloatingToolbar() {
     // drawing state
     penColor,
     penWidth,
-    setPenWidth,
+    setPenWidth: handleSetPenWidth,
 
     // editor/undo
     currentTool,

@@ -2,7 +2,7 @@ import React, { useRef } from 'react';
 import { ref, set as firebaseSet } from 'firebase/database';
 import { database } from '../../../config/firebase';
 import { TextObject, ImageObject, DrawObject, FloorImage, Settings } from '../../../types';
-import { FloppyDisk, Database, FolderSimple, FolderOpen } from 'phosphor-react';
+import { FloppyDisk, Database, FolderOpen } from 'phosphor-react';
 
 interface DataManagementSectionProps {
   isExpanded: boolean;
