@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { User, Auth as FirebaseAuth } from 'firebase/auth';
 import type { Database } from 'firebase/database';
-import { ref, get } from 'firebase/database';
+import { ref, get, onValue, Unsubscribe } from 'firebase/database';
 import { useAdminConfigStore } from '../store';
 import { useUndoRedoStore } from '../store/undoRedoStore';
 import { secureAnonymousLogin } from '../config/firebase';
@@ -32,16 +32,28 @@ export function usePageBootstrap(params: BootstrapParams): {
   const registry = useMemo(() => {
     const g = globalThis as unknown as { __BOARD7_REGISTRY__?: Map<string, { subscribed: boolean }> };
     if (!g.__BOARD7_REGISTRY__) g.__BOARD7_REGISTRY__ = new Map();
-    return g.__BOARD7_REGISTRY__!;
+    const reg = g.__BOARD7_REGISTRY__!;
+    // HMR 대비: 모듈 dispose 시 레지스트리 초기화
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    if (import.meta && (import.meta as any).hot) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (import.meta as any).hot.dispose(() => {
+        if (import.meta.env.DEV) console.debug('[bootstrap] hmr dispose: clear registry');
+        reg.clear();
+      });
+    }
+    return reg;
   }, []);
 
   useEffect(() => {
     let unsubIsLoading: (() => void) | null = null;
+    let unsubFirstSync: Unsubscribe | null = null;
     let unmounted = false;
 
     const run = async () => {
       if (didInitRef.current) return;
-      didInitRef.current = true;
+
+      if (import.meta.env.DEV) console.debug('[bootstrap] init', { boardId });
 
       // 익명 로그인(지수 백오프 최대 3회)
       const delays = [0, 300, 900];
@@ -68,7 +80,7 @@ export function usePageBootstrap(params: BootstrapParams): {
         return;
       }
 
-      // 권한 확인 (permission_denied 시 onError로 통일)
+      // 권한 확인 (permission_denied 시 onError로 통일) - get으로 사전 확인
       try {
         await get(ref(rtdb, 'settings'));
         setPerms([]);
@@ -91,20 +103,33 @@ export function usePageBootstrap(params: BootstrapParams): {
         store.initializeFirebaseListeners();
         registry.set(boardId, { subscribed: true });
       } else if (import.meta.env.DEV) {
-        console.debug('[bootstrap] already subscribed', boardId);
+        console.debug('[bootstrap] skip:registry', boardId);
       }
 
-      // isLoading 변화를 구독하여 준비 완료 감지 (Zustand subscribe with selector)
-      // @ts-expect-error Zustand subscribe overload differences
-      unsubIsLoading = useAdminConfigStore.subscribe((s) => s.isLoading, (isLoading: boolean) => {
-        if (!isLoading) {
+      // first-sync 확정: 필수 경로(settings)의 onValue 첫 콜백을 'first-sync'로 간주
+      let firstSyncDone = false;
+      unsubFirstSync = onValue(
+        ref(rtdb, 'settings'),
+        () => {
+          if (firstSyncDone) return;
+          firstSyncDone = true;
+          if (import.meta.env.DEV) console.debug('[bootstrap] first-sync');
           if (unmounted) return;
-          if (import.meta.env.DEV) console.debug('[bootstrap] ready');
+          // 첫 동기화 완료
           undo.setRestoring(false);
           setReady(true);
+          if (import.meta.env.DEV) console.debug('[bootstrap] ready=true');
           if (auth.currentUser) onReady?.({ user: auth.currentUser, perms: perms ?? [] });
+        },
+        (err) => {
+          if (import.meta.env.DEV) console.debug('[bootstrap] first-sync error', err);
+          setError(err);
+          onError?.(err);
         }
-      });
+      );
+
+      // subscribe 완료 후에만 idempotent 플래그 설정
+      didInitRef.current = true;
     };
 
     run();
@@ -116,6 +141,10 @@ export function usePageBootstrap(params: BootstrapParams): {
         if (unsubIsLoading) {
           unsubIsLoading();
           unsubIsLoading = null;
+        }
+        if (unsubFirstSync) {
+          unsubFirstSync();
+          unsubFirstSync = null;
         }
         const store = useAdminConfigStore.getState();
         store.cleanupFirebaseListeners();
