@@ -16,21 +16,17 @@ const AdminPage: React.FC = () => {
   });
 
   return ready ? (
-    <div className="w-screen h-screen overflow-hidden flex">
-      {/* 왼쪽 툴바 */}
-      <div className="w-72 h-full bg-slate-100/95 backdrop-blur-sm shadow-xl border-r border-slate-200">
+    <div className={`${import.meta.env.DEV ? 'bg-[#F5F7FA]' : ''} w-screen h-screen overflow-hidden flex`}>
+      <div className={`w-72 h-full ${import.meta.env.DEV ? 'bg-[#1F3A5F] border-r border-[#172A46] shadow-lg' : 'bg-slate-100/95 backdrop-blur-sm shadow-xl border-r border-slate-200'}`}>
         <Toolbar />
       </div>
-      
-      {/* 메인 캔버스 영역 - 나머지 공간 전체 사용 */}
-      <main className="flex-1 h-full relative">
+      <main className={`flex-1 h-full relative ${import.meta.env.DEV ? 'bg-[#F5F7FA]' : ''}`}>
+        {import.meta.env.DEV && (
+          <div className="pointer-events-none absolute inset-4 rounded-xl ring-1 ring-white/70 shadow-[0_8px_24px_rgba(31,58,95,0.08)]" />
+        )}
         <Canvas isViewPage={false} />
-        
-        {/* 필기/지우개 도구 설정 */}
         <DrawToolSettings />
       </main>
-      
-      {/* 확대/축소 컨트롤 */}
       <ZoomControls />
     </div>
   ) : null;

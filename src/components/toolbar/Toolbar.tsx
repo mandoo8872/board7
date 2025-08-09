@@ -149,7 +149,7 @@ const ToolbarRefactored: React.FC = () => {
 
   return (
     <div 
-      className="h-full flex flex-col overflow-hidden bg-gradient-to-b from-slate-50 to-slate-100"
+      className={`${import.meta.env.DEV ? 'bg-[#1F3A5F]' : 'bg-gradient-to-b from-slate-50 to-slate-100'} h-full flex flex-col overflow-hidden`}
       onClick={(e) => {
         e.stopPropagation();
         
@@ -163,16 +163,25 @@ const ToolbarRefactored: React.FC = () => {
       }}
     >
       {/* 헤더 */}
+      {import.meta.env.DEV ? (
+        <div className="px-4 py-3 border-b border-[#0f1e33] bg-[#1F3A5F]">
+          <h1 className="text-lg font-bold text-[#F1F5F9] flex items-center gap-2">
+            <img src="/ci.png" alt="현대글로비스ci" className="h-5" />
+            보드관리자
+          </h1>
+        </div>
+      ) : (
       <div className="p-4 border-b border-slate-200 bg-gradient-to-r from-pink-200 to-purple-200">
         <h1 className="text-lg font-bold text-gray-700 flex items-center gap-2">
           <span>🛠️</span>
         관리자 도구
         </h1>
       </div>
+      )}
 
       {/* 스크롤 가능한 콘텐츠 영역 */}
       <div className="flex-1 overflow-y-auto custom-scrollbar">
-        <div className="p-4 space-y-4">
+        <div className={`${import.meta.env.DEV ? 'p-3 space-y-3' : 'p-4 space-y-4'}`}>
           
           {/* 1. 메인 도구 */}
           <MainToolsSection
