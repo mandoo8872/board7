@@ -2,7 +2,7 @@ import React, { useRef } from 'react';
 import { ref, set as firebaseSet } from 'firebase/database';
 import { database } from '../../../config/firebase';
 import { TextObject, ImageObject, DrawObject, FloorImage, Settings } from '../../../types';
-import { FloppyDisk, Database } from 'phosphor-react';
+import { FloppyDisk, Database, FolderSimple, FolderOpen } from 'phosphor-react';
 
 interface DataManagementSectionProps {
   isExpanded: boolean;
@@ -257,8 +257,8 @@ const DataManagementSection: React.FC<DataManagementSectionProps> = ({
               onClick={handleLoadDataClick}
               className="w-full bg-green-500 hover:bg-green-600 text-white font-medium py-3 px-4 rounded-lg transition-colors flex items-center justify-center gap-2 text-sm"
             >
-              <span>📂</span>
-              데이터 불러오기 (JSON 업로드)
+              <FolderOpen size={18} weight="duotone" color="#FFFFFF" />
+              불러오기 (JSON 업로드)
             </button>
 
             {/* 숨겨진 파일 입력 */}

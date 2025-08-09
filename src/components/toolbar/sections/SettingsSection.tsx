@@ -1,6 +1,6 @@
 import React from 'react';
 import type { SafeSettings } from '../types';
-import { Gear, FolderOpen, Eye, Image } from 'phosphor-react';
+import { Gear, FolderOpen, Eye, Image, SquaresFour, MapPin, Lock, Wrench, CheckSquare } from 'phosphor-react';
 import { useSettingsSection } from '../hooks/useSettingsSection';
 
 interface SettingsSectionProps {
@@ -48,7 +48,7 @@ const SettingsSection: React.FC<SettingsSectionProps> = ({
           {/* 그리드 설정 */}
           <div className="bg-slate-50 rounded-lg p-3 space-y-3">
             <h4 className="text-xs font-bold text-slate-600 flex items-center gap-1">
-              <span>🔲</span> 그리드
+              <SquaresFour size={16} weight="duotone" color="#302929" /> 그리드
             </h4>
             
             <div className="space-y-2">
@@ -102,7 +102,7 @@ const SettingsSection: React.FC<SettingsSectionProps> = ({
           {/* 객체 생성 위치 */}
           <div className="bg-slate-50 rounded-lg p-3 space-y-3">
             <h4 className="text-xs font-bold text-slate-600 flex items-center gap-1">
-              <span>📍</span> 객체 생성 위치
+              <MapPin size={16} weight="duotone" color="#302929" /> 객체 생성 위치
             </h4>
             
             <div className="grid grid-cols-2 gap-2">
@@ -201,7 +201,7 @@ const SettingsSection: React.FC<SettingsSectionProps> = ({
           {/* 패스워드 변경 */}
           <div className="bg-slate-50 rounded-lg p-3">
             <h4 className="text-xs font-bold text-slate-600 mb-3 flex items-center gap-1">
-              <span>🔐</span> 패스워드 변경
+              <Lock size={16} weight="duotone" color="#302929" /> 패스워드 변경
             </h4>
             
             {passwordChangeMode ? (
@@ -276,7 +276,9 @@ const SettingsSection: React.FC<SettingsSectionProps> = ({
 
           {/* 체크박스 기본값 설정 */}
           <div className="bg-slate-50 rounded-lg p-3 space-y-3">
-            <h4 className="text-xs font-bold text-slate-600 flex items-center gap-1">체크박스 기본값</h4>
+            <h4 className="text-xs font-bold text-slate-600 flex items-center gap-1">
+              <CheckSquare size={16} weight="duotone" color="#302929" /> 체크박스 기본값
+            </h4>
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="text-xs font-medium text-slate-600 mb-1 block">체크 색상</label>
@@ -386,7 +388,7 @@ const SettingsSection: React.FC<SettingsSectionProps> = ({
           {/* 기타 설정 */}
           <div className="bg-slate-50 rounded-lg p-3 space-y-2">
             <h4 className="text-xs font-bold text-slate-600 flex items-center gap-1">
-              <span>🔧</span> 기타
+              <Wrench size={16} weight="duotone" color="#302929" /> 기타
             </h4>
             
             <label className="flex items-center gap-2 text-xs">
