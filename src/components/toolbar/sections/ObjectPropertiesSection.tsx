@@ -4,6 +4,7 @@ import { isTextObject, isImageObject } from '../utils/toolbarHelpers';
 import { Pencil } from 'phosphor-react';
 import ColorManagementSection from './ColorManagementSection';
 import LayoutControlSection from './LayoutControlSection';
+import { useObjectProperties } from '../hooks/useObjectProperties';
 
 interface ObjectPropertiesSectionProps {
   selectedObject: TextObject | ImageObject | null;
@@ -38,40 +39,11 @@ const ObjectPropertiesSection: React.FC<ObjectPropertiesSectionProps> = ({
 }) => {
   if (!selectedObject) return null;
 
-  const currentColor = getCurrentColor();
-
-  // 텍스트 스타일 업데이트
-  const updateTextStyle = (updates: any) => {
-    if (isTextObject(selectedObject)) {
-      const currentTextStyle = selectedObject.textStyle || {
-        color: '#000000',
-        bold: false,
-        italic: false,
-        horizontalAlign: 'left',
-        verticalAlign: 'middle',
-        fontFamily: 'Arial'
-      };
-      onUpdateTextObject(selectedObject.id, {
-        textStyle: { ...currentTextStyle, ...updates }
-      });
-    }
-  };
-
-  // 박스 스타일 업데이트
-  const updateBoxStyle = (updates: any) => {
-    if (isTextObject(selectedObject)) {
-      const currentBoxStyle = selectedObject.boxStyle || {
-        backgroundColor: 'transparent',
-        backgroundOpacity: 1,
-        borderColor: '#000000',
-        borderWidth: 0,
-        borderRadius: 0
-      };
-      onUpdateTextObject(selectedObject.id, {
-        boxStyle: { ...currentBoxStyle, ...updates }
-      });
-    }
-  };
+  const { currentColor, updateTextStyle, updateBoxStyle } = useObjectProperties({
+    selectedObject,
+    getCurrentColor,
+    onUpdateTextObject,
+  });
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
