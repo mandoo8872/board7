@@ -1,7 +1,7 @@
 import React from 'react';
-import { getExcelDataDimensions } from '../utils/toolbarHelpers';
 import type { SafeSettings } from '../types';
 import { Eye, Trash, Clipboard, ChartBar } from 'phosphor-react';
+import { useExcelDataSection } from '../hooks/useExcelDataSection';
 
 interface ExcelDataSectionProps {
   isExpanded: boolean;
@@ -28,19 +28,20 @@ const ExcelDataSection: React.FC<ExcelDataSectionProps> = ({
   onDeleteCellGroups,
   updateSettings
 }) => {
-  const dataDimensions = getExcelDataDimensions(excelPasteData);
-
-  const handleDataChange = (value: string) => {
-    onDataChange(value);
-    // 자동 미리보기 업데이트
-    const event = new CustomEvent('excel-preview-update', {
-      detail: {
-        data: value,
-        show: !!value.trim()
-      }
-    });
-    window.dispatchEvent(event);
-  };
+  const {
+    dataDimensions,
+    handleDataChange,
+    canExecute,
+    decStartX, incStartX, setStartX,
+    decStartY, incStartY, setStartY,
+    decCellWidth, incCellWidth,
+    decCellHeight, incCellHeight,
+  } = useExcelDataSection({
+    excelPasteData,
+    safeSettings,
+    onDataChange,
+    updateSettings,
+  });
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-slate-200">
@@ -82,15 +83,7 @@ const ExcelDataSection: React.FC<ExcelDataSectionProps> = ({
               <label className="text-xs font-medium text-slate-600 mb-1 block">X 좌표</label>
               <div className="flex items-center gap-1">
                 <button
-                  onClick={() => updateSettings('admin', {
-                    excelPasteSettings: {
-                      ...safeSettings.admin.excelPasteSettings,
-                      startPosition: {
-                        ...safeSettings.admin.excelPasteSettings.startPosition,
-                        x: Math.max(0, safeSettings.admin.excelPasteSettings.startPosition.x - 10)
-                      }
-                    }
-                  })}
+                  onClick={decStartX}
                   className="px-2 py-1 bg-slate-100 hover:bg-slate-200 rounded text-xs font-mono"
                 >
                   ◀
@@ -98,29 +91,13 @@ const ExcelDataSection: React.FC<ExcelDataSectionProps> = ({
                 <input
                   type="number"
                   value={safeSettings.admin.excelPasteSettings.startPosition.x}
-                  onChange={(e) => updateSettings('admin', {
-                    excelPasteSettings: {
-                      ...safeSettings.admin.excelPasteSettings,
-                      startPosition: {
-                        ...safeSettings.admin.excelPasteSettings.startPosition,
-                        x: parseInt(e.target.value) || 0
-                      }
-                    }
-                  })}
+                  onChange={(e) => setStartX(parseInt(e.target.value) || 0)}
                   onFocus={(e) => e.stopPropagation()}
                   onClick={(e) => e.stopPropagation()}
                   className="w-16 px-1 py-1 border border-slate-300 rounded text-xs text-center"
                 />
                 <button
-                  onClick={() => updateSettings('admin', {
-                    excelPasteSettings: {
-                      ...safeSettings.admin.excelPasteSettings,
-                      startPosition: {
-                        ...safeSettings.admin.excelPasteSettings.startPosition,
-                        x: safeSettings.admin.excelPasteSettings.startPosition.x + 10
-                      }
-                    }
-                  })}
+                  onClick={incStartX}
                   className="px-2 py-1 bg-slate-100 hover:bg-slate-200 rounded text-xs font-mono"
                 >
                   ▶
@@ -131,15 +108,7 @@ const ExcelDataSection: React.FC<ExcelDataSectionProps> = ({
               <label className="text-xs font-medium text-slate-600 mb-1 block">Y 좌표</label>
               <div className="flex items-center gap-1">
                 <button
-                  onClick={() => updateSettings('admin', {
-                    excelPasteSettings: {
-                      ...safeSettings.admin.excelPasteSettings,
-                      startPosition: {
-                        ...safeSettings.admin.excelPasteSettings.startPosition,
-                        y: Math.max(0, safeSettings.admin.excelPasteSettings.startPosition.y - 10)
-                      }
-                    }
-                  })}
+                  onClick={decStartY}
                   className="px-2 py-1 bg-slate-100 hover:bg-slate-200 rounded text-xs font-mono"
                 >
                   ▲
@@ -147,29 +116,13 @@ const ExcelDataSection: React.FC<ExcelDataSectionProps> = ({
                 <input
                   type="number"
                   value={safeSettings.admin.excelPasteSettings.startPosition.y}
-                  onChange={(e) => updateSettings('admin', {
-                    excelPasteSettings: {
-                      ...safeSettings.admin.excelPasteSettings,
-                      startPosition: {
-                        ...safeSettings.admin.excelPasteSettings.startPosition,
-                        y: parseInt(e.target.value) || 0
-                      }
-                    }
-                  })}
+                  onChange={(e) => setStartY(parseInt(e.target.value) || 0)}
                   onFocus={(e) => e.stopPropagation()}
                   onClick={(e) => e.stopPropagation()}
                   className="w-16 px-1 py-1 border border-slate-300 rounded text-xs text-center"
                 />
                 <button
-                  onClick={() => updateSettings('admin', {
-                    excelPasteSettings: {
-                      ...safeSettings.admin.excelPasteSettings,
-                      startPosition: {
-                        ...safeSettings.admin.excelPasteSettings.startPosition,
-                        y: safeSettings.admin.excelPasteSettings.startPosition.y + 10
-                      }
-                    }
-                  })}
+                  onClick={incStartY}
                   className="px-2 py-1 bg-slate-100 hover:bg-slate-200 rounded text-xs font-mono"
                 >
                   ▼
@@ -184,12 +137,7 @@ const ExcelDataSection: React.FC<ExcelDataSectionProps> = ({
               <label className="text-xs font-medium text-slate-600 mb-1 block">셀 너비</label>
               <div className="flex items-center gap-1">
                 <button
-                  onClick={() => updateSettings('admin', {
-                    excelPasteSettings: {
-                      ...safeSettings.admin.excelPasteSettings,
-                      cellWidth: Math.max(20, safeSettings.admin.excelPasteSettings.cellWidth - 1)
-                    }
-                  })}
+                  onClick={decCellWidth}
                   className="px-2 py-1 bg-slate-100 hover:bg-slate-200 rounded text-xs"
                 >
                   ◀
@@ -198,12 +146,7 @@ const ExcelDataSection: React.FC<ExcelDataSectionProps> = ({
                   {safeSettings.admin.excelPasteSettings.cellWidth}px
                 </span>
                 <button
-                  onClick={() => updateSettings('admin', {
-                    excelPasteSettings: {
-                      ...safeSettings.admin.excelPasteSettings,
-                      cellWidth: Math.min(300, safeSettings.admin.excelPasteSettings.cellWidth + 1)
-                    }
-                  })}
+                  onClick={incCellWidth}
                   className="px-2 py-1 bg-slate-100 hover:bg-slate-200 rounded text-xs"
                 >
                   ▶
@@ -214,12 +157,7 @@ const ExcelDataSection: React.FC<ExcelDataSectionProps> = ({
               <label className="text-xs font-medium text-slate-600 mb-1 block">셀 높이</label>
               <div className="flex items-center gap-1">
                 <button
-                  onClick={() => updateSettings('admin', {
-                    excelPasteSettings: {
-                      ...safeSettings.admin.excelPasteSettings,
-                      cellHeight: Math.max(20, safeSettings.admin.excelPasteSettings.cellHeight - 1)
-                    }
-                  })}
+                  onClick={decCellHeight}
                   className="px-2 py-1 bg-slate-100 hover:bg-slate-200 rounded text-xs"
                 >
                   ▲
@@ -228,12 +166,7 @@ const ExcelDataSection: React.FC<ExcelDataSectionProps> = ({
                   {safeSettings.admin.excelPasteSettings.cellHeight}px
                 </span>
                 <button
-                  onClick={() => updateSettings('admin', {
-                    excelPasteSettings: {
-                      ...safeSettings.admin.excelPasteSettings,
-                      cellHeight: Math.min(100, safeSettings.admin.excelPasteSettings.cellHeight + 1)
-                    }
-                  })}
+                  onClick={incCellHeight}
                   className="px-2 py-1 bg-slate-100 hover:bg-slate-200 rounded text-xs"
                 >
                   ▼
@@ -247,7 +180,7 @@ const ExcelDataSection: React.FC<ExcelDataSectionProps> = ({
             <div className="flex gap-2">
               <button
                 onClick={onCreateCells}
-                disabled={!excelPasteData.trim()}
+                disabled={!canExecute}
                 className="flex-1 px-4 py-2 bg-green-500 hover:bg-green-600 disabled:bg-gray-300 text-white rounded-lg text-sm font-medium transition-colors"
               >
                 <Clipboard size={16} weight="duotone" color="#FFFFFF" className="mr-1" />
@@ -255,7 +188,7 @@ const ExcelDataSection: React.FC<ExcelDataSectionProps> = ({
               </button>
               <button
                 onClick={onPreviewToggle}
-                disabled={!excelPasteData.trim()}
+                disabled={!canExecute}
                 className="px-4 py-2 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 text-white rounded-lg text-sm font-medium transition-colors"
               >
                 <Eye size={16} weight="duotone" color="#FFFFFF" className="mr-1" />
