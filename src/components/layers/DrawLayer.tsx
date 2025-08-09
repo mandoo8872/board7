@@ -522,18 +522,22 @@ const DrawLayer: React.FC<DrawLayerProps> = () => {
     
     // 필기 도구 처리
     if (isDrawing && currentTool === 'pen') {
+      // 스냅샷 캡처 (상태 업데이트 타이밍 차이로 인한 유실 방지)
+      const strokePointsSnapshot = [...currentStroke];
+      const pressureSnapshot = currentPressureStroke.map(p => ({ ...p }));
+
       endStroke();
       
-      if (currentStroke.length >= 4) {
+      if (strokePointsSnapshot.length >= 4) {
         // 입력 타입 결정
         const inputType: 'pen' | 'touch' | 'mouse' = e.pointerType === 'pen' ? 'pen' : 
                          e.pointerType === 'touch' ? 'touch' : 'mouse';
         
         // 압력 데이터 추출
-        const pressureData = currentPressureStroke.map(point => point.pressure || 0.5);
+        const pressureData = pressureSnapshot.map(point => point.pressure || 0.5);
         
         const drawObject = {
-          points: currentStroke,
+          points: strokePointsSnapshot,
           color: penColor,
           width: penWidth,
           createdAt: new Date().toISOString(),

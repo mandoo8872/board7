@@ -8,7 +8,7 @@ import { BaseLayerProps, TextObjectData, ImageObjectData } from './BaseLayer/typ
 const BaseLayer: React.FC<BaseLayerProps> = ({ isViewPage = false }) => {
   const { textObjects, imageObjects, updateTextObject } = useAdminConfigStore();
   const { selectedObjectId, hoveredObjectId, currentTool } = useEditorStore();
-  const {
+  const { 
     dragState,
     resizeState,
     editingObjectId,
