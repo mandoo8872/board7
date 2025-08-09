@@ -1,5 +1,6 @@
 import { useCallback } from 'react';
 import { useCellSelectionStore } from '../../../store/cellSelectionStore';
+import { useAdminConfigStore } from '../../../store';
 import type { TextObject } from '../../../types';
 
 type ColorMode = 'text' | 'background' | 'border';
@@ -14,6 +15,7 @@ interface UseExcelCellPropertiesParams {
 
 export function useExcelCellProperties(params: UseExcelCellPropertiesParams) {
   const { textObjects, colorMode, onColorModeChange, onUpdateTextObject, clearCellSelection } = params;
+  const adminStore = useAdminConfigStore;
 
   // Zustand selection store
   const selectedCells = useCellSelectionStore((state) => Array.from(state.selectedCellIds));
@@ -39,25 +41,47 @@ export function useExcelCellProperties(params: UseExcelCellPropertiesParams) {
   const handleFontSizeDecrease = useCallback(async () => {
     const currentMinSize = getMinFontSize();
     const newFontSize = Math.max(8, currentMinSize - 2);
-    const updatePromises = selectedCells.map(async (cellId) => {
-      const cellObj = textObjects.find((obj) => obj.id === cellId);
-      if (cellObj && cellObj.cellType === 'cell') {
-        return onUpdateTextObject(cellId, { fontSize: newFontSize });
-      }
-    });
-    await Promise.all(updatePromises.filter((p) => p !== undefined));
+    if (adminStore.getState().updateTextObjectsBatch) {
+      const updates: Record<string, Partial<TextObject>> = {};
+      selectedCells.forEach((cellId) => {
+        const cellObj = textObjects.find((obj) => obj.id === cellId);
+        if (cellObj && cellObj.cellType === 'cell') {
+          updates[cellId] = { fontSize: newFontSize };
+        }
+      });
+      await adminStore.getState().updateTextObjectsBatch(updates);
+    } else {
+      const updatePromises = selectedCells.map(async (cellId) => {
+        const cellObj = textObjects.find((obj) => obj.id === cellId);
+        if (cellObj && cellObj.cellType === 'cell') {
+          return onUpdateTextObject(cellId, { fontSize: newFontSize });
+        }
+      });
+      await Promise.all(updatePromises.filter((p) => p !== undefined));
+    }
   }, [getMinFontSize, selectedCells, textObjects, onUpdateTextObject]);
 
   const handleFontSizeIncrease = useCallback(async () => {
     const currentMinSize = getMinFontSize();
     const newFontSize = Math.min(72, currentMinSize + 2);
-    const updatePromises = selectedCells.map(async (cellId) => {
-      const cellObj = textObjects.find((obj) => obj.id === cellId);
-      if (cellObj && cellObj.cellType === 'cell') {
-        return onUpdateTextObject(cellId, { fontSize: newFontSize });
-      }
-    });
-    await Promise.all(updatePromises.filter((p) => p !== undefined));
+    if (adminStore.getState().updateTextObjectsBatch) {
+      const updates: Record<string, Partial<TextObject>> = {};
+      selectedCells.forEach((cellId) => {
+        const cellObj = textObjects.find((obj) => obj.id === cellId);
+        if (cellObj && cellObj.cellType === 'cell') {
+          updates[cellId] = { fontSize: newFontSize };
+        }
+      });
+      await adminStore.getState().updateTextObjectsBatch(updates);
+    } else {
+      const updatePromises = selectedCells.map(async (cellId) => {
+        const cellObj = textObjects.find((obj) => obj.id === cellId);
+        if (cellObj && cellObj.cellType === 'cell') {
+          return onUpdateTextObject(cellId, { fontSize: newFontSize });
+        }
+      });
+      await Promise.all(updatePromises.filter((p) => p !== undefined));
+    }
   }, [getMinFontSize, selectedCells, textObjects, onUpdateTextObject]);
 
   const handleSetTransparentBackground = useCallback(async () => {

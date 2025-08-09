@@ -22,6 +22,7 @@ export interface AdminConfigStore {
   addTextObject: (obj: Omit<TextObject, 'id'>) => Promise<string>;
   addTextObjects: (objects: Omit<TextObject, 'id'>[]) => Promise<string[]>;
   updateTextObject: (id: string, updates: Partial<TextObject>) => Promise<void>;
+  updateTextObjectsBatch: (updatesById: Record<string, Partial<TextObject>>) => Promise<void>;
   deleteTextObject: (id: string) => Promise<void>;
   deleteTextObjects: (ids: string[]) => Promise<void>;
   
@@ -287,6 +288,36 @@ export const useAdminConfigStore = create<AdminConfigStore>((set, get) => {
         console.warn(`Failed to update text object ${id} due to LWW conflict`);
         // 필요시 사용자에게 알림 표시
       }
+    },
+
+    // 여러 TextObject를 한 번의 네트워크 호출로 병합 업데이트
+    updateTextObjectsBatch: async (updatesById) => {
+      const ids = Object.keys(updatesById);
+      if (ids.length === 0) return;
+
+      // 경로 기반 업데이트 객체 구성
+      const sessionId = getCurrentSessionId();
+      const timestamp = Date.now();
+      const rootUpdates: Record<string, any> = {};
+
+      const flatten = (basePath: string, obj: any) => {
+        Object.entries(obj).forEach(([key, value]) => {
+          const path = `${basePath}/${key}`;
+          if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
+            flatten(path, value);
+          } else {
+            rootUpdates[path] = value;
+          }
+        });
+      };
+
+      for (const id of ids) {
+        const validated = validateFirebaseUpdate(updatesById[id]);
+        // 개별 필드들에 대해 경로 기반으로 업데이트 구성
+        flatten(`textObjects/${id}`, { ...validated, lastModified: timestamp, modifiedBy: sessionId });
+      }
+
+      await firebaseUpdate(ref(database), rootUpdates);
     },
     
     deleteTextObject: async (id) => {
