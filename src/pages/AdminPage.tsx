@@ -1,34 +1,21 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import Canvas from '../components/Canvas';
 import { default as Toolbar } from '../components/toolbar/Toolbar';
 import ZoomControls from '../components/zoom/ZoomControls';
 import DrawToolSettings from '../components/toolbar/DrawToolSettings';
-import { useAdminConfigStore } from '../store/adminConfigStore';
-import { secureAnonymousLogin } from '../config/firebase';
+import { auth, database } from '../config/firebase';
+import { usePageBootstrap } from '../hooks/usePageBootstrap';
 
 const AdminPage: React.FC = () => {
-  const { initializeFirebaseListeners, initializePasswords } = useAdminConfigStore();
+  const { ready } = usePageBootstrap({
+    boardId: 'default',
+    auth,
+    rtdb: database,
+    onReady: () => {},
+    onError: () => {},
+  });
 
-  useEffect(() => {
-    // AdminPage 진입 시 보안 익명 로그인 수행
-    const initializeAuth = async () => {
-      await secureAnonymousLogin();
-      // 익명 로그인 완료 후 Firebase 리스너 초기화
-      initializeFirebaseListeners();
-      // 패스워드 초기화 (환경변수에서 DB로 마이그레이션)
-      await initializePasswords();
-    };
-
-    initializeAuth();
-    
-    // 컴포넌트 언마운트 시 정리
-    return () => {
-      const { cleanupFirebaseListeners } = useAdminConfigStore.getState();
-      cleanupFirebaseListeners();
-    };
-  }, [initializeFirebaseListeners]);
-
-  return (
+  return ready ? (
     <div className="w-screen h-screen overflow-hidden flex">
       {/* 왼쪽 툴바 */}
       <div className="w-72 h-full bg-slate-100/95 backdrop-blur-sm shadow-xl border-r border-slate-200">
@@ -46,7 +33,7 @@ const AdminPage: React.FC = () => {
       {/* 확대/축소 컨트롤 */}
       <ZoomControls />
     </div>
-  );
+  ) : null;
 };
 
 export default AdminPage; 
