@@ -23,6 +23,11 @@ const TextDisplay: React.FC<TextDisplayProps> = ({
           onChange={(e) => onTextChange(e.target.value)}
           className="flex-1 h-12 px-3 py-2 bg-gray-800 border border-gray-600 rounded text-white text-sm resize-none focus:outline-none focus:border-blue-500"
           placeholder="텍스트 입력..."
+          style={{
+            whiteSpace: 'pre-wrap', // 줄바꿈 문자 보존
+            minHeight: '48px',
+            maxHeight: '120px',
+          }}
         />
         <div className="flex flex-col gap-1">
           <div className="flex gap-1">

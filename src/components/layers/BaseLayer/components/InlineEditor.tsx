@@ -59,6 +59,7 @@ const InlineEditor: React.FC<InlineEditorProps> = ({
         textAlign: textStyle.horizontalAlign as any,
         lineHeight: '1.2',
         wordBreak: 'break-word',
+        whiteSpace: 'pre-wrap', // 줄바꿈 문자 보존
         cursor: 'text',
       }}
     />

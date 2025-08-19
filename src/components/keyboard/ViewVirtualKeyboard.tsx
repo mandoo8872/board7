@@ -186,8 +186,9 @@ const ViewVirtualKeyboard: React.FC = () => {
         resetHangulState();
       }
     } else if (key === 'Enter') {
-      // Enter 키는 적용과 동일
-      handleApplyText();
+      // Enter 키: 줄바꿈 추가
+      const finalizedText = finalizeCurrentChar(currentText);
+      setCurrentText(finalizedText + '\n');
     } else if (key === ' ') {
       // 스페이스바는 현재 조립 완료 후 공백 추가
       const finalizedText = finalizeCurrentChar(currentText);

@@ -254,6 +254,7 @@ const TextObjectRenderer: React.FC<TextObjectRendererProps> = ({
             <span
               style={{
                 flex: 1, // 남은 공간 차지
+                whiteSpace: 'pre-wrap', // 줄바꿈 문자 보존
               }}
             >
               {obj.text}

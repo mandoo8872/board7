@@ -192,7 +192,7 @@ const KeyboardLayout: React.FC<KeyboardLayoutProps> = ({
           Space
         </button>
 
-        {/* 엔터 */}
+        {/* 줄바꿈 */}
         <button
           onClick={() => onKeyPress('Enter')}
           style={wideKeyStyle}

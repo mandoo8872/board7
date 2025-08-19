@@ -25,6 +25,9 @@ export const handleKeyDown = (
       console.debug('preventDefault failed in keydown handler:', error);
     }
     finishInlineEdit();
+  } else if (e.key === 'Enter' && e.shiftKey) {
+    // Shift+Enter: 줄바꿈 허용 (기본 동작 유지)
+    return;
   } else if (e.key === 'Escape') {
     try {
       e.preventDefault();
