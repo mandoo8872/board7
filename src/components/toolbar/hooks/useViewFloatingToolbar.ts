@@ -98,6 +98,11 @@ export function useViewFloatingToolbar() {
     if (!isDragging && !isResizing) return;
 
     const handlePointerMove = (e: PointerEvent) => {
+      // 터치 디바이스에서 더 안정적인 처리
+      if (e.pointerType === 'touch') {
+        e.preventDefault();
+      }
+      
       if (isDragging) {
         const newPos = { x: e.clientX - dragOffset.x, y: e.clientY - dragOffset.y };
         const constrained = constrainToViewport(newPos, size);
@@ -128,6 +133,48 @@ export function useViewFloatingToolbar() {
         } catch {}
       }
     };
+
+    // 터치 디바이스에서 추가 이벤트 리스너
+    const isTouchDevice = 'ontouchstart' in window;
+    
+    if (isTouchDevice) {
+      // 터치 이벤트도 함께 처리
+      const handleTouchMove = (e: TouchEvent) => {
+        e.preventDefault();
+        if (e.touches.length === 1) {
+          const touch = e.touches[0];
+          const pointerEvent = new PointerEvent('pointermove', {
+            clientX: touch.clientX,
+            clientY: touch.clientY,
+            pointerId: touch.identifier,
+            pointerType: 'touch'
+          });
+          handlePointerMove(pointerEvent);
+        }
+      };
+
+      const handleTouchEnd = (e: TouchEvent) => {
+        e.preventDefault();
+        if (e.changedTouches.length === 1) {
+          const touch = e.changedTouches[0];
+          const pointerEvent = new PointerEvent('pointerup', {
+            clientX: touch.clientX,
+            clientY: touch.clientY,
+            pointerId: touch.identifier,
+            pointerType: 'touch'
+          });
+          handlePointerUp(pointerEvent);
+        }
+      };
+
+      document.addEventListener('touchmove', handleTouchMove, { passive: false });
+      document.addEventListener('touchend', handleTouchEnd, { passive: false });
+      
+      return () => {
+        document.removeEventListener('touchmove', handleTouchMove);
+        document.removeEventListener('touchend', handleTouchEnd);
+      };
+    }
 
     document.addEventListener('pointermove', handlePointerMove);
     document.addEventListener('pointerup', handlePointerUp);
@@ -191,10 +238,24 @@ export function useViewFloatingToolbar() {
     }
     e.preventDefault();
     e.stopPropagation();
+    
+    // 터치 디바이스에서 더 안정적인 처리
+    if (e.pointerType === 'touch') {
+      // 터치 디바이스에서는 포인터 캡처를 더 신중하게 처리
+      setTimeout(() => {
+        try {
+          e.currentTarget.setPointerCapture(e.pointerId);
+        } catch (error) {
+          console.warn('Pointer capture failed:', error);
+        }
+      }, 0);
+    } else {
+      try {
+        e.currentTarget.setPointerCapture(e.pointerId);
+      } catch {}
+    }
+    
     setIsDragging(true);
-    try {
-      e.currentTarget.setPointerCapture(e.pointerId);
-    } catch {}
     const rect = toolbarRef.current?.getBoundingClientRect();
     if (rect) {
       setDragOffset({ x: e.clientX - rect.left, y: e.clientY - rect.top });
@@ -207,10 +268,23 @@ export function useViewFloatingToolbar() {
   const handleResizePointerStart = (e: React.PointerEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    
+    // 터치 디바이스에서 더 안정적인 처리
+    if (e.pointerType === 'touch') {
+      setTimeout(() => {
+        try {
+          e.currentTarget.setPointerCapture(e.pointerId);
+        } catch (error) {
+          console.warn('Pointer capture failed:', error);
+        }
+      }, 0);
+    } else {
+      try {
+        e.currentTarget.setPointerCapture(e.pointerId);
+      } catch {}
+    }
+    
     setIsResizing(true);
-    try {
-      e.currentTarget.setPointerCapture(e.pointerId);
-    } catch {}
     if (import.meta.env.DEV) {
       console.log(`🔧 Floating Toolbar resize started with ${e.pointerType}`);
     }
