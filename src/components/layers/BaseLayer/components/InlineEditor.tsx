@@ -66,7 +66,14 @@ const InlineEditor: React.FC<InlineEditorProps> = ({
       value={text}
       onChange={handleChange}
       onBlur={onBlur}
-      onKeyDown={onKeyDown}
+      onKeyDown={(e) => {
+        // 화살표 키는 텍스트 편집용으로 사용
+        if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+          // 기본 동작 허용 (커서 이동)
+          return;
+        }
+        onKeyDown(e);
+      }}
       data-editing="true"
       className="w-full h-full bg-transparent border-none outline-none resize-none"
       style={{

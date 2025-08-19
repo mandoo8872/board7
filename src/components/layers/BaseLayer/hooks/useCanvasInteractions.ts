@@ -91,7 +91,11 @@ export function useCanvasInteractions(isViewPage: boolean) {
   }, []);
 
   const onCanvasKeyDown = useCallback((e: React.KeyboardEvent) => {
-    if (editingObjectId) return;
+    // 인라인 편집 중에는 화살표 키를 텍스트 편집용으로 사용
+    if (editingObjectId) {
+      // 화살표 키는 텍스트 편집기에서 처리되도록 함
+      return;
+    }
     
     // 화살표 키로 객체 이동 (1px 단위)
     if (selectedObjectId && ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
@@ -186,14 +190,13 @@ export function useCanvasInteractions(isViewPage: boolean) {
       e.preventDefault();
     }
     
-    // 인라인 편집 중이고 다른 객체를 클릭한 경우 편집 종료
-    if (editingObjectId && editingObjectId !== id) {
-      finishInlineEdit().then(() => { pushSnapshotImmediate(); });
-      return;
-    }
-    
+    // 인라인 편집 중인 경우
     if (editingObjectId) {
-      // 같은 객체를 클릭한 경우 편집 계속
+      // 다른 객체를 클릭한 경우에만 편집 종료
+      if (editingObjectId !== id) {
+        finishInlineEdit().then(() => { pushSnapshotImmediate(); });
+      }
+      // 같은 객체를 클릭한 경우는 편집 계속 (커서 이동 등)
       return;
     }
     

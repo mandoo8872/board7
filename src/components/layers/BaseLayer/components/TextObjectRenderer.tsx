@@ -139,10 +139,14 @@ const TextObjectRenderer: React.FC<TextObjectRendererProps> = ({
         }
       }}
       onPointerDown={(e) => {
-        // 인라인 편집 중이고 다른 객체를 클릭한 경우 편집 종료
-        if (editingObjectId && editingObjectId !== obj.id) {
-          e.stopPropagation();
-          return;
+        // 인라인 편집 중인 경우
+        if (editingObjectId) {
+          // 다른 객체를 클릭한 경우에만 편집 종료
+          if (editingObjectId !== obj.id) {
+            e.stopPropagation();
+            return;
+          }
+          // 같은 객체를 클릭한 경우는 편집 계속 (커서 이동 등)
         }
         onPointerDown(e, obj.id);
       }}
