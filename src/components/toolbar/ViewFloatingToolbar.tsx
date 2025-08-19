@@ -21,6 +21,8 @@ const ViewFloatingToolbar: React.FC = () => {
     toolbarRef,
     position,
     size,
+    minW,
+    minH,
     buttonSize,
     iconSize,
     showColorPalette,
@@ -49,16 +51,17 @@ const ViewFloatingToolbar: React.FC = () => {
   return (
     <div
       ref={toolbarRef}
-      className="fixed z-50 bg-white border border-gray-300 rounded-lg shadow-lg select-none"
+      data-floating-toolbar="true"
+      className="fixed bg-white bg-opacity-95 rounded-lg shadow-2xl border border-gray-300 select-none cursor-move"
       style={{
         left: position.x,
         top: position.y,
         width: size.width,
         height: size.height,
-        touchAction: 'none', // 터치 스크롤/줌 방지
-        WebkitTouchCallout: 'none',
-        WebkitUserSelect: 'none',
-        WebkitTapHighlightColor: 'transparent',
+        zIndex: 9999,
+        minWidth: minW,
+        minHeight: minH,
+        touchAction: 'none' // iOS Safari에서 터치 스크롤 방지
       }}
       onPointerDown={handleToolbarPointerDown}
       onClick={(e) => e.stopPropagation()}
