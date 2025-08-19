@@ -16,24 +16,20 @@ export const useInlineEdit = (
     // 객체를 편집 상태로 업데이트
     updateTextObject(obj.id, { isEditing: true });
     
-    // ViewPage에서는 가상 키보드 활성화
+    // 모든 페이지에서 인라인 편집기 사용 (textarea 포커스)
+    setTimeout(() => {
+      const textarea = document.querySelector('textarea[data-editing="true"]') as HTMLTextAreaElement;
+      if (textarea) {
+        const textLength = obj.text.length;
+        textarea.setSelectionRange(textLength, textLength);
+        textarea.focus();
+      }
+    }, 0);
+    
+    // ViewPage에서는 가상 키보드 대신 인라인 편집기 사용
+    // (터치 디바이스에서도 인라인 편집기가 더 안정적)
     if (isViewPage) {
       setSelectedObjectId(obj.id);
-      setTimeout(() => {
-        window.dispatchEvent(new CustomEvent('activateVirtualKeyboard', {
-          detail: { objectId: obj.id }
-        }));
-      }, 100);
-    } else {
-      // AdminPage에서는 기존 방식 (textarea 포커스)
-      setTimeout(() => {
-        const textarea = document.querySelector('textarea[data-editing="true"]') as HTMLTextAreaElement;
-        if (textarea) {
-          const textLength = obj.text.length;
-          textarea.setSelectionRange(textLength, textLength);
-          textarea.focus();
-        }
-      }, 0);
     }
   }, [isViewPage, updateTextObject, setSelectedObjectId]);
 
