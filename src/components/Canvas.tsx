@@ -368,20 +368,22 @@ const Canvas: React.FC<CanvasProps> = ({ isViewPage = false }) => {
         </div>
       </div>
 
-      {/* 줌 레벨 표시 */}
-      <div style={{
-        position: 'absolute',
-        bottom: '16px',
-        left: '16px',
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
-        color: '#ffffff',
-        padding: '4px 12px',
-        borderRadius: '4px',
-        fontSize: '14px',
-        zIndex: 1000 // 적절한 z-index로 조정
-      }}>
-        {Math.round(autoScale * zoom * 100)}%
-      </div>
+      {/* 줌 레벨 표시 (어드민 페이지에서만 표시) */}
+      {!isViewPage && (
+        <div style={{
+          position: 'absolute',
+          bottom: '16px',
+          left: '16px',
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          color: '#ffffff',
+          padding: '4px 12px',
+          borderRadius: '4px',
+          fontSize: '14px',
+          zIndex: 1000 // 적절한 z-index로 조정
+        }}>
+          {Math.round(autoScale * zoom * 100)}%
+        </div>
+      )}
     </div>
   );
 };
