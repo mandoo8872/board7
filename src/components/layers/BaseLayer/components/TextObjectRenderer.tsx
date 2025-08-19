@@ -138,7 +138,14 @@ const TextObjectRenderer: React.FC<TextObjectRendererProps> = ({
           onObjectClick(e, obj.id);
         }
       }}
-      onPointerDown={(e) => onPointerDown(e, obj.id)}
+      onPointerDown={(e) => {
+        // 인라인 편집 중이고 다른 객체를 클릭한 경우 편집 종료
+        if (editingObjectId && editingObjectId !== obj.id) {
+          e.stopPropagation();
+          return;
+        }
+        onPointerDown(e, obj.id);
+      }}
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
     >

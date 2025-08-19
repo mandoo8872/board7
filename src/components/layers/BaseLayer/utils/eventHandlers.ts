@@ -19,15 +19,16 @@ export const handleKeyDown = (
   cancelInlineEdit: () => void
 ) => {
   if (e.key === 'Enter' && !e.shiftKey) {
+    // Enter: 줄바꿈 허용 (편집 완료하지 않음)
+    return;
+  } else if (e.key === 'Enter' && e.shiftKey) {
+    // Shift+Enter: 편집 완료
     try {
       e.preventDefault();
     } catch (error) {
       console.debug('preventDefault failed in keydown handler:', error);
     }
     finishInlineEdit();
-  } else if (e.key === 'Enter' && e.shiftKey) {
-    // Shift+Enter: 줄바꿈 허용 (기본 동작 유지)
-    return;
   } else if (e.key === 'Escape') {
     try {
       e.preventDefault();

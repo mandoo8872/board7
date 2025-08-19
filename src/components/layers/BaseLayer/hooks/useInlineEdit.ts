@@ -49,9 +49,13 @@ export const useInlineEdit = (
   }, [editingObjectId, editingText, updateTextObject]);
 
   const cancelInlineEdit = useCallback(() => {
+    if (editingObjectId) {
+      // 편집 취소 시 원래 텍스트로 복원
+      updateTextObject(editingObjectId, { isEditing: false });
+    }
     setEditingObjectId(null);
     setEditingText('');
-  }, []);
+  }, [editingObjectId, updateTextObject]);
 
   const updateEditingText = useCallback((text: string) => {
     setEditingText(text);

@@ -185,10 +185,18 @@ export function useCanvasInteractions(isViewPage: boolean) {
     if (!isIPhoneDevice || e.pointerType !== 'touch') {
       e.preventDefault();
     }
-    if (editingObjectId) {
+    
+    // 인라인 편집 중이고 다른 객체를 클릭한 경우 편집 종료
+    if (editingObjectId && editingObjectId !== id) {
       finishInlineEdit().then(() => { pushSnapshotImmediate(); });
       return;
     }
+    
+    if (editingObjectId) {
+      // 같은 객체를 클릭한 경우 편집 계속
+      return;
+    }
+    
     const obj = textObjects.find(o => o.id === id) || imageObjects.find(o => o.id === id);
     if (!obj) return;
     setSelectedObjectId(id);
@@ -460,5 +468,6 @@ export function useCanvasInteractions(isViewPage: boolean) {
     setHoveredObjectId,
   };
 }
+
 
 
