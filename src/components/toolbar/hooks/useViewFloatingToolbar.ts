@@ -7,8 +7,8 @@ interface Position { x: number; y: number }
 interface Size { width: number; height: number }
 
 export function useViewFloatingToolbar() {
-  const { currentTool, setCurrentTool, fitToWindow, setSelectedObjectId } = useEditorStore();
-  const { addTextObject, settings } = useAdminConfigStore();
+  const { currentTool, setCurrentTool, fitToWindow, setSelectedObjectId, selectedObjectId } = useEditorStore();
+  const { addTextObject, settings, textObjects, imageObjects, deleteTextObject, deleteImageObject } = useAdminConfigStore();
   const { penColor, penWidth, setPenColor, setPenWidth } = useDrawStore();
   const { executeUndo, executeRedo, canUndo, canRedo } = useUndoRedo();
 
@@ -346,21 +346,104 @@ export function useViewFloatingToolbar() {
     setCurrentTool('pen');
   };
 
+  // 텍스트 박스 생성 함수
+  const handleTextCreate = async () => {
+    const { x, y } = safeSettings.admin.objectCreationPosition;
+    const newTextObject: Omit<TextObject, 'id'> = {
+      x,
+      y,
+      width: safeSettings.admin.defaultBoxWidth,
+      height: safeSettings.admin.defaultBoxHeight,
+      text: '새 텍스트',
+      fontSize: safeSettings.admin.defaultFontSize,
+      textStyle: {
+        color: '#000000',
+        bold: false,
+        italic: false,
+        horizontalAlign: 'left',
+        verticalAlign: 'middle',
+        fontFamily: 'Arial',
+      },
+      boxStyle: {
+        backgroundColor: 'transparent',
+        backgroundOpacity: 1,
+        borderColor: '#000000',
+        borderWidth: 0,
+        borderRadius: 0,
+      },
+      permissions: { editable: true, movable: true, resizable: true, deletable: true },
+      zIndex: 10000 + (Date.now() % 100000),
+      locked: false,
+      visible: true,
+      opacity: 1,
+      hasCheckbox: false,
+      checkboxChecked: false,
+      checkboxCheckedColor: '#22c55e',
+      checkboxUncheckedColor: '#f3f4f6',
+      isEditing: false,
+      lastModified: Date.now(),
+    };
+
+    try {
+      const newObjectId = await addTextObject(newTextObject);
+      setSelectedObjectId(newObjectId);
+      setTimeout(() => {
+        window.dispatchEvent(
+          new CustomEvent('activateVirtualKeyboard', { detail: { objectId: newObjectId } })
+        );
+      }, 100);
+      if (import.meta.env.DEV) {
+        console.log(`✅ 텍스트 박스 생성 및 선택 완료: ${newObjectId}`);
+      }
+    } catch (error) {
+      console.error('❌ 텍스트 박스 생성 실패:', error);
+    }
+  };
+
+  // 객체 삭제 함수
+  const handleDeleteObject = async () => {
+    if (!selectedObjectId) {
+      console.warn('삭제할 객체가 선택되지 않았습니다.');
+      return;
+    }
+
+    try {
+      const textObj = textObjects.find(obj => obj.id === selectedObjectId);
+      const imageObj = imageObjects.find(obj => obj.id === selectedObjectId);
+      
+      if (textObj) {
+        await deleteTextObject(selectedObjectId);
+      } else if (imageObj) {
+        await deleteImageObject(selectedObjectId);
+      } else {
+        console.warn('선택된 객체를 찾을 수 없습니다.');
+        return;
+      }
+      
+      setSelectedObjectId(null);
+      if (import.meta.env.DEV) {
+        console.log(`✅ 객체 삭제 완료: ${selectedObjectId}`);
+      }
+    } catch (error) {
+      console.error('❌ 객체 삭제 실패:', error);
+    }
+  };
 
 
-  // 3x3 그리드 동적 크기 계산
+
+  // 3x3 그리드 + 하단 2개 버튼 동적 크기 계산
   const layoutPadding = 8;
   const layoutGap = 8;
   const { buttonSize, iconSize, minW, minH } = useMemo(() => {
     const gridCols = 3;
     const gridRows = 3;
     const availableW = Math.max(0, size.width - layoutPadding * 2 - layoutGap * (gridCols - 1));
-    const availableH = Math.max(0, size.height - layoutPadding * 2 - layoutGap * (gridRows - 1));
-    const rawButton = Math.floor(Math.min(availableW / gridCols, availableH / gridRows));
+    const availableH = Math.max(0, size.height - layoutPadding * 2 - layoutGap * (gridRows + 1)); // 하단 행 추가
+    const rawButton = Math.floor(Math.min(availableW / gridCols, availableH / (gridRows + 1)));
     const clampedButton = Math.max(36, Math.min(72, rawButton || 36));
     const computedIcon = Math.floor(clampedButton * 0.72);
     const minW = layoutPadding * 2 + gridCols * clampedButton + layoutGap * (gridCols - 1);
-    const minH = layoutPadding * 2 + gridRows * clampedButton + layoutGap * (gridRows - 1);
+    const minH = layoutPadding * 2 + (gridRows + 1) * clampedButton + layoutGap * (gridRows + 1); // 하단 행 포함
     return { buttonSize: clampedButton, iconSize: computedIcon, minW, minH };
   }, [size.width, size.height]);
 
@@ -392,6 +475,8 @@ export function useViewFloatingToolbar() {
     canRedo,
     // actions
     handleCheckboxCreate,
+    handleTextCreate,
+    handleDeleteObject,
     handleColorSelect,
     handleToolbarPointerDown,
     handleResizePointerStart,

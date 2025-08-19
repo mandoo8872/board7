@@ -9,7 +9,9 @@ import {
   CheckSquare,
   House,
   Palette,
-  Circle
+  Circle,
+  TextAa,
+  Trash
 } from 'phosphor-react';
 import { useViewFloatingToolbar } from './hooks/useViewFloatingToolbar';
 import { useAdminConfigStore } from '../../store/adminConfigStore';
@@ -46,6 +48,8 @@ const ViewFloatingToolbar: React.FC = () => {
     canRedo,
     // actions
     handleCheckboxCreate,
+    handleTextCreate,
+    handleDeleteObject,
     handleColorSelect,
     handleToolbarPointerDown,
     handleResizePointerStart,
@@ -207,6 +211,35 @@ const ViewFloatingToolbar: React.FC = () => {
             title="크기 조절"
           >
             <Circle size={iconSize * 0.9} weight="duotone" color="#302929" />
+          </button>
+        </div>
+
+        {/* 하단 2개 버튼 */}
+        <div className="flex gap-2 justify-center mt-2">
+          {/* 텍스트 박스 생성 */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              handleTextCreate();
+            }}
+            className="rounded transition-all duration-200 flex items-center justify-center bg-blue-500 text-white hover:bg-blue-600 shadow-md"
+            style={{ width: buttonSize, height: buttonSize }}
+            title="텍스트 박스 생성"
+          >
+            <TextAa size={iconSize * 0.8} weight="duotone" color="#FFFFFF" />
+          </button>
+
+          {/* 객체 삭제 */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              handleDeleteObject();
+            }}
+            className="rounded transition-all duration-200 flex items-center justify-center bg-red-500 text-white hover:bg-red-600 shadow-md"
+            style={{ width: buttonSize, height: buttonSize }}
+            title="선택된 객체 삭제"
+          >
+            <Trash size={iconSize * 0.8} weight="duotone" color="#FFFFFF" />
           </button>
         </div>
 
