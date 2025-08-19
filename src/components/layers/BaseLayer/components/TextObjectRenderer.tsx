@@ -147,6 +147,7 @@ const TextObjectRenderer: React.FC<TextObjectRendererProps> = ({
             return;
           }
           // 같은 객체를 클릭한 경우는 편집 계속 (커서 이동 등)
+          // preventDefault를 호출하지 않아서 텍스트 편집기의 기본 동작 허용
         }
         onPointerDown(e, obj.id);
       }}

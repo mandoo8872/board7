@@ -67,11 +67,12 @@ const InlineEditor: React.FC<InlineEditorProps> = ({
       onChange={handleChange}
       onBlur={onBlur}
       onKeyDown={(e) => {
-        // 화살표 키는 텍스트 편집용으로 사용
+        // 화살표 키는 텍스트 편집용으로 사용 (기본 동작 허용)
         if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
           // 기본 동작 허용 (커서 이동)
           return;
         }
+        // 다른 키는 기존 핸들러로 전달
         onKeyDown(e);
       }}
       data-editing="true"
@@ -111,6 +112,10 @@ const InlineEditor: React.FC<InlineEditorProps> = ({
       }}
       onMouseMove={(e) => {
         // 마우스 드래그 중 텍스트 선택 허용
+        e.stopPropagation();
+      }}
+      onPointerDown={(e) => {
+        // 포인터 이벤트도 처리
         e.stopPropagation();
       }}
     />

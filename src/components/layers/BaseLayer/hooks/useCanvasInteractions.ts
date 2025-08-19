@@ -91,9 +91,12 @@ export function useCanvasInteractions(isViewPage: boolean) {
   }, []);
 
   const onCanvasKeyDown = useCallback((e: React.KeyboardEvent) => {
-    // 인라인 편집 중에는 화살표 키를 텍스트 편집용으로 사용
+
+    // 인라인 편집 중에는 캔버스 키보드 이벤트를 처리하지 않음
+    // (텍스트 편집기에서 처리하도록 함)
     if (editingObjectId) {
       // 화살표 키는 텍스트 편집기에서 처리되도록 함
+      // 다른 키들도 텍스트 편집기에서 처리되도록 함
       return;
     }
     
@@ -183,12 +186,9 @@ export function useCanvasInteractions(isViewPage: boolean) {
   }, [editingObjectId, isViewPage, selectedObjectId, textObjects, imageObjects, updateTextObject, updateImageObject, handleDuplicateObject, handleBulkClearCellText, handleDeleteObject, saveSnapshot, executeUndo, executeRedo, handleClipboardPaste]);
 
   const onPointerDown = useCallback((e: React.PointerEvent, id: string) => {
+
     updatePointerEventTime(e.timeStamp);
     e.stopPropagation();
-    const isIPhoneDevice = isIPhone();
-    if (!isIPhoneDevice || e.pointerType !== 'touch') {
-      e.preventDefault();
-    }
     
     // 인라인 편집 중인 경우
     if (editingObjectId) {
@@ -197,7 +197,14 @@ export function useCanvasInteractions(isViewPage: boolean) {
         finishInlineEdit().then(() => { pushSnapshotImmediate(); });
       }
       // 같은 객체를 클릭한 경우는 편집 계속 (커서 이동 등)
+      // preventDefault를 호출하지 않아서 텍스트 편집기의 기본 동작 허용
       return;
+    }
+    
+    // 인라인 편집 중이 아닌 경우에만 preventDefault 호출
+    const isIPhoneDevice = isIPhone();
+    if (!isIPhoneDevice || e.pointerType !== 'touch') {
+      e.preventDefault();
     }
     
     const obj = textObjects.find(o => o.id === id) || imageObjects.find(o => o.id === id);
