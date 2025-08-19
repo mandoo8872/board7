@@ -98,6 +98,11 @@ export function useViewFloatingToolbar() {
     if (!isDragging && !isResizing) return;
 
     const handlePointerMove = (e: PointerEvent) => {
+      // 터치 디바이스에서 이벤트 처리 최적화
+      if (e.pointerType === 'touch') {
+        e.preventDefault(); // 터치 스크롤 방지
+      }
+      
       if (isDragging) {
         const newPos = { x: e.clientX - dragOffset.x, y: e.clientY - dragOffset.y };
         const constrained = constrainToViewport(newPos, size);
@@ -129,11 +134,29 @@ export function useViewFloatingToolbar() {
       }
     };
 
-    document.addEventListener('pointermove', handlePointerMove);
+    // 터치 디바이스에서 추가 이벤트 리스너
+    const handleTouchMove = (e: TouchEvent) => {
+      e.preventDefault(); // 터치 스크롤 방지
+    };
+
+    const handleTouchEnd = (_e: TouchEvent) => {
+      if (isDragging || isResizing) {
+        saveSettings(position, size);
+      }
+      setIsDragging(false);
+      setIsResizing(false);
+    };
+
+    document.addEventListener('pointermove', handlePointerMove, { passive: false });
     document.addEventListener('pointerup', handlePointerUp);
+    document.addEventListener('touchmove', handleTouchMove, { passive: false });
+    document.addEventListener('touchend', handleTouchEnd);
+    
     return () => {
       document.removeEventListener('pointermove', handlePointerMove);
       document.removeEventListener('pointerup', handlePointerUp);
+      document.removeEventListener('touchmove', handleTouchMove);
+      document.removeEventListener('touchend', handleTouchEnd);
     };
   }, [isDragging, isResizing, dragOffset, size, position]);
 
@@ -192,9 +215,21 @@ export function useViewFloatingToolbar() {
     e.preventDefault();
     e.stopPropagation();
     setIsDragging(true);
-    try {
-      e.currentTarget.setPointerCapture(e.pointerId);
-    } catch {}
+    
+    // 터치 디바이스에서 포인터 캡처 최적화
+    if (e.pointerType === 'touch') {
+      try {
+        e.currentTarget.setPointerCapture(e.pointerId);
+      } catch (error) {
+        // iOS Safari에서는 포인터 캡처가 제한적일 수 있음
+        console.warn('Pointer capture failed:', error);
+      }
+    } else {
+      try {
+        e.currentTarget.setPointerCapture(e.pointerId);
+      } catch {}
+    }
+    
     const rect = toolbarRef.current?.getBoundingClientRect();
     if (rect) {
       setDragOffset({ x: e.clientX - rect.left, y: e.clientY - rect.top });
@@ -208,9 +243,21 @@ export function useViewFloatingToolbar() {
     e.preventDefault();
     e.stopPropagation();
     setIsResizing(true);
-    try {
-      e.currentTarget.setPointerCapture(e.pointerId);
-    } catch {}
+    
+    // 터치 디바이스에서 포인터 캡처 최적화
+    if (e.pointerType === 'touch') {
+      try {
+        e.currentTarget.setPointerCapture(e.pointerId);
+      } catch (error) {
+        // iOS Safari에서는 포인터 캡처가 제한적일 수 있음
+        console.warn('Pointer capture failed:', error);
+      }
+    } else {
+      try {
+        e.currentTarget.setPointerCapture(e.pointerId);
+      } catch {}
+    }
+    
     if (import.meta.env.DEV) {
       console.log(`🔧 Floating Toolbar resize started with ${e.pointerType}`);
     }

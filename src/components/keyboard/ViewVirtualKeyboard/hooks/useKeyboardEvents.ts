@@ -37,6 +37,11 @@ export const useKeyboardEvents = ({
     }
 
     const handlePointerMove = (e: PointerEvent) => {
+      // 터치 디바이스에서 이벤트 처리 최적화
+      if (e.pointerType === 'touch') {
+        e.preventDefault(); // 터치 스크롤 방지
+      }
+      
       if (isDragging) {
         const newPosition = {
           x: e.clientX - dragOffset.x,
@@ -46,7 +51,7 @@ export const useKeyboardEvents = ({
         setPosition(constrainedPosition);
       }
       
-              if (isResizing) {
+      if (isResizing) {
         const rect = keyboardRef.current?.getBoundingClientRect();
         if (rect) {
           const newWidth = Math.max(400, Math.min(1600, e.clientX - rect.left));
@@ -77,14 +82,31 @@ export const useKeyboardEvents = ({
       }
     };
 
+    // 터치 디바이스에서 추가 이벤트 리스너
+    const handleTouchMove = (e: TouchEvent) => {
+      e.preventDefault(); // 터치 스크롤 방지
+    };
+
+    const handleTouchEnd = (_e: TouchEvent) => {
+      if (isDragging || isResizing) {
+        saveSettings(position, size);
+      }
+      setIsDragging(false);
+      setIsResizing(false);
+    };
+
     // 포인터 이벤트 리스너 추가
-    document.addEventListener('pointermove', handlePointerMove);
+    document.addEventListener('pointermove', handlePointerMove, { passive: false });
     document.addEventListener('pointerup', handlePointerUp);
+    document.addEventListener('touchmove', handleTouchMove, { passive: false });
+    document.addEventListener('touchend', handleTouchEnd);
 
     return () => {
       // cleanup
       document.removeEventListener('pointermove', handlePointerMove);
       document.removeEventListener('pointerup', handlePointerUp);
+      document.removeEventListener('touchmove', handleTouchMove);
+      document.removeEventListener('touchend', handleTouchEnd);
     };
   }, [isDragging, isResizing, dragOffset, position, size, keyboardRef, setPosition, setSize, setIsDragging, setIsResizing, saveSettings, constrainToViewport]);
 

@@ -127,11 +127,20 @@ const ViewVirtualKeyboard: React.FC = () => {
     e.stopPropagation();
     setIsDragging(true);
     
-    // 포인터 캡처
-    try {
-      e.currentTarget.setPointerCapture(e.pointerId);
-    } catch (error) {
-      // 포인터 캡처 실패는 무시
+    // 터치 디바이스에서 포인터 캡처 최적화
+    if (e.pointerType === 'touch') {
+      try {
+        e.currentTarget.setPointerCapture(e.pointerId);
+      } catch (error) {
+        // iOS Safari에서는 포인터 캡처가 제한적일 수 있음
+        console.warn('Pointer capture failed:', error);
+      }
+    } else {
+      try {
+        e.currentTarget.setPointerCapture(e.pointerId);
+      } catch (error) {
+        // 포인터 캡처 실패는 무시
+      }
     }
     
     const rect = keyboardRef.current?.getBoundingClientRect();
@@ -149,11 +158,20 @@ const ViewVirtualKeyboard: React.FC = () => {
     e.stopPropagation();
     setIsResizing(true);
     
-    // 포인터 캡처
-    try {
-      e.currentTarget.setPointerCapture(e.pointerId);
-    } catch (error) {
-      // 포인터 캡처 실패는 무시
+    // 터치 디바이스에서 포인터 캡처 최적화
+    if (e.pointerType === 'touch') {
+      try {
+        e.currentTarget.setPointerCapture(e.pointerId);
+      } catch (error) {
+        // iOS Safari에서는 포인터 캡처가 제한적일 수 있음
+        console.warn('Pointer capture failed:', error);
+      }
+    } else {
+      try {
+        e.currentTarget.setPointerCapture(e.pointerId);
+      } catch (error) {
+        // 포인터 캡처 실패는 무시
+      }
     }
   }, [setIsResizing]);
 
@@ -243,7 +261,8 @@ const ViewVirtualKeyboard: React.FC = () => {
         top: position.y,
         width: size.width,
         height: size.height,
-        zIndex: 9999
+        zIndex: 9999,
+        touchAction: 'none' // iOS Safari에서 터치 스크롤 방지
       }}
       onClick={(e) => e.stopPropagation()}
       onPointerDown={(e) => e.stopPropagation()}
