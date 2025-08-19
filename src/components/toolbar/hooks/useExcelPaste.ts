@@ -44,9 +44,7 @@ export const useExcelPaste = ({
       startPosition, 
       cellWidth, 
       cellHeight, 
-      fontSize, 
       fontColor, 
-      backgroundColor,
       maxRows = 100,
       maxCols = 50
     } = safeSettings.admin.excelPasteSettings;
@@ -69,17 +67,17 @@ export const useExcelPaste = ({
           width: cellWidth,
           height: cellHeight,
           text: cellText,
-          fontSize: fontSize,
+          fontSize: 32, // 기본 폰트 크기 32로 변경
           textStyle: {
             color: fontColor,
-            bold: false,
+            bold: true, // 볼드 적용
             italic: false,
             horizontalAlign: 'center',
             verticalAlign: 'middle',
             fontFamily: 'Arial'
           },
           boxStyle: {
-            backgroundColor: backgroundColor,
+            backgroundColor: 'transparent', // 배경 없음
             backgroundOpacity: 1,
             borderColor: '#d1d5db',
             borderWidth: 1,

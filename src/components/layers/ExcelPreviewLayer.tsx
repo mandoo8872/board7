@@ -44,7 +44,7 @@ const ExcelPreviewLayer: React.FC = () => {
       startPosition: { x: 100, y: 100 },
       cellWidth: 120,
       cellHeight: 40,
-      fontSize: 14,
+      fontSize: 32, // 기본 폰트 크기 32로 변경
       fontColor: '#000000',
       backgroundColor: 'transparent',
       maxRows: 50,
