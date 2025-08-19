@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { TextObject, ImageObject } from '../../../types';
 import { isTextObject, isImageObject } from '../utils/toolbarHelpers';
 import { Pencil } from 'phosphor-react';
@@ -39,6 +39,18 @@ const ObjectPropertiesSection: React.FC<ObjectPropertiesSectionProps> = ({
 }) => {
   if (!selectedObject) return null;
 
+  // 로컬 텍스트 상태 관리
+  const [localText, setLocalText] = useState(
+    isTextObject(selectedObject) ? selectedObject.text || '' : ''
+  );
+
+  // selectedObject가 변경될 때 로컬 텍스트 업데이트
+  useEffect(() => {
+    if (isTextObject(selectedObject)) {
+      setLocalText(selectedObject.text || '');
+    }
+  }, [selectedObject.id, selectedObject]);
+
   const { currentColor, updateTextStyle, updateBoxStyle } = useObjectProperties({
     selectedObject,
     getCurrentColor,
@@ -57,14 +69,28 @@ const ObjectPropertiesSection: React.FC<ObjectPropertiesSectionProps> = ({
           {/* 텍스트 입력 */}
           <div>
             <label className="text-xs font-medium text-slate-600 mb-1 block">텍스트</label>
-            <textarea
-              value={selectedObject.text}
-              onChange={(e) => onUpdateTextObject(selectedObject.id, { text: e.target.value })}
-              onFocus={(e) => e.stopPropagation()}
-              onClick={(e) => e.stopPropagation()}
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm resize-none focus:ring-2 focus:ring-blue-500"
-              rows={2}
-            />
+            <div className="flex gap-2">
+              <textarea
+                value={localText}
+                onChange={(e) => {
+                  // 로컬 상태만 업데이트 (즉시 반영)
+                  setLocalText(e.target.value);
+                }}
+                onFocus={(e) => e.stopPropagation()}
+                onClick={(e) => e.stopPropagation()}
+                className="flex-1 px-3 py-2 border border-slate-300 rounded-lg text-sm resize-none focus:ring-2 focus:ring-blue-500"
+                rows={2}
+              />
+              <button
+                onClick={() => {
+                  // 입력 버튼 클릭 시 실제 업데이트 수행
+                  onUpdateTextObject(selectedObject.id, { text: localText });
+                }}
+                className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-medium transition-colors"
+              >
+                입력
+              </button>
+            </div>
           </div>
           
           {/* 폰트 크기 */}

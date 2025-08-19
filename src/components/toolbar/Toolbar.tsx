@@ -205,7 +205,7 @@ const ToolbarRefactored: React.FC = () => {
               colorMode={colorMode}
               onColorModeChange={setColorMode}
               onColorSelect={handleColorSelect}
-              onUpdateTextObject={actions.debouncedUpdateTextObject}
+              onUpdateTextObject={updateTextObject}
               onUpdateImageObject={actions.debouncedUpdateImageObject}
               onDuplicate={actions.handleDuplicateObject}
               onDelete={actions.handleDeleteObject}
