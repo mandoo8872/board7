@@ -5,6 +5,7 @@ import FixedGridLayer from './layers/FixedGridLayer';
 import DrawLayer from './layers/DrawLayer';
 import GridLayer from './layers/GridLayer';
 import ExcelPreviewLayer from './layers/ExcelPreviewLayer';
+import { useCanvasInteractions } from './layers/BaseLayer/hooks/useCanvasInteractions';
 
 interface CanvasProps {
   isViewPage?: boolean;
@@ -20,6 +21,9 @@ const Canvas: React.FC<CanvasProps> = ({ isViewPage = false }) => {
   const [autoScale, setAutoScale] = useState(0.15); // 초기 로딩용 임시값
   const { zoom, viewOffset, setZoom, zoomAtPoint, currentTool } = useEditorStore();
   const { floorImage, settings } = useAdminConfigStore();
+
+  // 캔버스 상호작용 훅 사용
+  const { onCanvasKeyDown } = useCanvasInteractions(isViewPage);
 
   // 설정이 로드되지 않았을 때 기본값 제공
   const safeGridSettings = {
@@ -236,6 +240,8 @@ const Canvas: React.FC<CanvasProps> = ({ isViewPage = false }) => {
     <div 
       ref={containerRef}
       onWheel={handleWheel}
+      onKeyDown={onCanvasKeyDown}
+      tabIndex={0} // 키보드 이벤트를 받기 위해 tabIndex 추가
       style={{
         position: 'relative',
         width: '100%',
@@ -244,6 +250,7 @@ const Canvas: React.FC<CanvasProps> = ({ isViewPage = false }) => {
         overflowY: needsVerticalScroll ? 'auto' : 'hidden',
         backgroundColor: 'transparent',
         cursor: getCursor(),
+        outline: 'none', // 포커스 표시 제거
       }}
     >
       {/* 가상 스크롤 영역 - 실제 스케일된 캔버스 크기를 반영 (스크롤이 필요할 때만) */}

@@ -92,6 +92,55 @@ export function useCanvasInteractions(isViewPage: boolean) {
 
   const onCanvasKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (editingObjectId) return;
+    
+    // 화살표 키로 객체 이동 (1px 단위)
+    if (selectedObjectId && ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+      e.preventDefault();
+      
+      const selectedTextObj = textObjects.find(obj => obj.id === selectedObjectId);
+      const selectedImageObj = imageObjects.find(obj => obj.id === selectedObjectId);
+      const selectedObj = selectedTextObj || selectedImageObj;
+      
+      if (!selectedObj || !selectedObj.permissions?.movable) return;
+      
+      const moveDistance = e.shiftKey ? 10 : 1; // Shift + 화살표 = 10px, 일반 화살표 = 1px
+      let newX = selectedObj.x;
+      let newY = selectedObj.y;
+      
+      switch (e.key) {
+        case 'ArrowUp':
+          newY -= moveDistance;
+          break;
+        case 'ArrowDown':
+          newY += moveDistance;
+          break;
+        case 'ArrowLeft':
+          newX -= moveDistance;
+          break;
+        case 'ArrowRight':
+          newX += moveDistance;
+          break;
+      }
+      
+      // 경계 체크 (캔버스 밖으로 나가지 않도록)
+      const minX = 0;
+      const maxX = 2160 - selectedObj.width;
+      const minY = 0;
+      const maxY = 3840 - selectedObj.height;
+      
+      newX = Math.max(minX, Math.min(maxX, newX));
+      newY = Math.max(minY, Math.min(maxY, newY));
+      
+      // 객체 업데이트
+      if (selectedTextObj) {
+        updateTextObject(selectedObjectId, { x: newX, y: newY });
+      } else if (selectedImageObj) {
+        updateImageObject(selectedObjectId, { x: newX, y: newY });
+      }
+      
+      return;
+    }
+    
     if (e.ctrlKey && e.key === 'v') {
       try { e.preventDefault(); } catch (error) { console.debug('preventDefault failed in global keydown handler:', error); }
       handleClipboardPaste();
@@ -127,7 +176,7 @@ export function useCanvasInteractions(isViewPage: boolean) {
         });
       }
     }
-  }, [editingObjectId, isViewPage, selectedObjectId, handleDuplicateObject, handleBulkClearCellText, handleDeleteObject, saveSnapshot, executeUndo, executeRedo, handleClipboardPaste]);
+  }, [editingObjectId, isViewPage, selectedObjectId, textObjects, imageObjects, updateTextObject, updateImageObject, handleDuplicateObject, handleBulkClearCellText, handleDeleteObject, saveSnapshot, executeUndo, executeRedo, handleClipboardPaste]);
 
   const onPointerDown = useCallback((e: React.PointerEvent, id: string) => {
     updatePointerEventTime(e.timeStamp);
