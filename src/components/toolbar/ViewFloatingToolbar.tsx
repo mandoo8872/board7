@@ -12,10 +12,13 @@ import {
   Circle
 } from 'phosphor-react';
 import { useViewFloatingToolbar } from './hooks/useViewFloatingToolbar';
+import { useAdminConfigStore } from '../../store/adminConfigStore';
 
 //
 
 const ViewFloatingToolbar: React.FC = () => {
+  const { settings } = useAdminConfigStore();
+  
   const {
     // refs/state
     toolbarRef,
@@ -47,6 +50,9 @@ const ViewFloatingToolbar: React.FC = () => {
     handleToolbarPointerDown,
     handleResizePointerStart,
   } = useViewFloatingToolbar();
+
+  // DB에서 perfect-freehand 설정 가져오기
+  const usePerfectFreehand = settings?.view?.usePerfectFreehand ?? true;
 
   return (
     <div
@@ -244,6 +250,16 @@ const ViewFloatingToolbar: React.FC = () => {
               style={{ width: Math.max(80, size.width - 90) }}
             />
             <span className="text-xs font-mono w-6 text-right">{penWidth}</span>
+          </div>
+        )}
+
+        {/* 렌더링 품질 표시 */}
+        {currentTool === 'pen' && (
+          <div className="mt-2 p-2 bg-blue-50 rounded border">
+            <div className="text-xs text-blue-700 flex items-center gap-1">
+              <span>{usePerfectFreehand ? '✨' : '⚡'}</span>
+              {usePerfectFreehand ? '고품질 렌더링' : '기본 렌더링'}
+            </div>
           </div>
         )}
       </div>

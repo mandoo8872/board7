@@ -200,6 +200,7 @@ export interface AdminSettings {
 export interface ViewSettings {
   virtualKeyboardEnabled: boolean;
   touchMode: boolean;
+  usePerfectFreehand: boolean; // perfect-freehand 사용 여부
 }
 
 // 캔버스 상태

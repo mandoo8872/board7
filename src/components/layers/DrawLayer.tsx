@@ -32,10 +32,18 @@ const DrawLayer: React.FC<DrawLayerProps> = () => {
     startStroke, 
     endStroke, 
     clearCurrentStroke,
+    syncWithDBSettings,
   } = useDrawStore();
   
   const { drawObjects, settings, isLoading } = useAdminConfigStore();
   const { currentTool, setCurrentTool } = useEditorStore();
+
+  // DB 설정과 drawStore 동기화
+  useEffect(() => {
+    if (!isLoading && settings?.view?.usePerfectFreehand !== undefined) {
+      syncWithDBSettings();
+    }
+  }, [settings?.view?.usePerfectFreehand, isLoading, syncWithDBSettings]);
 
   // iPad Safari 감지 및 최적화 (iPad Safari 터치 이벤트 충돌 해결)
   useEffect(() => {

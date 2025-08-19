@@ -93,7 +93,8 @@ const ToolbarRefactored: React.FC = () => {
     },
     view: {
       virtualKeyboardEnabled: settings?.view?.virtualKeyboardEnabled ?? true,
-      touchMode: settings?.view?.touchMode ?? true
+      touchMode: settings?.view?.touchMode ?? true,
+      usePerfectFreehand: settings?.view?.usePerfectFreehand ?? true
     }
   };
 

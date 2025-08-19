@@ -64,6 +64,7 @@ export interface SafeSettings {
   view: {
     virtualKeyboardEnabled: boolean;
     touchMode: boolean;
+    usePerfectFreehand: boolean; // perfect-freehand 사용 여부
   };
 }
 

@@ -12,6 +12,9 @@ export function useViewFloatingToolbar() {
   const { penColor, penWidth, setPenColor, setPenWidth } = useDrawStore();
   const { executeUndo, executeRedo, canUndo, canRedo } = useUndoRedo();
 
+  // DB에서 perfect-freehand 설정 가져오기
+  const usePerfectFreehand = settings?.view?.usePerfectFreehand ?? true;
+
   // 설정이 로드되지 않았을 때 기본값 제공
   const safeSettings = {
     admin: {
@@ -343,10 +346,7 @@ export function useViewFloatingToolbar() {
     setCurrentTool('pen');
   };
 
-  const handleSetPenWidth = (width: number) => {
-    setPenWidth(width);
-    setCurrentTool('pen');
-  };
+
 
   // 3x3 그리드 동적 크기 계산
   const layoutPadding = 8;
@@ -377,12 +377,11 @@ export function useViewFloatingToolbar() {
     showSizeAdjuster,
     setShowColorPalette,
     setShowSizeAdjuster,
-
     // drawing state
     penColor,
     penWidth,
-    setPenWidth: handleSetPenWidth,
-
+    setPenWidth,
+    usePerfectFreehand, // DB 설정 반환
     // editor/undo
     currentTool,
     handleToolChange,
@@ -391,7 +390,6 @@ export function useViewFloatingToolbar() {
     executeRedo,
     canUndo,
     canRedo,
-
     // actions
     handleCheckboxCreate,
     handleColorSelect,

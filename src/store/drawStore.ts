@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { useAdminConfigStore } from './adminConfigStore';
 
 // perfect-freehand를 위한 포인트 타입
 export interface PressurePoint {
@@ -36,6 +37,9 @@ export interface DrawStore {
   setPenWidth: (width: number) => void;
   setUsePerfectFreehand: (use: boolean) => void;
   updateLastActionTime: () => void;
+  
+  // DB 설정 동기화
+  syncWithDBSettings: () => void;
 }
 
 export const useDrawStore = create<DrawStore>((set) => ({
@@ -80,4 +84,12 @@ export const useDrawStore = create<DrawStore>((set) => ({
   setPenWidth: (width) => set({ penWidth: width }),
   setUsePerfectFreehand: (use) => set({ usePerfectFreehand: use }),
   updateLastActionTime: () => set({ lastActionTime: Date.now() }),
+  
+  // DB 설정과 동기화
+  syncWithDBSettings: () => {
+    const { settings } = useAdminConfigStore.getState();
+    if (settings?.view?.usePerfectFreehand !== undefined) {
+      set({ usePerfectFreehand: settings.view.usePerfectFreehand });
+    }
+  },
 })); 

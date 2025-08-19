@@ -1,6 +1,7 @@
 import React from 'react';
 import { useDrawStore } from '../../store/drawStore';
 import { useEditorStore } from '../../store/editorStore';
+import { useAdminConfigStore } from '../../store/adminConfigStore';
 
 const DrawToolSettings: React.FC = () => {
   const { currentTool } = useEditorStore();
@@ -13,6 +14,7 @@ const DrawToolSettings: React.FC = () => {
     setPenWidth,
     setUsePerfectFreehand
   } = useDrawStore();
+  const { updateSettings } = useAdminConfigStore();
 
   // 필기나 지우개 도구가 선택되지 않으면 렌더링하지 않음
   if (currentTool !== 'pen' && currentTool !== 'eraser') {
@@ -20,6 +22,17 @@ const DrawToolSettings: React.FC = () => {
   }
 
   const widthOptions = [2, 4, 6, 8, 12];
+
+  // perfect-freehand 설정 변경 핸들러
+  const handlePerfectFreehandChange = async (checked: boolean) => {
+    setUsePerfectFreehand(checked);
+    // DB에 설정 저장
+    try {
+      await updateSettings('view', { usePerfectFreehand: checked });
+    } catch (error) {
+      console.error('Failed to save perfect-freehand setting:', error);
+    }
+  };
 
   return (
     <div 
@@ -84,7 +97,7 @@ const DrawToolSettings: React.FC = () => {
               <input
                 type="checkbox"
                 checked={usePerfectFreehand}
-                onChange={(e) => setUsePerfectFreehand(e.target.checked)}
+                onChange={(e) => handlePerfectFreehandChange(e.target.checked)}
                 className="rounded"
               />
               <span className="text-xs text-gray-700">

@@ -95,6 +95,7 @@ export const useAdminConfigStore = create<AdminConfigStore>((set, get) => {
       view: {
         virtualKeyboardEnabled: true,
         touchMode: true,
+        usePerfectFreehand: true, // 기본적으로 perfect-freehand 사용
       }
     },
     isLoading: false,
