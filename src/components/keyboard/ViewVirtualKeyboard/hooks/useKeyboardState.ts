@@ -18,7 +18,7 @@ export const useKeyboardState = () => {
       const savedSize = localStorage.getItem('viewVirtualKeyboard_size');
       
       const defaultPosition = { x: 50, y: window.innerHeight - 300 };
-      const defaultSize = { width: 600, height: 280 };
+      const defaultSize = { width: 600, height: 280 }; // 팔레트가 헤더로 이동했으므로 원래 높이로 복원
       
       return {
         position: savedPosition ? JSON.parse(savedPosition) : defaultPosition,
@@ -27,7 +27,7 @@ export const useKeyboardState = () => {
     } catch {
       return {
         position: { x: 50, y: window.innerHeight - 300 },
-        size: { width: 600, height: 280 }
+        size: { width: 600, height: 280 } // 팔레트가 헤더로 이동했으므로 원래 높이로 복원
       };
     }
   }, []);
@@ -47,6 +47,7 @@ export const useKeyboardState = () => {
   const [isShiftPressed, setIsShiftPressed] = useState(false);
   const [shiftLocked, setShiftLocked] = useState(false);
   const [currentText, setCurrentText] = useState('');
+  const [selectedColor, setSelectedColor] = useState<'black' | 'red' | 'blue'>('black');
 
   // 설정 저장
   const saveSettings = useCallback((newPosition: Position, newSize: Size) => {
@@ -106,6 +107,7 @@ export const useKeyboardState = () => {
     isShiftPressed,
     shiftLocked,
     currentText,
+    selectedColor,
     
     // 세터
     setIsVisible,
@@ -116,6 +118,7 @@ export const useKeyboardState = () => {
     setDragOffset,
     setIsKorean,
     setCurrentText,
+    setSelectedColor,
     
     // 유틸리티
     saveSettings,
