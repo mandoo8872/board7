@@ -257,6 +257,11 @@ export function useCanvasInteractions(isViewPage: boolean) {
       const resizingImageObj = imageObjects.find(obj => obj.id === resizeState.resizedObjectId);
       const shouldMaintainAspectRatio = resizingImageObj?.maintainAspectRatio || false;
       const originalAspectRatio = resizingImageObj ? resizeState.startSize.width / resizeState.startSize.height : 1;
+      // 객체 타입 결정
+      const resizingTextObj = textObjects.find(obj => obj.id === resizeState.resizedObjectId);
+      const objectType = resizingTextObj?.hasCheckbox ? 'checkbox' : 
+                        resizingTextObj ? 'text' : 'image';
+      
       const resizeResult = calculateResize({
         handle: resizeState.resizeHandle as any,
         deltaX: deltas.x,
@@ -264,7 +269,8 @@ export function useCanvasInteractions(isViewPage: boolean) {
         startSize: resizeState.startSize,
         startPosition: resizeState.startObjectPosition,
         maintainAspectRatio: shouldMaintainAspectRatio,
-        originalAspectRatio
+        originalAspectRatio,
+        objectType
       });
       const gridSnapEnabled = settings?.admin?.gridSnapEnabled ?? false;
       const gridSize = settings?.admin?.gridSize ?? 32;

@@ -29,7 +29,7 @@ export const useFloatingToolbar = () => {
       y,
       width: 200,
       height: 60,
-      text: '새 체크박스',
+      text: '체크박스',
       hasCheckbox: true,
       checkboxChecked: false,
       checkboxCheckedColor: checkedColor,

@@ -290,7 +290,7 @@ export function useViewFloatingToolbar() {
       y,
       width: safeSettings.admin.defaultBoxWidth,
       height: safeSettings.admin.defaultBoxHeight,
-      text: '새 체크박스',
+      text: '체크박스',
       hasCheckbox: true,
       checkboxChecked: false,
       checkboxCheckedColor: checkedColor,

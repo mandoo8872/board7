@@ -275,8 +275,8 @@ const TextObjectRenderer: React.FC<TextObjectRendererProps> = ({
         )}
       </div>
 
-      {/* 크기조절 핸들 - 텍스트 박스에만 표시 */}
-      {isSelected && !isViewPage && obj.permissions?.resizable && !obj.hasCheckbox && obj.cellType !== 'cell' && (
+      {/* 크기조절 핸들 - 텍스트 박스와 체크박스에 표시 (어드민 페이지에서만) */}
+      {isSelected && !isViewPage && obj.permissions?.resizable && obj.cellType !== 'cell' && (
         <ResizeHandles onPointerDown={onResizePointerDown} objectId={obj.id} />
       )}
     </div>
