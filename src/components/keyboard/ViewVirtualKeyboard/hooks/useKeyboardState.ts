@@ -48,6 +48,13 @@ export const useKeyboardState = () => {
   const [shiftLocked, setShiftLocked] = useState(false);
   const [currentText, setCurrentText] = useState('');
   const [selectedColor, setSelectedColor] = useState<'black' | 'red' | 'blue'>('black');
+  
+  // 텍스트 스타일 상태 추가
+  const [textStyle, setTextStyle] = useState({
+    bold: false,
+    italic: false,
+    fontSize: 28
+  });
 
   // 설정 저장
   const saveSettings = useCallback((newPosition: Position, newSize: Size) => {
@@ -108,6 +115,7 @@ export const useKeyboardState = () => {
     shiftLocked,
     currentText,
     selectedColor,
+    textStyle,
     
     // 세터
     setIsVisible,
@@ -119,6 +127,7 @@ export const useKeyboardState = () => {
     setIsKorean,
     setCurrentText,
     setSelectedColor,
+    setTextStyle,
     
     // 유틸리티
     saveSettings,

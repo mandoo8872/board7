@@ -35,6 +35,7 @@ const ViewVirtualKeyboard: React.FC = () => {
     isShiftPressed,
     currentText,
     selectedColor,
+    textStyle,
     setIsVisible,
     setPosition,
     setSize,
@@ -44,6 +45,7 @@ const ViewVirtualKeyboard: React.FC = () => {
     setIsKorean,
     setCurrentText,
     setSelectedColor,
+    setTextStyle,
     saveSettings,
     constrainToViewport,
     handleShiftPress,
@@ -104,6 +106,13 @@ const ViewVirtualKeyboard: React.FC = () => {
         }
         
         setSelectedColor(initialColor);
+        
+        // 기존 객체의 스타일을 초기값으로 설정
+        setTextStyle({
+          bold: textObj.textStyle?.bold || false,
+          italic: textObj.textStyle?.italic || false,
+          fontSize: textObj.fontSize || 28
+        });
         setIsVisible(true);
       }
     };
@@ -240,6 +249,14 @@ const ViewVirtualKeyboard: React.FC = () => {
     setSelectedColor(color);
   }, [setSelectedColor]);
 
+  // 스타일 변경 핸들러
+  const handleStyleChange = useCallback((style: 'bold' | 'italic' | 'fontSize', value: boolean | number) => {
+    setTextStyle(prev => ({
+      ...prev,
+      [style]: value
+    }));
+  }, [setTextStyle]);
+
   // 입력 완료 - 텍스트를 객체에 반영하고 키보드 숨기기
   const handleApplyText = useCallback(() => {
     if (selectedObjectId) {
@@ -254,7 +271,7 @@ const ViewVirtualKeyboard: React.FC = () => {
       // 기존 객체 찾기
       const existingObject = textObjects.find(obj => obj.id === selectedObjectId);
       
-      // 기존 속성 유지하면서 색상만 업데이트
+      // 기존 속성 유지하면서 스타일 업데이트
       const updatedTextStyle = {
         ...(existingObject?.textStyle || {
           bold: false,
@@ -263,19 +280,22 @@ const ViewVirtualKeyboard: React.FC = () => {
           verticalAlign: 'middle',
           fontFamily: 'Arial'
         }),
-        color: colorMap[selectedColor]
+        color: colorMap[selectedColor],
+        bold: textStyle.bold,
+        italic: textStyle.italic
       };
       
       updateTextObject(selectedObjectId, { 
         text: finalizedText,
         textStyle: updatedTextStyle,
+        fontSize: textStyle.fontSize,
         isEditing: false 
       });
     }
     setIsVisible(false);
     setCurrentText('');
     resetHangulState();
-  }, [selectedObjectId, currentText, selectedColor, finalizeCurrentChar, updateTextObject, textObjects, setIsVisible, setCurrentText, resetHangulState]);
+  }, [selectedObjectId, currentText, selectedColor, textStyle, finalizeCurrentChar, updateTextObject, textObjects, setIsVisible, setCurrentText, resetHangulState]);
 
   // 입력 취소 - 변경사항 무시하고 키보드 숨기기
   const handleCancelText = useCallback(() => {
@@ -315,6 +335,9 @@ const ViewVirtualKeyboard: React.FC = () => {
         onPointerDown={handleHeaderPointerDown}
         selectedColor={selectedColor}
         onColorSelect={handleColorSelect}
+        textStyle={textStyle}
+        onStyleChange={handleStyleChange}
+        scale={1}
       />
 
       {/* 텍스트 입력 영역 */}
