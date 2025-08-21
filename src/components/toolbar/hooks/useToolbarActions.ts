@@ -202,7 +202,7 @@ export function useToolbarActions(params: UseToolbarActionsParams) {
       y,
       width: safeSettings.admin.defaultBoxWidth,
       height: safeSettings.admin.defaultBoxHeight,
-      text: '새 체크박스',
+      text: '체크박스',
       fontSize: safeSettings.admin.defaultFontSize,
       textStyle: {
         color: '#000000',
