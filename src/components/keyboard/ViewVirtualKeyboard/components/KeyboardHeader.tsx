@@ -26,7 +26,7 @@ const KeyboardHeader: React.FC<KeyboardHeaderProps> = ({
   const colorPalette = [
     { id: 'black' as const, color: '#000000' },
     { id: 'red' as const, color: '#D32F2F' },
-    { id: 'blue' as const, color: '#2563EB' } // blue-600에 해당하는 더 짙은 파란색
+    { id: 'blue' as const, color: '#0000FF' } // 순수한 파란색
   ];
 
   // 스케일 기반 크기 계산

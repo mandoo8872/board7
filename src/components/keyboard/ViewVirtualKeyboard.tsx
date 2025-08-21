@@ -265,7 +265,7 @@ const ViewVirtualKeyboard: React.FC = () => {
       const colorMap = {
         black: '#000000',
         red: '#D32F2F',
-        blue: '#2563EB' // blue-600에 해당하는 더 짙은 파란색
+        blue: '#0000FF' // 순수한 파란색
       };
       
       // 기존 객체 찾기
