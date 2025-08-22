@@ -2,10 +2,16 @@ import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { useAdminConfigStore, useEditorStore } from '../store';
 import BaseLayer from './layers/BaseLayer';
 import FixedGridLayer from './layers/FixedGridLayer';
+import DBGridHydrator from './layers/BaseLayer/DBGridHydrator';
+import { flags } from '../flags';
+import GridEditorLayer from '../features/gridEditor/GridEditorLayer';
+import { useGridEditorStore } from '../features/gridEditor/gridEditorStore';
+import GridBoxesOverlay from './layers/GridBoxesOverlay';
 import DrawLayer from './layers/DrawLayer';
 import GridLayer from './layers/GridLayer';
 import ExcelPreviewLayer from './layers/ExcelPreviewLayer';
 import { useCanvasInteractions } from './layers/BaseLayer/hooks/useCanvasInteractions';
+import SnapPreviewOverlay from './layers/BaseLayer/SnapPreviewOverlay';
 
 interface CanvasProps {
   isViewPage?: boolean;
@@ -236,6 +242,8 @@ const Canvas: React.FC<CanvasProps> = ({ isViewPage = false }) => {
     return isViewPage ? 'default' : 'default';
   };
 
+  const gridEditorMode = useGridEditorStore((s) => s.mode);
+
   return (
     <div 
       ref={containerRef}
@@ -343,6 +351,10 @@ const Canvas: React.FC<CanvasProps> = ({ isViewPage = false }) => {
           bottom: 0,
           zIndex: 100,
         }}>
+          {/* DB Grid hydrator: injects v2 centers when enabled */}
+          {flags.useCellCenterSnapV2 && (
+            <DBGridHydrator imageBoxWorld={{ x: 0, y: 0, w: CANVAS_WIDTH, h: CANVAS_HEIGHT }} />
+          )}
           {/* 그리드 레이어: 배경 위에 표시 */}
           <GridLayer 
             gridEnabled={safeGridSettings.gridVisible}
@@ -359,6 +371,21 @@ const Canvas: React.FC<CanvasProps> = ({ isViewPage = false }) => {
 
           {/* 엑셀 미리보기 레이어: BaseLayer 위에 배치 */}
           <ExcelPreviewLayer />
+
+          {/* 저장된 DB 그리드 박스 표시(어드민 전용) */}
+          {flags.enableGridEditor && !isViewPage && (
+            <GridBoxesOverlay imageBoxWorld={{ x: 0, y: 0, w: CANVAS_WIDTH, h: CANVAS_HEIGHT }} />
+          )}
+
+          {/* 스냅 미리보기 오버레이 */}
+          {flags.useCellCenterSnapV2 && (
+            <SnapPreviewOverlay />
+          )}
+
+          {/* Grid editor */}
+          {flags.enableGridEditor && !isViewPage && (
+            <GridEditorLayer imageBoxWorld={{ x: 0, y: 0, w: CANVAS_WIDTH, h: CANVAS_HEIGHT }} enabled={gridEditorMode !== 'off'} />
+          )}
         </div>
 
         {/* 최상단: DrawLayer - zIndex 10000 (항상 최상단) */}

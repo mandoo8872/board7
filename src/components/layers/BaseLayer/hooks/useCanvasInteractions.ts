@@ -24,6 +24,8 @@ import {
   calculateCellRange,
   handlePointerCapture
 } from '../utils';
+import { findSnapCandidate } from '../utils/snapV2';
+import { useCanvasStore } from '../../../../store/canvasStore';
 import { TextObjectData } from '../types';
 
 interface ClickState {
@@ -54,6 +56,7 @@ export function useCanvasInteractions(isViewPage: boolean) {
 
   const { updatePointerEventTime, isGhostClick, isIPhone } = useDeviceDetection();
   const { dragState, startDrag, updateDragPosition, endDrag, isDraggingObject } = useDragState();
+  const { stepSnapDuringDrag, setSnapPreview, clearSnapPreview } = useCanvasStore();
   const { resizeState, startResize, updateResize, endResize, isResizingObject } = useResizeState();
   const { handleClipboardPaste } = useClipboard(addImageObject, addTextObject, settings);
   const { saveSnapshot, executeUndo, executeRedo, initializePresent } = useUndoRedo();
@@ -235,21 +238,49 @@ export function useCanvasInteractions(isViewPage: boolean) {
   }, [textObjects, imageObjects, startResize]);
 
   const onPointerMoveImpl = useCallback((e: React.PointerEvent) => {
+    const resolveCanvasContainer = (): HTMLElement | null => {
+      const ct = (e.currentTarget as any);
+      if (ct && typeof ct.closest === 'function') {
+        const el = ct.closest('[data-canvas-container]') as HTMLElement | null;
+        if (el) return el;
+      }
+      const tg = (e.target as any);
+      if (tg && typeof tg.closest === 'function') {
+        const el = tg.closest('[data-canvas-container]') as HTMLElement | null;
+        if (el) return el;
+      }
+      const qs = document.querySelector('[data-canvas-container]') as HTMLElement | null;
+      return qs;
+    };
+
     if (dragState.isDragging && dragState.draggedObjectId) {
-      const canvasContainer = e.currentTarget.closest('[data-canvas-container]') as HTMLElement;
+      const canvasContainer = resolveCanvasContainer();
       if (!canvasContainer) return;
       const mousePosition = getCanvasCoordinates(e.clientX, e.clientY, canvasContainer);
       const scale = getCanvasScale(canvasContainer);
       const newPosition = calculateDragPosition(mousePosition, dragState.offset, scale);
       const gridSnapEnabled = settings?.admin?.gridSnapEnabled ?? false;
       const gridSize = settings?.admin?.gridSize ?? 32;
-      const { position: finalPosition } = applyGridSnap(newPosition, undefined, gridSnapEnabled, gridSize);
       const obj = textObjects.find(o => o.id === dragState.draggedObjectId) || imageObjects.find(o => o.id === dragState.draggedObjectId);
+      // 객체 중심 스냅을 적용하려면 size를 함께 전달해야 함
+      const sizeForSnap = obj ? { width: obj.width, height: obj.height } : undefined;
+      // v2 미리보기 후보 계산 (화면 좌표 기반)
+      const worldToScreen = (p: { x: number; y: number }) => ({ x: p.x * scale, y: p.y * scale });
+      const anchor = sizeForSnap ? { x: newPosition.x + sizeForSnap.width / 2, y: newPosition.y + sizeForSnap.height / 2 } : newPosition;
+      const candidate = findSnapCandidate(anchor as any, worldToScreen, scale, null, 16, 1.5);
+      if (candidate && sizeForSnap) {
+        setSnapPreview({ center: candidate, rect: { x: candidate.x - sizeForSnap.width / 2, y: candidate.y - sizeForSnap.height / 2, w: sizeForSnap.width, h: sizeForSnap.height } });
+      } else {
+        clearSnapPreview();
+      }
+      const { position: finalPosition } = (stepSnapDuringDrag || (settings?.admin?.stepSnapDuringDrag ?? false))
+        ? applyGridSnap(newPosition, sizeForSnap as any, gridSnapEnabled, gridSize)
+        : { position: newPosition } as any;
       const { position: safePosition } = validatePositionAndSize(finalPosition, undefined, obj ? { x: obj.x, y: obj.y } : undefined);
       updateDragPosition(safePosition);
     }
     if (resizeState.isResizing && resizeState.resizedObjectId) {
-      const canvasContainer = e.currentTarget.closest('[data-canvas-container]') as HTMLElement;
+      const canvasContainer = resolveCanvasContainer();
       if (!canvasContainer) return;
       const mousePosition = getCanvasCoordinates(e.clientX, e.clientY, canvasContainer);
       const startMousePosition = getCanvasCoordinates(resizeState.startPosition.x, resizeState.startPosition.y, canvasContainer);
@@ -318,7 +349,18 @@ export function useCanvasInteractions(isViewPage: boolean) {
   const onPointerUp = useCallback((e: React.PointerEvent) => {
     handlePointerCapture(e, isIPhone(), 'release');
     if (dragState.isDragging && dragState.draggedObjectId) {
-      const finalPosition = dragState.currentPosition;
+      let finalPosition = dragState.currentPosition;
+      // 스텝 스냅이 꺼져있다면 업 시점에 한 번만 스냅 확정
+      const stepMode = (settings?.admin?.stepSnapDuringDrag ?? false) || stepSnapDuringDrag;
+      const gridSnapEnabled = settings?.admin?.gridSnapEnabled ?? false;
+      const gridSize = settings?.admin?.gridSize ?? 32;
+      const objForSize = textObjects.find(obj => obj.id === dragState.draggedObjectId) || imageObjects.find(obj => obj.id === dragState.draggedObjectId);
+      const sizeForSnap = objForSize ? { width: objForSize.width, height: objForSize.height } : undefined;
+      if (!stepMode) {
+        const snapped = applyGridSnap(finalPosition, sizeForSnap as any, gridSnapEnabled, gridSize);
+        finalPosition = snapped.position;
+      }
+      clearSnapPreview();
       const textObj = textObjects.find(obj => obj.id === dragState.draggedObjectId);
       const imageObj = imageObjects.find(obj => obj.id === dragState.draggedObjectId);
       if (textObj) {

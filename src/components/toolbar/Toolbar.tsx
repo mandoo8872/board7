@@ -8,6 +8,7 @@ import ExcelDataSection from './sections/ExcelDataSection';
 import ObjectPropertiesSection from './sections/ObjectPropertiesSection';
 import ExcelCellPropertiesSection from './sections/ExcelCellPropertiesSection';
 import DataManagementSection from './sections/DataManagementSection';
+import GridManagerSection from './sections/GridManagerSection';
 import SettingsSection from './sections/SettingsSection';
 
 // 커스텀 hooks import
@@ -226,7 +227,10 @@ const ToolbarRefactored: React.FC = () => {
             clearCellSelection={clearSelection}
           />
 
-          {/* 4. 데이터 관리 */}
+          {/* 4. 그리드 설정 */}
+          <GridManagerSection />
+
+          {/* 5. 데이터 관리 */}
           <DataManagementSection
             isExpanded={isDataManagementExpanded}
             onToggle={toggleDataManagement}
@@ -238,7 +242,7 @@ const ToolbarRefactored: React.FC = () => {
             initializeFirebaseListeners={initializeFirebaseListeners}
           />
 
-          {/* 5. 설정 */}
+          {/* 6. 설정 */}
           <SettingsSection
             isExpanded={isSettingsExpanded}
             onToggle={toggleSettings}

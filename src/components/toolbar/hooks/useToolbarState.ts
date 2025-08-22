@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 
 export const useToolbarState = () => {
   // 설정 메뉴 접기/펼치기 상태
@@ -14,9 +14,33 @@ export const useToolbarState = () => {
   // 디바운싱을 위한 타이머 ref
   const updateTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-  const toggleSettings = () => setIsSettingsExpanded(!isSettingsExpanded);
-  const toggleExcelPaste = () => setIsExcelPasteExpanded(!isExcelPasteExpanded);
-  const toggleDataManagement = () => setIsDataManagementExpanded(!isDataManagementExpanded);
+  const toggleSettings = () => {
+    const next = !isSettingsExpanded;
+    setIsSettingsExpanded(next);
+    if (next) {
+      setIsExcelPasteExpanded(false);
+      setIsDataManagementExpanded(false);
+      window.dispatchEvent(new CustomEvent('toolbar-open', { detail: 'settings' } as any));
+    }
+  };
+  const toggleExcelPaste = () => {
+    const next = !isExcelPasteExpanded;
+    setIsExcelPasteExpanded(next);
+    if (next) {
+      setIsSettingsExpanded(false);
+      setIsDataManagementExpanded(false);
+      window.dispatchEvent(new CustomEvent('toolbar-open', { detail: 'excel' } as any));
+    }
+  };
+  const toggleDataManagement = () => {
+    const next = !isDataManagementExpanded;
+    setIsDataManagementExpanded(next);
+    if (next) {
+      setIsSettingsExpanded(false);
+      setIsExcelPasteExpanded(false);
+      window.dispatchEvent(new CustomEvent('toolbar-open', { detail: 'data' } as any));
+    }
+  };
 
   const resetExcelData = () => {
     setExcelPasteData('');
@@ -29,6 +53,19 @@ export const useToolbarState = () => {
       updateTimerRef.current = null;
     }
   };
+
+  // GridManagerSection가 열릴 때(=detail 'grid') 다른 카드 접기
+  useEffect(() => {
+    const h = (e: any) => {
+      if (e && e.detail === 'grid') {
+        setIsSettingsExpanded(false);
+        setIsExcelPasteExpanded(false);
+        setIsDataManagementExpanded(false);
+      }
+    };
+    window.addEventListener('toolbar-open', h);
+    return () => window.removeEventListener('toolbar-open', h);
+  }, []);
 
   return {
     // 상태

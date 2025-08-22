@@ -1,6 +1,6 @@
 import React from 'react';
 import type { SafeSettings } from '../types';
-import { Gear, FolderOpen, Eye, Image, SquaresFour, MapPin, Lock, Wrench, CheckSquare } from 'phosphor-react';
+import { Gear, FolderOpen, Eye, Image, MapPin, Lock, Wrench, CheckSquare } from 'phosphor-react';
 import { useSettingsSection } from '../hooks/useSettingsSection';
 
 interface SettingsSectionProps {
@@ -45,59 +45,9 @@ const SettingsSection: React.FC<SettingsSectionProps> = ({
       {isExpanded && (
         <div className="p-4 border-t border-slate-200 space-y-4">
           
-          {/* 그리드 설정 */}
-          <div className="bg-slate-50 rounded-lg p-3 space-y-3">
-            <h4 className="text-xs font-bold text-slate-600 flex items-center gap-1">
-              <SquaresFour size={16} weight="duotone" color="#302929" /> 그리드
-            </h4>
-            
-            <div className="space-y-2">
-              <label className="flex items-center gap-2 text-xs">
-                <input 
-                  type="checkbox" 
-                  checked={safeSettings.admin.gridVisible}
-                  onChange={(e) => updateSettings('admin', { gridVisible: e.target.checked })}
-                  className="rounded" 
-                />
-                <span>그리드 표시</span>
-              </label>
+          {/* (구버전) 그리드 설정 블록 제거 - 새 툴바로 이동 */}
 
-              <label className="flex items-center gap-2 text-xs">
-                <input 
-                  type="checkbox" 
-                  checked={safeSettings.admin.gridSnapEnabled}
-                  onChange={(e) => updateSettings('admin', { gridSnapEnabled: e.target.checked })}
-                  className="rounded" 
-                />
-                <span>그리드에 스냅</span>
-              </label>
-              
-              <div>
-                <label className="text-xs font-medium text-slate-600 mb-1 block">그리드 크기</label>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => updateSettings('admin', { 
-                      gridSize: Math.max(5, safeSettings.admin.gridSize - 4) 
-                    })}
-                    className="px-2 py-1 bg-white hover:bg-slate-100 rounded text-xs border"
-                  >
-                    ▼
-                  </button>
-                  <span className="flex-1 text-center text-sm font-mono bg-white py-1 rounded border">
-                    {safeSettings.admin.gridSize}px
-                  </span>
-                  <button
-                    onClick={() => updateSettings('admin', { 
-                      gridSize: Math.min(64, safeSettings.admin.gridSize + 4) 
-                    })}
-                    className="px-2 py-1 bg-white hover:bg-slate-100 rounded text-xs border"
-                  >
-                    ▲
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
+          {/* 그리드 편집 모드 섹션 제거됨 (GridManagerSection로 통합) */}
 
           {/* 객체 생성 위치 */}
           <div className="bg-slate-50 rounded-lg p-3 space-y-3">
@@ -479,6 +429,7 @@ const SettingsSection: React.FC<SettingsSectionProps> = ({
                 </div>
               </div>
             </div>
+
           </div>
         </div>
       )}
@@ -487,3 +438,4 @@ const SettingsSection: React.FC<SettingsSectionProps> = ({
 };
 
 export default SettingsSection;
+ 

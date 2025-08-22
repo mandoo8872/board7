@@ -164,6 +164,7 @@ export interface AdminSettings {
   gridVisible: boolean;
   gridSize: number;
   gridSnapEnabled: boolean;
+  stepSnapDuringDrag?: boolean;
   defaultFontSize: number;
   defaultBoxWidth: number;
   defaultBoxHeight: number;
