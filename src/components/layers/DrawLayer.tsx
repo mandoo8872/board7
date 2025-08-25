@@ -22,13 +22,28 @@ const DrawLayer: React.FC<DrawLayerProps> = () => {
   const renderTimeoutRef = useRef<NodeJS.Timeout | null>(null); // 렌더링 타이머 추적
   const renderAnimationRef = useRef<number | null>(null); // 렌더링 애니메이션 프레임 추적
   // 저지연: 포인터 입력 rAF 코얼레싱
-  const lastPointRef = useRef<{ x: number; y: number; pressure: number; tiltX: number; tiltY: number } | null>(null);
+  const lastPointRef = useRef<{ x: number; y: number; pressure: number; tiltX: number; tiltY: number; inputType: 'pen'|'touch'|'mouse' } | null>(null);
+  const prevPointRef = useRef<{ x: number; y: number; t: number } | null>(null);
   const lastEraseRef = useRef<{ x: number; y: number } | null>(null);
   const rafInputRef = useRef<number | null>(null);
   // 정적 스트로크 오프스크린 캐시
   const staticCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const staticDirtyRef = useRef<boolean>(true);
   const markStaticDirty = useCallback(() => { staticDirtyRef.current = true; }, []);
+  // 벡터 즉시 반영: 숨김 ID 세트 + 삭제 큐
+  const hiddenStrokeIdsRef = useRef<Set<string>>(new Set());
+  const deleteQueueRef = useRef<Set<string>>(new Set());
+  const deleteTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const scheduleDeleteFlush = useCallback(() => {
+    if (deleteTimerRef.current) { clearTimeout(deleteTimerRef.current); deleteTimerRef.current = null; }
+    const delay = flags.saveDebounceMs ?? 400;
+    deleteTimerRef.current = setTimeout(async () => {
+      const ids = Array.from(deleteQueueRef.current);
+      deleteQueueRef.current.clear();
+      for (const id of ids) { try { await remove(ref(database, `drawObjects/${id}`)); } catch {} }
+      deleteTimerRef.current = null;
+    }, delay);
+  }, []);
   
   const { 
     currentStroke, 
@@ -69,44 +84,18 @@ const DrawLayer: React.FC<DrawLayerProps> = () => {
   }, []);
 
   // perfect-freehand 옵션 설정
-  const getStrokeOptions = useCallback((inputType: string = 'mouse') => {
-    const baseOptions = {
-      size: penWidth * 2,
-      thinning: 0.5,
-      smoothing: 0.5,
-      streamline: 0.5,
+  const getStrokeOptions = useCallback((_inputType: string = 'mouse') => {
+    // 볼펜 프리셋(균일 선): simulatePressure 비활성 + 보수적 파라미터
+    return {
+      size: penWidth * 2, // 운영 굵기 유지
+      simulatePressure: false,
+      thinning: 0.1,
+      smoothing: 0.6,
+      streamline: 0.35,
       easing: (t: number) => t,
-      start: {
-        taper: 0,
-        easing: (t: number) => t,
-        cap: true
-      },
-      end: {
-        taper: 100,
-        easing: (t: number) => t,
-        cap: true
-      }
-    };
-
-    // 입력 타입에 따른 최적화
-    if (inputType === 'pen') {
-      return {
-        ...baseOptions,
-        thinning: 0.7, // 펜 입력 시 더 강한 압력 감도
-        smoothing: 0.3, // 더 정밀한 입력
-        streamline: 0.3
-      };
-    } else if (inputType === 'touch') {
-      return {
-        ...baseOptions,
-        thinning: 0.4, // 터치 입력 시 약한 압력 감도
-        smoothing: 0.7, // 더 부드러운 곡선
-        streamline: 0.7,
-        size: penWidth * 2.5 // 터치 시 약간 더 굵게
-      };
-    }
-
-    return baseOptions;
+      start: { taper: 0, easing: (t: number) => t, cap: true },
+      end: { taper: 0, easing: (t: number) => t, cap: true },
+    } as any;
   }, [penWidth]);
 
 
@@ -251,8 +240,9 @@ const DrawLayer: React.FC<DrawLayerProps> = () => {
     if (staticDirtyRef.current) {
       const sctx = sc.getContext('2d')!;
       sctx.clearRect(0, 0, sc.width, sc.height);
-      // 저장된 스트로크만 렌더(고정)
+      // 저장된 스트로크만 렌더(고정), 숨김 ID 제외
       drawObjects.forEach(stroke => {
+        if (hiddenStrokeIdsRef.current.has(stroke.id)) return;
         if (stroke.points.length < 4) return;
         if (usePerfectFreehand && stroke.usePerfectFreehand) {
           try {
@@ -402,18 +392,39 @@ const DrawLayer: React.FC<DrawLayerProps> = () => {
     // pen
     const lp = lastPointRef.current;
     if (lp && isDrawing) {
-      addPoint(lp.x, lp.y, lp.pressure, lp.tiltX, lp.tiltY);
+      // IR 의사압력: 펜 이외 입력은 속도 기반 약변주(0.35~0.85)
+      // 볼펜 모드: 압력 고정
+      let p = 0.7;
+      addPoint(lp.x, lp.y, p, lp.tiltX, lp.tiltY);
       renderAll();
     }
-    // eraser
+    // eraser — 벡터 즉시 반영: 교차 스트로크 숨김 + 삭제 큐에 추가
     const le = lastEraseRef.current;
     if (le && isErasingRef.current) {
-      eraseAtPoint(le.x, le.y);
+      let anyChanged = false;
+      for (const stroke of drawObjects) {
+        if (hiddenStrokeIdsRef.current.has(stroke.id)) continue;
+        const pts = stroke.points;
+        for (let i = 0; i < pts.length; i += 2) {
+          const dx = pts[i] - le.x; const dy = pts[i + 1] - le.y;
+          if (dx * dx + dy * dy <= 20 * 20) { // 반경 20px 월드 기준
+            hiddenStrokeIdsRef.current.add(stroke.id);
+            deleteQueueRef.current.add(stroke.id);
+            anyChanged = true;
+            break;
+          }
+        }
+      }
+      if (anyChanged) {
+        scheduleDeleteFlush();
+        markStaticDirty();
+        renderAll();
+      }
     }
     if (isDrawing || isErasingRef.current) {
       nextFrame();
     }
-  }, [isDrawing, addPoint, eraseAtPoint, renderAll]);
+  }, [isDrawing, addPoint, renderAll, toScreenCoords, compositeFrame]);
 
   // 입력 타입 검증 함수 (iPhone Safari 호환성 개선)
   const isValidInputType = useCallback((e: React.PointerEvent) => {
@@ -480,6 +491,8 @@ const DrawLayer: React.FC<DrawLayerProps> = () => {
     
     // 활성 포인터 설정
     activePointerRef.current = e.pointerId;
+    // 포인터 캡처
+    try { (e.currentTarget as any)?.setPointerCapture?.(e.pointerId); } catch {}
     
     // 기존 자동 전환 타이머 취소 (새로운 액션 시작)
     if (autoSwitchTimeoutRef.current) {
@@ -501,12 +514,12 @@ const DrawLayer: React.FC<DrawLayerProps> = () => {
       startStroke();
       
       // 압력과 기울기 데이터 추출 (iPhone에서는 기본값 사용)
-      const pressure = e.pressure || (isIPhone ? 0.7 : 0.5); // iPhone 터치는 약간 더 강하게
+      const pressure = 0.7; // 볼펜 모드: 압력 고정
       const tiltX = e.tiltX || 0;
       const tiltY = e.tiltY || 0;
       
       if (flags.lowLatencyMode) {
-        lastPointRef.current = { x: coords.x, y: coords.y, pressure, tiltX, tiltY };
+        lastPointRef.current = { x: coords.x, y: coords.y, pressure, tiltX, tiltY, inputType: e.pointerType === 'pen' ? 'pen' : (e.pointerType === 'touch' ? 'touch' : 'mouse') };
         if (rafInputRef.current == null) {
           rafInputRef.current = requestAnimationFrame(runInputRaf);
         }
@@ -552,11 +565,11 @@ const DrawLayer: React.FC<DrawLayerProps> = () => {
       e.preventDefault();
       
       const coords = getCanvasCoordinates(e.clientX, e.clientY);
-      const pressure = e.pressure || 0.5;
+      const pressure = 0.7; // 볼펜 모드: 압력 고정
       const tiltX = e.tiltX || 0;
       const tiltY = e.tiltY || 0;
       if (flags.lowLatencyMode) {
-        lastPointRef.current = { x: coords.x, y: coords.y, pressure, tiltX, tiltY };
+        lastPointRef.current = { x: coords.x, y: coords.y, pressure, tiltX, tiltY, inputType: e.pointerType === 'pen' ? 'pen' : (e.pointerType === 'touch' ? 'touch' : 'mouse') };
         if (rafInputRef.current == null) {
           rafInputRef.current = requestAnimationFrame(runInputRaf);
         }
@@ -642,7 +655,15 @@ const DrawLayer: React.FC<DrawLayerProps> = () => {
     // 지우개 드래그 종료
     if (currentTool === 'eraser' && isErasingRef.current) {
       isErasingRef.current = false;
-      
+      // 업 시점에 삭제 큐가 남아있다면 즉시 플러시
+      if (flags.lowLatencyMode && deleteQueueRef.current.size > 0) {
+        if (deleteTimerRef.current) { clearTimeout(deleteTimerRef.current); deleteTimerRef.current = null; }
+        const ids = Array.from(deleteQueueRef.current);
+        deleteQueueRef.current.clear();
+        for (const id of ids) { try { await remove(ref(database, `drawObjects/${id}`)); } catch {} }
+        markStaticDirty();
+        renderAll();
+      }
       // 지우개 완료 후 자동 전환 스케줄링
       scheduleAutoSwitch();
     }
@@ -656,6 +677,7 @@ const DrawLayer: React.FC<DrawLayerProps> = () => {
     }
     lastPointRef.current = null;
     lastEraseRef.current = null;
+    prevPointRef.current = null;
     
     // 웹킷에서 터치 입력 후 잠시 대기 (펜 입력과의 충돌 방지)
     if (isWebkitRef.current && e.pointerType === 'touch') {

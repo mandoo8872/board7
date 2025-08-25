@@ -61,9 +61,9 @@ export const useDrawStore = create<DrawStore>((set) => ({
     '#FF00FF', '#00FFFF', '#FFA500', '#800080', '#A52A2A'
   ],
   
-  addPoint: (x, y, pressure = 0.5, tiltX = 0, tiltY = 0) => set((state) => ({
+  addPoint: (x, y, _pressure = 0.7, tiltX = 0, tiltY = 0) => set((state) => ({
     currentStroke: [...state.currentStroke, x, y],
-    currentPressureStroke: [...state.currentPressureStroke, { x, y, pressure, tiltX, tiltY }]
+    currentPressureStroke: [...state.currentPressureStroke, { x, y, pressure: 0.7, tiltX, tiltY }]
   })),
   
   startStroke: () => set({ 
