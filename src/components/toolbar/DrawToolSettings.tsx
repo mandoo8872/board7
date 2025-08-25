@@ -21,7 +21,7 @@ const DrawToolSettings: React.FC = () => {
     return null;
   }
 
-  const widthOptions = [2, 4, 6, 8, 12];
+  const widthOptions = [1, 2, 3, 4, 5];
 
   // perfect-freehand 설정 변경 핸들러
   const handlePerfectFreehandChange = async (checked: boolean) => {
@@ -82,7 +82,7 @@ const DrawToolSettings: React.FC = () => {
                   }`}
                   onClick={() => setPenWidth(width)}
                 >
-                  {width}px
+                  {width}
                 </button>
               ))}
             </div>

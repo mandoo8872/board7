@@ -275,7 +275,7 @@ const ViewFloatingToolbar: React.FC = () => {
             <input
               type="range"
               min={1}
-              max={20}
+              max={5}
               step={1}
               value={penWidth}
               onChange={(e) => setPenWidth(Number(e.target.value))}

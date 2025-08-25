@@ -49,7 +49,7 @@ export const useDrawStore = create<DrawStore>((set) => ({
   
   // 필기 설정
   penColor: '#000000', // 기본 검은색
-  penWidth: 4,
+  penWidth: 3,
   usePerfectFreehand: true, // 기본적으로 perfect-freehand 사용
   
   // 액션 추적
