@@ -8,6 +8,7 @@ import { setDBGridCentersWorld } from '../../../components/layers/BaseLayer/util
 
 const GridManagerSection: React.FC = () => {
   const { setMode, draft, startDraft, loadFromItem, reset, setRows, setCols, viewEnabled, setViewEnabled, clearDraft } = useGridEditorStore();
+  const imageBoxWorld = { x: 0, y: 0, w: window.innerWidth, h: window.innerHeight } as any; // fallback; real path uses DBGridHydrator
   const [items, setItems] = useState<GridConfigItem[]>([]);
   const [open, setOpen] = useState(false);
   const [label, setLabel] = useState('');
@@ -36,7 +37,8 @@ const GridManagerSection: React.FC = () => {
     // 전체 목록 기준으로 스냅 주입 (마지막만 반영되는 문제 방지)
     const list = await loadGridConfigs();
     setItems(list);
-    const allCenters = list.flatMap((g) => computeCellCenters(g as any, { x: 0, y: 0, w: 2160, h: 3840 }));
+    // imageBoxWorld는 DBGridHydrator에서 실제 값으로 주입되므로, 여기서는 즉시 주입이 필요한 경우에만 화면 기준으로 임시 환산
+    const allCenters = list.flatMap((g) => computeCellCenters(g as any, imageBoxWorld));
     setDBGridCentersWorld(allCenters);
     window.dispatchEvent(new Event('gridConfigsUpdated'));
   };

@@ -16,7 +16,7 @@ function ensureCacheReady() {
   cacheReady = true;
 }
 
-// Public API: returns snapped position if v2 DB grid can supply a target, otherwise null.
+// Public API: returns nearest center if v2 DB grid is available, otherwise null.
 export function getDBSnapPosition(anchorWorld: Position): Position | null {
   if (!flags.useCellCenterSnapV2) return null;
   const { settings } = useAdminConfigStore.getState();
@@ -24,18 +24,13 @@ export function getDBSnapPosition(anchorWorld: Position): Position | null {
   if (!snapOn) return null;
   ensureCacheReady();
   if (!centersWorldCache || centersWorldCache.length === 0) return null;
-  // 화면에서 멀리 있는 객체가 강제로 들어가는 문제 방지: 화면 거리 임계값(px) 적용
-  // 여기서는 간단히 월드 거리 기준으로 필터(스케일 1 기준 64px). UI에서 개선 가능.
-  const MAX_WORLD_DIST = 64; // 객체 기준 근접 센터만 스냅 허용
-  // Find nearest center in O(n); callers are throttled, and array sizes are moderate.
-  // If performance needed, replace with spatial index.
+  // Find nearest center in O(n). Screen-radius thresholding is handled by caller.
   let best: Position | null = null;
   let bestDist2 = Number.POSITIVE_INFINITY;
   for (const c of centersWorldCache) {
     const dx = c.x - anchorWorld.x;
     const dy = c.y - anchorWorld.y;
     const d2 = dx * dx + dy * dy;
-    if (d2 > MAX_WORLD_DIST * MAX_WORLD_DIST) continue;
     if (d2 < bestDist2) {
       best = c;
       bestDist2 = d2;
@@ -51,8 +46,8 @@ export function findSnapCandidate(
   worldToScreen: (p: Position) => Position,
   zoom: number,
   prevCandidate: Position | null,
-  radiusPxBase = 16,
-  hysteresisFactor = 1.5,
+  radiusPxBase = 0,
+  hysteresisFactor = 1.4,
 ): Position | null {
   if (!flags.useCellCenterSnapV2) return null;
   const { settings } = useAdminConfigStore.getState();
@@ -61,11 +56,14 @@ export function findSnapCandidate(
   ensureCacheReady();
   if (!centersWorldCache || centersWorldCache.length === 0) return null;
 
-  const radiusPx = radiusPxBase / Math.max(zoom, 0.01);
-  const keepPx = radiusPx * hysteresisFactor;
+  // 반경 자동 산정: 주변 이웃 간 거리(화면 px) 기반, 8~24px 클램프
+  const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
+  let radiusPx = radiusPxBase;
+  const keepRatio = hysteresisFactor;
 
   let best: Position | null = null;
   let bestDistPx2 = Number.POSITIVE_INFINITY;
+  let secondBestDistPx2 = Number.POSITIVE_INFINITY;
   const anchorScreen = worldToScreen(anchorWorld);
   for (const c of centersWorldCache) {
     const cs = worldToScreen(c);
@@ -73,25 +71,57 @@ export function findSnapCandidate(
     const dy = cs.y - anchorScreen.y;
     const d2 = dx * dx + dy * dy;
     if (d2 < bestDistPx2) {
+      secondBestDistPx2 = bestDistPx2;
       best = c;
       bestDistPx2 = d2;
+    } else if (d2 < secondBestDistPx2) {
+      secondBestDistPx2 = d2;
     }
   }
   if (!best) return null;
+  // 자동 반경 계산
+  if (radiusPx <= 0) {
+    const d1 = Math.sqrt(bestDistPx2);
+    const d2 = secondBestDistPx2 < Number.POSITIVE_INFINITY ? Math.sqrt(secondBestDistPx2) : d1 * 2;
+    const localSpacing = (d1 + d2) * 0.5; // 근접 이웃 간 평균 거리
+    radiusPx = clamp(localSpacing * 0.35, 8, 24);
+  }
+  const keepPx = radiusPx * keepRatio;
   const bestScreen = worldToScreen(best);
   const distPx = Math.hypot(bestScreen.x - anchorScreen.x, bestScreen.y - anchorScreen.y);
+  let locked = false;
   if (prevCandidate) {
     const prevScreen = worldToScreen(prevCandidate);
     const prevDistPx = Math.hypot(prevScreen.x - anchorScreen.x, prevScreen.y - anchorScreen.y);
-    if (prevDistPx <= keepPx) return prevCandidate;
+    if (prevDistPx <= keepPx) {
+      locked = true;
+      // 히스테리시스 잠금: 이전 후보 유지
+      // 개발 모드 디버그 로그 (최대 1줄/초)
+      maybeDebug({ candIdx: -1, distPx: prevDistPx, locked: true, radiusPx, zoom });
+      return prevCandidate;
+    }
   }
-  return distPx <= radiusPx ? best : null;
+  const result = distPx <= radiusPx ? best : null;
+  maybeDebug({ candIdx: -1, distPx, locked, radiusPx, zoom });
+  return result;
 }
 
 // Placeholder API to be called when DB grid config is loaded/changed in future.
 export function setDBGridCentersWorld(centers: Position[] | null) {
   centersWorldCache = centers;
   cacheReady = true;
+}
+
+// --- Dev-only debug (1 line/sec) ---
+let lastDebugTs = 0;
+function maybeDebug(payload: { candIdx: number; distPx: number; locked: boolean; radiusPx: number; zoom: number }) {
+  if (!import.meta.env.DEV) return;
+  if (!flags.enableSnapV2Debug) return;
+  const now = Date.now();
+  if (now - lastDebugTs < 1000) return;
+  lastDebugTs = now;
+  // eslint-disable-next-line no-console
+  console.debug('[SnapV2]', payload);
 }
 
 

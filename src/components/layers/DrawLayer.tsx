@@ -1,4 +1,5 @@
 ﻿import React, { useRef, useEffect, useCallback } from 'react';
+import { flags } from '../../flags';
 import { ref, remove } from 'firebase/database';
 import { database } from '../../config/firebase';
 import { useDrawStore, useAdminConfigStore, useEditorStore } from '../../store';
@@ -20,6 +21,14 @@ const DrawLayer: React.FC<DrawLayerProps> = () => {
   const isMountedRef = useRef<boolean>(true); // 컴포넌트 마운트 상태 추적
   const renderTimeoutRef = useRef<NodeJS.Timeout | null>(null); // 렌더링 타이머 추적
   const renderAnimationRef = useRef<number | null>(null); // 렌더링 애니메이션 프레임 추적
+  // 저지연: 포인터 입력 rAF 코얼레싱
+  const lastPointRef = useRef<{ x: number; y: number; pressure: number; tiltX: number; tiltY: number } | null>(null);
+  const lastEraseRef = useRef<{ x: number; y: number } | null>(null);
+  const rafInputRef = useRef<number | null>(null);
+  // 정적 스트로크 오프스크린 캐시
+  const staticCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const staticDirtyRef = useRef<boolean>(true);
+  const markStaticDirty = useCallback(() => { staticDirtyRef.current = true; }, []);
   
   const { 
     currentStroke, 
@@ -227,6 +236,74 @@ const DrawLayer: React.FC<DrawLayerProps> = () => {
   }, [drawObjects]);
 
   // 전체 렌더링
+  const compositeFrame = useCallback((ctx: CanvasRenderingContext2D) => {
+    const canvas = canvasRef.current!;
+    // 정적 레이어 합성
+    if (!staticCanvasRef.current) {
+      staticCanvasRef.current = document.createElement('canvas');
+    }
+    const sc = staticCanvasRef.current;
+    if (sc.width !== canvas.width || sc.height !== canvas.height) {
+      sc.width = canvas.width;
+      sc.height = canvas.height;
+      staticDirtyRef.current = true;
+    }
+    if (staticDirtyRef.current) {
+      const sctx = sc.getContext('2d')!;
+      sctx.clearRect(0, 0, sc.width, sc.height);
+      // 저장된 스트로크만 렌더(고정)
+      drawObjects.forEach(stroke => {
+        if (stroke.points.length < 4) return;
+        if (usePerfectFreehand && stroke.usePerfectFreehand) {
+          try {
+            const pressurePoints: number[][] = [] as any;
+            for (let i = 0; i < stroke.points.length; i += 2) {
+              const screenCoords = toScreenCoords(stroke.points[i], stroke.points[i + 1]);
+              pressurePoints.push([
+                screenCoords.x,
+                screenCoords.y,
+                stroke.pressure?.[i / 2] || 0.5
+              ]);
+            }
+            if (pressurePoints.length >= 2) {
+              const strokeOptions = getStrokeOptions(stroke.inputType || 'mouse');
+              strokeOptions.size = stroke.width * 2;
+              const pathData = getStroke(pressurePoints, strokeOptions);
+              drawStrokeToCanvas(sctx as any, pathData, stroke.color);
+            }
+          } catch {
+            sctx.beginPath();
+            sctx.strokeStyle = stroke.color;
+            sctx.lineWidth = stroke.width;
+            const startCoords = toScreenCoords(stroke.points[0], stroke.points[1]);
+            sctx.moveTo(startCoords.x, startCoords.y);
+            for (let i = 2; i < stroke.points.length; i += 2) {
+              const coords = toScreenCoords(stroke.points[i], stroke.points[i + 1]);
+              sctx.lineTo(coords.x, coords.y);
+            }
+            sctx.stroke();
+          }
+        } else {
+          sctx.beginPath();
+          sctx.strokeStyle = stroke.color;
+          sctx.lineWidth = stroke.width;
+          const startCoords = toScreenCoords(stroke.points[0], stroke.points[1]);
+          sctx.moveTo(startCoords.x, startCoords.y);
+          for (let i = 2; i < stroke.points.length; i += 2) {
+            const coords = toScreenCoords(stroke.points[i], stroke.points[i + 1]);
+            sctx.lineTo(coords.x, coords.y);
+          }
+          sctx.stroke();
+        }
+      });
+      staticDirtyRef.current = false;
+    }
+    // 합성
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(staticCanvasRef.current!, 0, 0);
+    // 현재 스트로크 오버레이는 호출자가 그린다
+  }, [drawObjects, usePerfectFreehand, toScreenCoords, getStrokeOptions, drawStrokeToCanvas]);
+
   const renderAll = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas) {
@@ -254,71 +331,9 @@ const DrawLayer: React.FC<DrawLayerProps> = () => {
 
     // 컴포넌트가 언마운트되었지만 canvas가 유효하면 렌더링 계속 진행
 
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
-
-    let renderedStrokes = 0;
-
-    // 저장된 스트로크 렌더링
-    drawObjects.forEach(stroke => {
-      if (stroke.points.length < 4) return;
-      
-      if (usePerfectFreehand && stroke.usePerfectFreehand) {
-        // perfect-freehand를 사용한 렌더링
-        try {
-          const pressurePoints = [];
-          for (let i = 0; i < stroke.points.length; i += 2) {
-            const screenCoords = toScreenCoords(stroke.points[i], stroke.points[i + 1]);
-            pressurePoints.push([
-              screenCoords.x, 
-              screenCoords.y, 
-              stroke.pressure?.[i / 2] || 0.5
-            ]);
-          }
-          
-          if (pressurePoints.length >= 2) {
-            const strokeOptions = getStrokeOptions(stroke.inputType || 'mouse');
-            strokeOptions.size = stroke.width * 2;
-            const pathData = getStroke(pressurePoints, strokeOptions);
-            drawStrokeToCanvas(ctx, pathData, stroke.color);
-          }
-        } catch (error) {
-          console.warn('🚫 perfect-freehand 렌더링 실패, 기본 렌더링으로 대체:', error);
-          // 기본 렌더링으로 대체
-          ctx.beginPath();
-          ctx.strokeStyle = stroke.color;
-          ctx.lineWidth = stroke.width;
-          
-          const startCoords = toScreenCoords(stroke.points[0], stroke.points[1]);
-          ctx.moveTo(startCoords.x, startCoords.y);
-          
-          for (let i = 2; i < stroke.points.length; i += 2) {
-            const coords = toScreenCoords(stroke.points[i], stroke.points[i + 1]);
-            ctx.lineTo(coords.x, coords.y);
-          }
-          
-          ctx.stroke();
-        }
-      } else {
-        // 기본 렌더링 방식
-        ctx.beginPath();
-        ctx.strokeStyle = stroke.color;
-        ctx.lineWidth = stroke.width;
-        
-        const startCoords = toScreenCoords(stroke.points[0], stroke.points[1]);
-        ctx.moveTo(startCoords.x, startCoords.y);
-        
-        for (let i = 2; i < stroke.points.length; i += 2) {
-          const coords = toScreenCoords(stroke.points[i], stroke.points[i + 1]);
-          ctx.lineTo(coords.x, coords.y);
-        }
-        
-        ctx.stroke();
-      }
-      
-      renderedStrokes++;
-    });
+    compositeFrame(ctx);
 
     // 현재 스트로크 렌더링
     if (isDrawing && currentStroke.length >= 4) {
@@ -371,10 +386,34 @@ const DrawLayer: React.FC<DrawLayerProps> = () => {
     }
 
     // 첫 렌더링 시에만 로그 출력 (개발 환경)
-    if (!isLoading && renderedStrokes > 0 && import.meta.env.DEV) {
-      console.log(`🖌️ DrawLayer: Rendered ${renderedStrokes} strokes`);
+    if (!isLoading && import.meta.env.DEV) {
+      // console.log(`🖌️ DrawLayer: frame rendered`);
     }
-  }, [drawObjects, currentStroke, currentPressureStroke, isDrawing, penColor, penWidth, usePerfectFreehand, toScreenCoords, isLoading, getStrokeOptions, drawStrokeToCanvas]);
+  }, [currentStroke, currentPressureStroke, isDrawing, penColor, penWidth, usePerfectFreehand, toScreenCoords, isLoading, getStrokeOptions, drawStrokeToCanvas, compositeFrame]);
+
+  // 저지연: 포인터 입력 rAF 처리 루프
+  const runInputRaf = useCallback(() => {
+    rafInputRef.current = null;
+    const nextFrame = () => {
+      if (rafInputRef.current == null) {
+        rafInputRef.current = requestAnimationFrame(runInputRaf);
+      }
+    };
+    // pen
+    const lp = lastPointRef.current;
+    if (lp && isDrawing) {
+      addPoint(lp.x, lp.y, lp.pressure, lp.tiltX, lp.tiltY);
+      renderAll();
+    }
+    // eraser
+    const le = lastEraseRef.current;
+    if (le && isErasingRef.current) {
+      eraseAtPoint(le.x, le.y);
+    }
+    if (isDrawing || isErasingRef.current) {
+      nextFrame();
+    }
+  }, [isDrawing, addPoint, eraseAtPoint, renderAll]);
 
   // 입력 타입 검증 함수 (iPhone Safari 호환성 개선)
   const isValidInputType = useCallback((e: React.PointerEvent) => {
@@ -466,14 +505,28 @@ const DrawLayer: React.FC<DrawLayerProps> = () => {
       const tiltX = e.tiltX || 0;
       const tiltY = e.tiltY || 0;
       
-      addPoint(coords.x, coords.y, pressure, tiltX, tiltY);
-      renderAll();
+      if (flags.lowLatencyMode) {
+        lastPointRef.current = { x: coords.x, y: coords.y, pressure, tiltX, tiltY };
+        if (rafInputRef.current == null) {
+          rafInputRef.current = requestAnimationFrame(runInputRaf);
+        }
+      } else {
+        addPoint(coords.x, coords.y, pressure, tiltX, tiltY);
+        renderAll();
+      }
       
       // 포인트 추가됨
     } else if (currentTool === 'eraser') {
       // 지우개 드래그 시작
       isErasingRef.current = true;
-      eraseAtPoint(coords.x, coords.y);
+      if (flags.lowLatencyMode) {
+        lastEraseRef.current = { x: coords.x, y: coords.y };
+        if (rafInputRef.current == null) {
+          rafInputRef.current = requestAnimationFrame(runInputRaf);
+        }
+      } else {
+        eraseAtPoint(coords.x, coords.y);
+      }
       
       if (import.meta.env.DEV && isIPhone) {
         console.log(`📱 iPhone: Eraser started with ${e.pointerType} at (${coords.x}, ${coords.y})`);
@@ -499,14 +552,18 @@ const DrawLayer: React.FC<DrawLayerProps> = () => {
       e.preventDefault();
       
       const coords = getCanvasCoordinates(e.clientX, e.clientY);
-      
-      // 압력과 기울기 데이터 추출
       const pressure = e.pressure || 0.5;
       const tiltX = e.tiltX || 0;
       const tiltY = e.tiltY || 0;
-      
-      addPoint(coords.x, coords.y, pressure, tiltX, tiltY);
-      renderAll();
+      if (flags.lowLatencyMode) {
+        lastPointRef.current = { x: coords.x, y: coords.y, pressure, tiltX, tiltY };
+        if (rafInputRef.current == null) {
+          rafInputRef.current = requestAnimationFrame(runInputRaf);
+        }
+      } else {
+        addPoint(coords.x, coords.y, pressure, tiltX, tiltY);
+        renderAll();
+      }
       
       // 그리기 진행 중
     } else if (currentTool === 'eraser' && isErasingRef.current) {
@@ -514,7 +571,14 @@ const DrawLayer: React.FC<DrawLayerProps> = () => {
       e.preventDefault();
       
       const coords = getCanvasCoordinates(e.clientX, e.clientY);
-      eraseAtPoint(coords.x, coords.y);
+      if (flags.lowLatencyMode) {
+        lastEraseRef.current = { x: coords.x, y: coords.y };
+        if (rafInputRef.current == null) {
+          rafInputRef.current = requestAnimationFrame(runInputRaf);
+        }
+      } else {
+        eraseAtPoint(coords.x, coords.y);
+      }
     }
   }, [isDrawing, currentTool, getCanvasCoordinates, addPoint, renderAll, eraseAtPoint]);
 
@@ -558,6 +622,8 @@ const DrawLayer: React.FC<DrawLayerProps> = () => {
 
         try {
           await lwwCreateDrawObject(drawObject);
+          // 저장 완료 → 정적 레이어 재합성 필요
+          markStaticDirty();
           if (import.meta.env.DEV) {
             console.log(`💾 Stroke saved: ${inputType} input, ${pressureData.length} points, perfect-freehand: ${usePerfectFreehand}`);
           }
@@ -583,6 +649,13 @@ const DrawLayer: React.FC<DrawLayerProps> = () => {
     
     // 활성 포인터 해제
     activePointerRef.current = null;
+    // 입력 rAF 중단
+    if (rafInputRef.current != null) {
+      cancelAnimationFrame(rafInputRef.current);
+      rafInputRef.current = null;
+    }
+    lastPointRef.current = null;
+    lastEraseRef.current = null;
     
     // 웹킷에서 터치 입력 후 잠시 대기 (펜 입력과의 충돌 방지)
     if (isWebkitRef.current && e.pointerType === 'touch') {
@@ -666,14 +739,16 @@ const DrawLayer: React.FC<DrawLayerProps> = () => {
         }
       };
     }
-  }, [isLoading]);
+  }, [isLoading, renderAll]);
 
   // drawObjects 변경 시 실시간 렌더링 (로딩 중이 아닐 때만)
   useEffect(() => {
     if (!isLoading) {
+      // DB에서 스트로크 목록이 바뀌면 정적 레이어를 다시 그려야 함
+      markStaticDirty();
       renderAll();
     }
-  }, [drawObjects, isLoading]);
+  }, [drawObjects, isLoading, markStaticDirty, renderAll]);
 
   // 도구 변경 시 자동 전환 타이머 리셋 (필기↔지우개 전환 시)
   useEffect(() => {

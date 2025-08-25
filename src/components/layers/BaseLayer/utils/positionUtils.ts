@@ -1,6 +1,6 @@
 import { isValidPosition, isValidSize } from '../../../../utils/validation';
 import { snapPositionToGrid, snapSizeToGrid } from '../../../../utils/gridUtils';
-import { getDBSnapPosition } from './snapV2';
+// v2 스냅은 상위 레이어에서 처리
 import { flags } from '../../../../flags';
 import { Position, Size } from '../types';
 
@@ -46,16 +46,9 @@ export const applyGridSnap = (
     return { position, size };
   }
 
-  // v2: DB 그리드 기반 셀 중심 스냅이 활성화된 경우 위치만 v2로 처리
+  // v2: 화면반경/히스테리시스를 사용하는 스냅은 상위(rAF, pointerUp)에서 처리.
+  // 여기서는 강제 스냅을 하지 않는다(혼합 금지, 실패 안전 NOP).
   if (flags.useCellCenterSnapV2) {
-    // 객체 크기가 있으면 객체 중심을 기준으로 스냅 후 좌상단을 보정
-    const anchor = size ? { x: position.x + size.width / 2, y: position.y + size.height / 2 } : position;
-    const v2 = getDBSnapPosition(anchor);
-    if (v2) {
-      const newPos = size ? { x: v2.x - size.width / 2, y: v2.y - size.height / 2 } : v2;
-      return { position: newPos, size };
-    }
-    // 실패 안전: v2 후보가 없으면 원본 좌표 유지 (디자인 그리드에는 스냅하지 않음)
     return { position, size };
   }
 

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAdminConfigStore } from '../../../../store/adminConfigStore';
 import { useEditorStore } from '../../../../store/editorStore';
 import { useCellSelectionStore } from '../../../../store/cellSelectionStore';
@@ -25,6 +25,7 @@ import {
   handlePointerCapture
 } from '../utils';
 import { findSnapCandidate } from '../utils/snapV2';
+import { flags } from '../../../../flags';
 import { useCanvasStore } from '../../../../store/canvasStore';
 import { TextObjectData } from '../types';
 
@@ -217,10 +218,26 @@ export function useCanvasInteractions(isViewPage: boolean) {
     if (!obj.permissions?.movable) {
       return;
     }
-    handlePointerCapture(e, isIPhoneDevice, 'set');
+    // rAF 코얼레싱 사용 시에는 pointer capture를 사용하지 않아 상위 레이어로 pointermove 버블을 보장
+    if (!flags.useSnapRafCoalescing) {
+      handlePointerCapture(e, isIPhoneDevice, 'set');
+    }
     const rect = e.currentTarget.getBoundingClientRect();
     const offset = { x: e.clientX - rect.left, y: e.clientY - rect.top };
     startDrag(id, offset, { x: obj.x, y: obj.y });
+    // rAF 드래그 루프를 즉시 시작해 첫 프레임부터 움직임 반영
+    if (flags.useSnapRafCoalescing) {
+      lastMoveRef.current = { x: e.clientX, y: e.clientY };
+      prevCandidateRef.current = null;
+      lastPreviewCenterRef.current = null;
+      clearSnapPreview();
+      if (!rafActiveRef.current) {
+        rafActiveRef.current = true;
+      }
+      if (!rafIdRef.current) {
+        rafIdRef.current = requestAnimationFrame(runRafTick);
+      }
+    }
   }, [updatePointerEventTime, isIPhone, editingObjectId, finishInlineEdit, textObjects, imageObjects, setSelectedObjectId, setHoveredObjectId, startDrag]);
 
   const onResizePointerDown = useCallback((e: React.PointerEvent, handle: string, objectId: string) => {
@@ -237,7 +254,127 @@ export function useCanvasInteractions(isViewPage: boolean) {
     );
   }, [textObjects, imageObjects, startResize]);
 
-  const onPointerMoveImpl = useCallback((e: React.PointerEvent) => {
+  // --- rAF coalescing state ---
+  const lastMoveRef = useRef<{ x: number; y: number } | null>(null);
+  const rafIdRef = useRef<number | null>(null);
+  const rafActiveRef = useRef(false);
+  const prevCandidateRef = useRef<{ x: number; y: number } | null>(null);
+  const lastPreviewCenterRef = useRef<{ x: number; y: number } | null>(null);
+
+  // latest refs to avoid stale closures inside rAF loop
+  const dragRef = useRef(dragState);
+  const resizeRef = useRef(resizeState);
+  const textObjectsRef = useRef(textObjects);
+  const imageObjectsRef = useRef(imageObjects);
+  const settingsRef = useRef(settings);
+  const stepSnapRef = useRef(stepSnapDuringDrag);
+
+  useEffect(() => { dragRef.current = dragState; }, [dragState]);
+  useEffect(() => { resizeRef.current = resizeState; }, [resizeState]);
+  useEffect(() => { textObjectsRef.current = textObjects; }, [textObjects]);
+  useEffect(() => { imageObjectsRef.current = imageObjects; }, [imageObjects]);
+  useEffect(() => { settingsRef.current = settings; }, [settings]);
+  useEffect(() => { stepSnapRef.current = stepSnapDuringDrag; }, [stepSnapDuringDrag]);
+
+  const runRafTick = useCallback(() => {
+    if (!rafActiveRef.current) { rafIdRef.current = null; return; }
+    rafIdRef.current = null;
+    const last = lastMoveRef.current;
+    if (!last) {
+      // schedule next frame to keep loop alive during drag
+      rafIdRef.current = requestAnimationFrame(runRafTick);
+      return;
+    }
+    const resolveCanvasContainer = (): HTMLElement | null => {
+      const qs = document.querySelector('[data-canvas-container]') as HTMLElement | null;
+      return qs;
+    };
+    const drag = dragRef.current;
+    const resize = resizeRef.current;
+    const txt = textObjectsRef.current;
+    const imgs = imageObjectsRef.current;
+    const cfg = settingsRef.current;
+    // const stepSnap = stepSnapRef.current;
+
+    if (drag.isDragging && drag.draggedObjectId) {
+      const canvasContainer = resolveCanvasContainer();
+      if (canvasContainer) {
+        const mousePosition = getCanvasCoordinates(last.x, last.y, canvasContainer);
+        const scale = getCanvasScale(canvasContainer);
+        const newPosition = calculateDragPosition(mousePosition, drag.offset, scale);
+        // const gridSnapEnabled = cfg?.admin?.gridSnapEnabled ?? false;
+        // const gridSize = cfg?.admin?.gridSize ?? 32;
+        const obj = txt.find(o => o.id === drag.draggedObjectId) || imgs.find(o => o.id === drag.draggedObjectId);
+        const sizeForSnap = obj ? { width: obj.width, height: obj.height } : undefined;
+        const worldToScreen = (p: { x: number; y: number }) => ({ x: p.x * scale, y: p.y * scale });
+        const anchor = sizeForSnap ? { x: newPosition.x + sizeForSnap.width / 2, y: newPosition.y + sizeForSnap.height / 2 } : newPosition;
+        const candidate = findSnapCandidate(anchor as any, worldToScreen, scale, prevCandidateRef.current, 0, 1.4);
+        // Preview overlay: update only on candidate change
+        if (candidate && sizeForSnap) {
+          const same = lastPreviewCenterRef.current && lastPreviewCenterRef.current.x === candidate.x && lastPreviewCenterRef.current.y === candidate.y;
+          if (!same) {
+            setSnapPreview({ center: candidate, rect: { x: candidate.x - sizeForSnap.width / 2, y: candidate.y - sizeForSnap.height / 2, w: sizeForSnap.width, h: sizeForSnap.height } });
+            lastPreviewCenterRef.current = candidate;
+          }
+        } else {
+          if (lastPreviewCenterRef.current) {
+            clearSnapPreview();
+            lastPreviewCenterRef.current = null;
+          }
+        }
+        // Hysteresis tracking
+        prevCandidateRef.current = candidate;
+        // Position update: step mode only immediate snap (kept as existing behavior)
+        // v2: 드래그 중에는 스냅하지 않고 미리보기만, 위치는 자유 이동
+        const { position: finalPosition } = { position: newPosition } as any;
+        const { position: safePosition } = validatePositionAndSize(finalPosition, undefined, obj ? { x: obj.x, y: obj.y } : undefined);
+        updateDragPosition(safePosition);
+      }
+    }
+    if (resize.isResizing && resize.resizedObjectId) {
+      const canvasContainer = document.querySelector('[data-canvas-container]') as HTMLElement | null;
+      if (canvasContainer) {
+        const mousePosition = getCanvasCoordinates(last.x, last.y, canvasContainer);
+        const startMousePosition = getCanvasCoordinates(resize.startPosition.x, resize.startPosition.y, canvasContainer);
+        const deltas = calculateResizeDeltas(mousePosition, startMousePosition);
+        const resizingImageObj = imgs.find(obj => obj.id === resize.resizedObjectId);
+        const shouldMaintainAspectRatio = resizingImageObj?.maintainAspectRatio || false;
+        const originalAspectRatio = resizingImageObj ? resize.startSize.width / resize.startSize.height : 1;
+        const resizingTextObj = txt.find(obj => obj.id === resize.resizedObjectId);
+        const objectType = resizingTextObj?.hasCheckbox ? 'checkbox' : 
+                          resizingTextObj ? 'text' : 'image';
+        const resizeResult = calculateResize({
+          handle: resize.resizeHandle as any,
+          deltaX: deltas.x,
+          deltaY: deltas.y,
+          startSize: resize.startSize,
+          startPosition: resize.startObjectPosition,
+          maintainAspectRatio: shouldMaintainAspectRatio,
+          originalAspectRatio,
+          objectType
+        });
+        const gridSnapEnabled = cfg?.admin?.gridSnapEnabled ?? false;
+        const gridSize = cfg?.admin?.gridSize ?? 32;
+        const { position: finalPosition, size: finalSize } = applyGridSnap(
+          { x: resizeResult.newX, y: resizeResult.newY },
+          { width: resizeResult.newWidth, height: resizeResult.newHeight },
+          gridSnapEnabled,
+          gridSize
+        );
+        const validated = validatePositionAndSize(finalPosition, finalSize);
+        if (validated.size) {
+          updateResize(validated.size, validated.position);
+        }
+      }
+    }
+    // schedule next frame if still active
+    if (rafActiveRef.current) {
+      rafIdRef.current = requestAnimationFrame(runRafTick);
+    }
+  }, [dragState, resizeState, settings, textObjects, imageObjects, stepSnapDuringDrag, updateDragPosition, updateResize]);
+
+  // removed in low-latency mode; legacy path retained for reference behind comment
+  /* const onPointerMoveImpl = useCallback((e: React.PointerEvent) => {
     const resolveCanvasContainer = (): HTMLElement | null => {
       const ct = (e.currentTarget as any);
       if (ct && typeof ct.closest === 'function') {
@@ -267,12 +404,20 @@ export function useCanvasInteractions(isViewPage: boolean) {
       // v2 미리보기 후보 계산 (화면 좌표 기반)
       const worldToScreen = (p: { x: number; y: number }) => ({ x: p.x * scale, y: p.y * scale });
       const anchor = sizeForSnap ? { x: newPosition.x + sizeForSnap.width / 2, y: newPosition.y + sizeForSnap.height / 2 } : newPosition;
-      const candidate = findSnapCandidate(anchor as any, worldToScreen, scale, null, 16, 1.5);
+      const candidate = findSnapCandidate(anchor as any, worldToScreen, scale, prevCandidateRef.current, 16, 1.5);
       if (candidate && sizeForSnap) {
-        setSnapPreview({ center: candidate, rect: { x: candidate.x - sizeForSnap.width / 2, y: candidate.y - sizeForSnap.height / 2, w: sizeForSnap.width, h: sizeForSnap.height } });
+        const same = lastPreviewCenterRef.current && lastPreviewCenterRef.current.x === candidate.x && lastPreviewCenterRef.current.y === candidate.y;
+        if (!same) {
+          setSnapPreview({ center: candidate, rect: { x: candidate.x - sizeForSnap.width / 2, y: candidate.y - sizeForSnap.height / 2, w: sizeForSnap.width, h: sizeForSnap.height } });
+          lastPreviewCenterRef.current = candidate;
+        }
       } else {
-        clearSnapPreview();
+        if (lastPreviewCenterRef.current) {
+          clearSnapPreview();
+          lastPreviewCenterRef.current = null;
+        }
       }
+      prevCandidateRef.current = candidate;
       const { position: finalPosition } = (stepSnapDuringDrag || (settings?.admin?.stepSnapDuringDrag ?? false))
         ? applyGridSnap(newPosition, sizeForSnap as any, gridSnapEnabled, gridSize)
         : { position: newPosition } as any;
@@ -316,49 +461,52 @@ export function useCanvasInteractions(isViewPage: boolean) {
         updateResize(validated.size, validated.position);
       }
     }
-  }, [dragState, resizeState, settings, textObjects, imageObjects, updateDragPosition, updateResize]);
+  }, [dragState, resizeState, settings, textObjects, imageObjects, updateDragPosition, updateResize]); */
 
-  // 로컬 쓰로틀 적용 (50ms)
-  function throttle<T extends (...args: any[]) => any>(fn: T, interval: number): T {
-    let lastExecMs = 0;
-    let timeoutId: ReturnType<typeof setTimeout> | null = null;
-    let lastArgs: Parameters<T> | null = null;
-    return ((...args: Parameters<T>) => {
-      const now = Date.now();
-      const remaining = interval - (now - lastExecMs);
-      lastArgs = args;
-      if (remaining <= 0) {
-        if (timeoutId) {
-          clearTimeout(timeoutId);
-          timeoutId = null;
-        }
-        lastExecMs = now;
-        (fn as (...a: Parameters<T>) => any)(...args);
-      } else if (!timeoutId) {
-        timeoutId = setTimeout(() => {
-          lastExecMs = Date.now();
-          timeoutId = null;
-          if (lastArgs) (fn as (...a: Parameters<T>) => any)(...lastArgs);
-        }, remaining);
-      }
-    }) as T;
-  }
-
-  const onPointerMove = throttle(onPointerMoveImpl, 50);
+  const onPointerMove = useCallback((e: React.PointerEvent) => {
+    // Low-latency: 이벤트를 버퍼에 저장하고 rAF에서 1프레임 1회 처리
+    lastMoveRef.current = { x: e.clientX, y: e.clientY };
+    if (!rafActiveRef.current) {
+      rafActiveRef.current = true;
+      rafIdRef.current = requestAnimationFrame(runRafTick);
+    } else if (!rafIdRef.current) {
+      rafIdRef.current = requestAnimationFrame(runRafTick);
+    }
+  }, [runRafTick]);
 
   const onPointerUp = useCallback((e: React.PointerEvent) => {
     handlePointerCapture(e, isIPhone(), 'release');
     if (dragState.isDragging && dragState.draggedObjectId) {
       let finalPosition = dragState.currentPosition;
-      // 스텝 스냅이 꺼져있다면 업 시점에 한 번만 스냅 확정
-      const stepMode = (settings?.admin?.stepSnapDuringDrag ?? false) || stepSnapDuringDrag;
-      const gridSnapEnabled = settings?.admin?.gridSnapEnabled ?? false;
-      const gridSize = settings?.admin?.gridSize ?? 32;
+      // v2 전용: v1 파라미터 제거
       const objForSize = textObjects.find(obj => obj.id === dragState.draggedObjectId) || imageObjects.find(obj => obj.id === dragState.draggedObjectId);
       const sizeForSnap = objForSize ? { width: objForSize.width, height: objForSize.height } : undefined;
-      if (!stepMode) {
-        const snapped = applyGridSnap(finalPosition, sizeForSnap as any, gridSnapEnabled, gridSize);
-        finalPosition = snapped.position;
+      // v2: 업 시점 확정 스냅 — 반경 내 후보가 있으면 스냅, 아니면 그대로
+      if (flags.useCellCenterSnapV2) {
+        const resolveCanvasContainer = (): HTMLElement | null => {
+          const ct = (e.currentTarget as any);
+          if (ct && typeof ct.closest === 'function') {
+            const el = ct.closest('[data-canvas-container]') as HTMLElement | null;
+            if (el) return el;
+          }
+          const tg = (e.target as any);
+          if (tg && typeof tg.closest === 'function') {
+            const el = tg.closest('[data-canvas-container]') as HTMLElement | null;
+            if (el) return el;
+          }
+          const qs = document.querySelector('[data-canvas-container]') as HTMLElement | null;
+          return qs;
+        };
+        const container = resolveCanvasContainer();
+        if (container) {
+          const scale = getCanvasScale(container);
+          const worldToScreen = (p: { x: number; y: number }) => ({ x: p.x * scale, y: p.y * scale });
+          const anchor = sizeForSnap ? { x: finalPosition.x + sizeForSnap.width / 2, y: finalPosition.y + sizeForSnap.height / 2 } : finalPosition;
+          const c = findSnapCandidate(anchor as any, worldToScreen, scale, prevCandidateRef.current, 0, 1.4);
+          if (c) {
+            finalPosition = sizeForSnap ? { x: c.x - sizeForSnap.width / 2, y: c.y - sizeForSnap.height / 2 } : c;
+          }
+        }
       }
       clearSnapPreview();
       const textObj = textObjects.find(obj => obj.id === dragState.draggedObjectId);
@@ -389,6 +537,17 @@ export function useCanvasInteractions(isViewPage: boolean) {
       }
       endResize();
     }
+    // stop rAF loop and clear session state
+    if (rafActiveRef.current) {
+      rafActiveRef.current = false;
+    }
+    if (rafIdRef.current) {
+      cancelAnimationFrame(rafIdRef.current);
+      rafIdRef.current = null;
+    }
+    lastMoveRef.current = null;
+    prevCandidateRef.current = null;
+    lastPreviewCenterRef.current = null;
   }, [dragState, resizeState, textObjects, imageObjects, updateTextObject, updateImageObject, endDrag, endResize, isIPhone]);
 
   const onObjectClick = useCallback((e: React.MouseEvent, id: string) => {
