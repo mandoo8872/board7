@@ -15,45 +15,83 @@ interface FirebaseConfig {
   measurementId?: string; // 선택적 속성
 }
 
-// 개발환경용 Firebase 설정 (board7-dev)
-const developmentConfig: FirebaseConfig = {
-  apiKey: "AIzaSyAJIU9ojxqTmqlJAfOZyxDu2DL5GrtzAjM",
-  authDomain: "board7-dev.firebaseapp.com",
-  databaseURL: "https://board7-dev-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId: "board7-dev",
-  storageBucket: "board7-dev.firebasestorage.app",
-  messagingSenderId: "324461926704",
-  appId: "1:324461926704:web:35cb2a4d01df21d02450f5"
-  // 개발환경에서는 measurementId 없음
-};
-
-// 배포환경용 Firebase 설정 (board7-4373c)
-const productionConfig: FirebaseConfig = {
-  apiKey: "AIzaSyA2Ml7QMBlaUyKZyFu7j83I5Y2eM1COgkc",
-  authDomain: "board7-4373c.firebaseapp.com",
-  databaseURL: "https://board7-4373c-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId: "board7-4373c",
-  storageBucket: "board7-4373c.firebasestorage.app",
-  messagingSenderId: "298011654216",
-  appId: "1:298011654216:web:084fb0f220aa7be5b4807d"
-  // measurementId는 제공되지 않았으므로 제거
-};
-
-// 환경에 따른 Firebase 설정 선택
+// 환경변수에서 Firebase 설정 가져오기
 const getFirebaseConfig = (): FirebaseConfig => {
   const isDevelopment = import.meta.env.MODE === 'development';
   
-  if (isDevelopment) {
-    console.log('🔧 Firebase: 개발환경 (board7-dev) 사용');
-    return developmentConfig;
-  } else {
-    console.log('🚀 Firebase: 배포환경 (board7-4373c) 사용');
-    return productionConfig;
+  // 환경변수 디버깅
+  console.log('🔍 환경변수 디버깅:', {
+    MODE: import.meta.env.MODE,
+    isDevelopment: isDevelopment,
+    VITE_FIREBASE_API_KEY: import.meta.env.VITE_FIREBASE_API_KEY ? '설정됨' : 'undefined',
+    VITE_FIREBASE_DATABASE_URL: import.meta.env.VITE_FIREBASE_DATABASE_URL ? '설정됨' : 'undefined',
+  });
+
+  // 환경변수가 없으면 하드코딩된 설정 사용
+  if (!import.meta.env.VITE_FIREBASE_API_KEY) {
+    console.log('⚠️ 환경변수가 로드되지 않아 하드코딩된 설정을 사용합니다.');
+    
+    if (isDevelopment) {
+      console.log('🔧 Firebase: 개발환경 (board6-dev) 하드코딩 설정 사용');
+      return {
+        apiKey: "AIzaSyCy37FNEfuORjN0AxpjqtwdKoQzGqfG8Ww",
+        authDomain: "board6-dev.firebaseapp.com",
+        databaseURL: "https://board6-dev-default-rtdb.asia-southeast1.firebasedatabase.app",
+        projectId: "board6-dev",
+        storageBucket: "board6-dev.firebasestorage.app",
+        messagingSenderId: "851964244941",
+        appId: "1:851964244941:web:5e4af7c4a93198d94f0a84"
+      };
+    } else {
+      console.log('🚀 Firebase: 배포환경 (board6-main) 하드코딩 설정 사용');
+      return {
+        apiKey: "AIzaSyBF1sBC8tegqpQzlhZDkfRyCkG1N-RqHZM",
+        authDomain: "board6-a2c5a.firebaseapp.com",
+        databaseURL: "https://board6-a2c5a-default-rtdb.asia-southeast1.firebasedatabase.app",
+        projectId: "board6-a2c5a",
+        storageBucket: "board6-a2c5a.firebasestorage.app",
+        messagingSenderId: "192957529739",
+        appId: "1:192957529739:web:9c317aa3344e1824d89e8e",
+        measurementId: "G-GS9NWB8PYP"
+      };
+    }
   }
+
+  // 환경변수가 있으면 환경변수 사용
+  const config: FirebaseConfig = {
+    apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+    authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+    databaseURL: import.meta.env.VITE_FIREBASE_DATABASE_URL,
+    projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+    storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+    messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+    appId: import.meta.env.VITE_FIREBASE_APP_ID,
+  };
+
+  // measurementId가 있으면 추가
+  if (import.meta.env.VITE_FIREBASE_MEASUREMENT_ID) {
+    config.measurementId = import.meta.env.VITE_FIREBASE_MEASUREMENT_ID;
+  }
+
+  console.log('✅ Firebase 설정 완료 (환경변수 사용):', {
+    projectId: config.projectId,
+    databaseURL: config.databaseURL,
+    authDomain: config.authDomain
+  });
+
+  return config;
 };
 
 // 선택된 설정으로 Firebase 초기화
 const config = getFirebaseConfig();
+
+// 환경 정보 로깅
+const isDevelopment = import.meta.env.MODE === 'development';
+if (isDevelopment) {
+  console.log('🔧 Firebase: 개발환경 (board6-dev) 사용');
+} else {
+  console.log('🚀 Firebase: 배포환경 (board6-main) 사용');
+}
 
 // 이미 초기화된 앱이 있으면 재사용
 const app = getApps().length === 0 ? initializeApp(config) : getApp();
