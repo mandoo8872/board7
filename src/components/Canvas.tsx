@@ -252,7 +252,6 @@ const Canvas: React.FC<CanvasProps> = ({ isViewPage = false }) => {
   const handlePointerDownContainer = useCallback((e: React.PointerEvent) => {
     if (isViewPage) return;
     if (e.pointerType !== 'touch') return;
-    try { (e.currentTarget as any).setPointerCapture?.(e.pointerId); } catch {}
     touchesRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
     // 두 손가락 이상부터만 컨테이너가 제스처 처리 (하위 포인터 액션 차단)
     if (touchesRef.current.size >= 2) {

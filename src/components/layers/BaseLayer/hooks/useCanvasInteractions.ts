@@ -205,9 +205,9 @@ export function useCanvasInteractions(isViewPage: boolean) {
       return;
     }
     
-    // 인라인 편집 중이 아닌 경우에만 preventDefault 호출
+    // iPhone 터치에서는 preventDefault를 과하게 걸면 포인터 흐름이 끊길 수 있어 마우스에만 적용
     const isIPhoneDevice = isIPhone();
-    if (!isIPhoneDevice || e.pointerType !== 'touch') {
+    if (e.pointerType === 'mouse') {
       e.preventDefault();
     }
     
@@ -218,10 +218,8 @@ export function useCanvasInteractions(isViewPage: boolean) {
     if (!obj.permissions?.movable) {
       return;
     }
-    // rAF 코얼레싱 사용 시에는 pointer capture를 사용하지 않아 상위 레이어로 pointermove 버블을 보장
-    if (!flags.useSnapRafCoalescing) {
-      handlePointerCapture(e, isIPhoneDevice, 'set');
-    }
+    // 터치에서도 pointer capture를 설정해 드래그 세션 안정화 (iOS에서 간헐적 move 누락 방지)
+    handlePointerCapture(e, isIPhoneDevice, 'set');
     const rect = e.currentTarget.getBoundingClientRect();
     const offset = { x: e.clientX - rect.left, y: e.clientY - rect.top };
     startDrag(id, offset, { x: obj.x, y: obj.y });
