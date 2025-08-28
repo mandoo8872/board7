@@ -248,12 +248,19 @@ const Canvas: React.FC<CanvasProps> = ({ isViewPage = false }) => {
   const touchesRef = useRef<Map<number, { x: number; y: number }>>(new Map());
   const lastPinchDistRef = useRef<number | null>(null);
   const lastCenterRef = useRef<{ x: number; y: number } | null>(null);
+  const suppressSingleTouchRef = useRef<boolean>(false);
 
   const handlePointerDownContainer = useCallback((e: React.PointerEvent) => {
     if (isViewPage) return;
     if (e.pointerType !== 'touch') return;
     try { (e.currentTarget as any).setPointerCapture?.(e.pointerId); } catch {}
     touchesRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    // 단일 손가락은 전부 차단 (어드민: 터치 도구 비활성), 두 손가락 이상은 컨테이너가 제스처 처리
+    if (touchesRef.current.size === 1) {
+      suppressSingleTouchRef.current = true;
+      e.preventDefault();
+      e.stopPropagation();
+    }
   }, [isViewPage]);
 
   const handlePointerMoveContainer = useCallback((e: React.PointerEvent) => {
@@ -295,6 +302,11 @@ const Canvas: React.FC<CanvasProps> = ({ isViewPage = false }) => {
       }
       lastPinchDistRef.current = dist;
       lastCenterRef.current = center;
+      e.stopPropagation();
+    } else if (suppressSingleTouchRef.current) {
+      // 단일 손가락 이동 차단
+      e.preventDefault();
+      e.stopPropagation();
     }
   }, [isViewPage, setZoom, setViewOffset, viewOffset.x, viewOffset.y, zoom]);
 
@@ -305,6 +317,9 @@ const Canvas: React.FC<CanvasProps> = ({ isViewPage = false }) => {
       lastPinchDistRef.current = null;
       lastCenterRef.current = null;
     }
+    if (touchesRef.current.size === 0) {
+      suppressSingleTouchRef.current = false;
+    }
   }, []);
 
   return (
@@ -312,9 +327,9 @@ const Canvas: React.FC<CanvasProps> = ({ isViewPage = false }) => {
       ref={containerRef}
       onWheel={handleWheel}
       onKeyDown={onCanvasKeyDown}
-      onPointerDown={handlePointerDownContainer}
-      onPointerMove={handlePointerMoveContainer}
-      onPointerUp={handlePointerUpContainer}
+      onPointerDownCapture={handlePointerDownContainer}
+      onPointerMoveCapture={handlePointerMoveContainer}
+      onPointerUpCapture={handlePointerUpContainer}
       tabIndex={0} // 키보드 이벤트를 받기 위해 tabIndex 추가
       style={{
         position: 'relative',
