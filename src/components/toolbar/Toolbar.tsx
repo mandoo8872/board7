@@ -165,8 +165,8 @@ const ToolbarRefactored: React.FC = () => {
       }}
     >
       {/* 헤더 */}
-      <div className="px-4 py-3 border-b border-[#0f1e33] bg-[#1F3A5F]">
-        <h1 className="text-lg font-bold text-[#F1F5F9] flex items-center gap-2">
+      <div className="px-4 h-12 flex items-center border-b border-[#0f1e33] bg-[#1F3A5F]">
+        <h1 className="text-lg font-bold text-[#F1F5F9] flex items-center gap-2 leading-none">
           <img src="/ci.png" alt="현대글로비스ci" className="h-5" />
           보드관리자
         </h1>

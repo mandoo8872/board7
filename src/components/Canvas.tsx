@@ -25,7 +25,7 @@ const Canvas: React.FC<CanvasProps> = ({ isViewPage = false }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
   const [autoScale, setAutoScale] = useState(0.15); // 초기 로딩용 임시값
-  const { zoom, viewOffset, setZoom, zoomAtPoint, currentTool } = useEditorStore();
+  const { zoom, viewOffset, setZoom, setViewOffset, zoomAtPoint, currentTool } = useEditorStore();
   const { floorImage, settings } = useAdminConfigStore();
 
   // 캔버스 상호작용 훅 사용
@@ -244,16 +244,84 @@ const Canvas: React.FC<CanvasProps> = ({ isViewPage = false }) => {
 
   const gridEditorMode = useGridEditorStore((s) => s.mode);
 
+  // 멀티터치 핀치/패닝 (어드민 전용)
+  const touchesRef = useRef<Map<number, { x: number; y: number }>>(new Map());
+  const lastPinchDistRef = useRef<number | null>(null);
+  const lastCenterRef = useRef<{ x: number; y: number } | null>(null);
+
+  const handlePointerDownContainer = useCallback((e: React.PointerEvent) => {
+    if (isViewPage) return;
+    if (e.pointerType !== 'touch') return;
+    try { (e.currentTarget as any).setPointerCapture?.(e.pointerId); } catch {}
+    touchesRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  }, [isViewPage]);
+
+  const handlePointerMoveContainer = useCallback((e: React.PointerEvent) => {
+    if (isViewPage) return;
+    if (e.pointerType !== 'touch') return;
+    const container = containerRef.current;
+    if (!container) return;
+    const rect = container.getBoundingClientRect();
+    touchesRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (touchesRef.current.size >= 2) {
+      e.preventDefault();
+      const pts = Array.from(touchesRef.current.values()).slice(0, 2);
+      const [p1, p2] = pts;
+      const dx = p2.x - p1.x; const dy = p2.y - p1.y;
+      const dist = Math.hypot(dx, dy);
+      const center = { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 };
+      const lastDist = lastPinchDistRef.current;
+      const lastCenter = lastCenterRef.current;
+      if (lastDist) {
+        const factor = dist / lastDist;
+        if (Number.isFinite(factor) && factor > 0) {
+          const newZoom = Math.max(0.05, Math.min(5.0, zoom * factor));
+          if (newZoom !== zoom) {
+            const availableAreaCenterY = rect.height / 2;
+            const offsetFromCenterY = center.y - availableAreaCenterY;
+            const zoomRatio = newZoom / zoom;
+            const newOffsetY = viewOffset.y + offsetFromCenterY * (1 - zoomRatio);
+            setZoom(newZoom);
+            setViewOffset({ x: viewOffset.x, y: newOffsetY });
+          }
+        }
+      }
+      if (lastCenter) {
+        const deltaX = center.x - lastCenter.x;
+        const deltaY = center.y - lastCenter.y;
+        if (Math.abs(deltaX) + Math.abs(deltaY) > 0) {
+          setViewOffset({ x: viewOffset.x + deltaX, y: viewOffset.y + deltaY });
+        }
+      }
+      lastPinchDistRef.current = dist;
+      lastCenterRef.current = center;
+    }
+  }, [isViewPage, setZoom, setViewOffset, viewOffset.x, viewOffset.y, zoom]);
+
+  const handlePointerUpContainer = useCallback((e: React.PointerEvent) => {
+    if (e.pointerType !== 'touch') return;
+    touchesRef.current.delete(e.pointerId);
+    if (touchesRef.current.size < 2) {
+      lastPinchDistRef.current = null;
+      lastCenterRef.current = null;
+    }
+  }, []);
+
   return (
     <div 
       ref={containerRef}
       onWheel={handleWheel}
       onKeyDown={onCanvasKeyDown}
+      onPointerDown={handlePointerDownContainer}
+      onPointerMove={handlePointerMoveContainer}
+      onPointerUp={handlePointerUpContainer}
       tabIndex={0} // 키보드 이벤트를 받기 위해 tabIndex 추가
       style={{
         position: 'relative',
         width: '100%',
         height: '100%',
+        // 어드민: 자체 제스처 처리 위해 기본 제스처 비활성화
+        touchAction: isViewPage ? 'auto' : 'none',
         overflowX: needsHorizontalScroll ? 'auto' : 'hidden',
         overflowY: needsVerticalScroll ? 'auto' : 'hidden',
         backgroundColor: 'transparent',
