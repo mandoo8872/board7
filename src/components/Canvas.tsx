@@ -317,9 +317,11 @@ const Canvas: React.FC<CanvasProps> = ({ isViewPage = false }) => {
       ref={containerRef}
       onWheel={handleWheel}
       onKeyDown={onCanvasKeyDown}
-      onPointerDownCapture={handlePointerDownContainer}
-      onPointerMoveCapture={handlePointerMoveContainer}
-      onPointerUpCapture={handlePointerUpContainer}
+      {...(!isViewPage && {
+        onPointerDownCapture: handlePointerDownContainer,
+        onPointerMoveCapture: handlePointerMoveContainer,
+        onPointerUpCapture: handlePointerUpContainer
+      })}
       tabIndex={0} // 키보드 이벤트를 받기 위해 tabIndex 추가
       style={{
         position: 'relative',
