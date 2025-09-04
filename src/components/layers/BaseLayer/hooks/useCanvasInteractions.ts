@@ -190,6 +190,13 @@ export function useCanvasInteractions(isViewPage: boolean) {
   }, [editingObjectId, isViewPage, selectedObjectId, textObjects, imageObjects, updateTextObject, updateImageObject, handleDuplicateObject, handleBulkClearCellText, handleDeleteObject, saveSnapshot, executeUndo, executeRedo, handleClipboardPaste]);
 
   const onPointerDown = useCallback((e: React.PointerEvent, id: string) => {
+    // 제스처 시작 가드: undo/redo flush barrier 진행 중이면 차단
+    const { lastFlushPromise, pendingBarrier } = useAdminConfigStore.getState() as any;
+    if (pendingBarrier || lastFlushPromise) {
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
 
     updatePointerEventTime(e.timeStamp);
     e.stopPropagation();
@@ -579,7 +586,7 @@ export function useCanvasInteractions(isViewPage: boolean) {
         const { clearSelection } = useCellSelectionStore.getState();
         const hadSelection = useCellSelectionStore.getState().getSelectedCount() > 0;
         if (hadSelection) clearSelection();
-        if (selectedObjectId !== null || hadSelection) { queueSnapshotPush(120); }
+        // 선택 해제만 발생한 경우는 스냅샷을 남기지 않음
       }
     } else if (isViewPage) {
       if (e.target === e.currentTarget) {
@@ -587,7 +594,7 @@ export function useCanvasInteractions(isViewPage: boolean) {
         const { clearSelection } = useCellSelectionStore.getState();
         const hadSelection = useCellSelectionStore.getState().getSelectedCount() > 0;
         if (hadSelection) clearSelection();
-        if (selectedObjectId !== null || hadSelection) { queueSnapshotPush(120); }
+        // View에서도 선택 해제만으로는 스냅샷 없음
       }
     }
   }, [isGhostClick, editingObjectId, finishInlineEdit, isViewPage, currentTool, selectedObjectId, setSelectedObjectId]);

@@ -4,9 +4,11 @@ import { useAdminConfigStore } from '../store/adminConfigStore';
 import { useEditorStore } from '../store/editorStore';
 import { useCellSelectionStore } from '../store/cellSelectionStore';
 import { CanvasSnapshot } from '../types';
+import { cancelQueuedSnapshotPush } from '../utils/snapshot';
 
 export const useUndoRedo = () => {
   const { pushSnapshot, undo, redo, canUndo, canRedo, setInitialSnapshot, setRestoring } = useUndoRedoStore();
+  const { flushDocumentState } = useAdminConfigStore.getState();
   
   const {
     textObjects,
@@ -76,11 +78,22 @@ export const useUndoRedo = () => {
 
   // Undo 실행
   const executeUndo = useCallback(async () => {
+    // pending debounced snapshots can trim redo stack unexpectedly; cancel before undo
+    cancelQueuedSnapshotPush();
     setRestoring(true);
     try {
       const snapshot = undo();
       if (snapshot) {
         await restoreSnapshot(snapshot);
+        // write barrier: flush doc state before allowing next gesture (no snapshot for undo/redo)
+        await flushDocumentState(false);
+        // flush 완료 직후 로컬 상태를 강제 set하여 구독자 렌더 보강
+        const admin = useAdminConfigStore.getState();
+        useAdminConfigStore.setState({
+          textObjects: [...admin.textObjects],
+          imageObjects: [...admin.imageObjects],
+          floorImage: admin.floorImage ? { ...admin.floorImage } : null,
+        });
       }
     } finally {
       setRestoring(false);
@@ -89,11 +102,20 @@ export const useUndoRedo = () => {
 
   // Redo 실행
   const executeRedo = useCallback(async () => {
+    cancelQueuedSnapshotPush();
     setRestoring(true);
     try {
       const snapshot = redo();
       if (snapshot) {
         await restoreSnapshot(snapshot);
+        // write barrier: flush doc state (no snapshot for undo/redo)
+        await flushDocumentState(false);
+        const admin = useAdminConfigStore.getState();
+        useAdminConfigStore.setState({
+          textObjects: [...admin.textObjects],
+          imageObjects: [...admin.imageObjects],
+          floorImage: admin.floorImage ? { ...admin.floorImage } : null,
+        });
       }
     } finally {
       setRestoring(false);

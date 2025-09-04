@@ -5,6 +5,9 @@ import { useCellSelectionStore } from '../store/cellSelectionStore';
 import { useUndoRedoStore } from '../store/undoRedoStore';
 import { flags } from '../flags';
 
+// Import adminConfigStore to access flushDocumentState
+const getAdminConfigStore = () => useAdminConfigStore.getState();
+
 export const createCurrentSnapshot = (): CanvasSnapshot => {
   const { textObjects, imageObjects, floorImage } = useAdminConfigStore.getState();
   const selectedObjectId = useEditorStore.getState().selectedObjectId ?? null;
@@ -30,21 +33,43 @@ export const queueSnapshotPush = (delayMs?: number): void => {
   const now = Date.now();
   if (now - snapshotLastFlush >= maxWaitMs) {
     snapshotLastFlush = now;
-    const { pushSnapshot, isRestoring } = useUndoRedoStore.getState();
-    if (!isRestoring) pushSnapshot(createCurrentSnapshot());
+    const { isRestoring } = useUndoRedoStore.getState();
+    if (!isRestoring) {
+      // Use integrated flush with snapshot creation
+      getAdminConfigStore().flushDocumentState(true, () => {
+        useUndoRedoStore.getState().pushSnapshot(createCurrentSnapshot());
+      });
+    }
     return;
   }
   snapshotDebounceTimer = setTimeout(() => {
     snapshotLastFlush = Date.now();
-    const { pushSnapshot, isRestoring } = useUndoRedoStore.getState();
-    if (!isRestoring) pushSnapshot(createCurrentSnapshot());
+    const { isRestoring } = useUndoRedoStore.getState();
+    if (!isRestoring) {
+      // Use integrated flush with snapshot creation
+      getAdminConfigStore().flushDocumentState(true, () => {
+        useUndoRedoStore.getState().pushSnapshot(createCurrentSnapshot());
+      });
+    }
   }, debounceMs);
 };
 
 export const pushSnapshotImmediate = (): void => {
-  const { pushSnapshot, isRestoring } = useUndoRedoStore.getState();
+  const { isRestoring } = useUndoRedoStore.getState();
   if (isRestoring) return;
-  pushSnapshot(createCurrentSnapshot());
+
+  // Use integrated flush with snapshot creation for immediate snapshots
+  getAdminConfigStore().flushDocumentState(true, () => {
+    useUndoRedoStore.getState().pushSnapshot(createCurrentSnapshot());
+  });
+};
+
+// Cancel any pending debounced snapshot push to avoid trimming redo history after undo/redo
+export const cancelQueuedSnapshotPush = (): void => {
+  if (snapshotDebounceTimer) {
+    clearTimeout(snapshotDebounceTimer);
+    snapshotDebounceTimer = null;
+  }
 };
 
 // flush on unload

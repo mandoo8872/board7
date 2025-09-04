@@ -13,10 +13,18 @@ export interface AdminConfigStore {
   floorImage: FloorImage | null;
   settings: Settings;
   isLoading: boolean;
+  // Sync metadata
+  serverRev: number;
+  localRev: number;
+  sessionId: string;
+  pendingBarrier: boolean;
+  lastFlushPromise: Promise<void> | null;
   
   // Firebase 동기화
   initializeFirebaseListeners: () => void;
   cleanupFirebaseListeners: () => void;
+  // Barriered flush of document state with optional snapshot creation
+  flushDocumentState: (createSnapshot?: boolean, onSnapshotCreated?: () => void) => Promise<void>;
   
   // TextObject 관리
   addTextObject: (obj: Omit<TextObject, 'id'>) => Promise<string>;
@@ -99,6 +107,11 @@ export const useAdminConfigStore = create<AdminConfigStore>((set, get) => {
       }
     },
     isLoading: false,
+    serverRev: 0,
+    localRev: 0,
+    sessionId: getCurrentSessionId(),
+    pendingBarrier: false,
+    lastFlushPromise: null,
     
     initializeFirebaseListeners: () => {
       // 기존 리스너들 정리
@@ -160,9 +173,27 @@ export const useAdminConfigStore = create<AdminConfigStore>((set, get) => {
         }
       }
       
+      // Meta 리스너 (rev/session)
+      const metaRef = ref(database, 'meta');
+      const unsubscribeMeta = onValue(metaRef, (snapshot) => {
+        const meta = snapshot.val() as any || {};
+        const incomingRev = Number(meta.rev || 0);
+        const incomingSession = meta.sessionId as string | undefined;
+        set({ serverRev: incomingRev });
+        if (import.meta.env.DEV) {
+          console.log('🔁 Meta updated:', { incomingRev, incomingSession });
+        }
+      }, (error) => {
+        checkError('Meta', error);
+      });
+      unsubscribeFunctions.push(unsubscribeMeta);
+
       // TextObjects 리스너
       const textObjectsRef = ref(database, 'textObjects');
       const unsubscribeTextObjects = onValue(textObjectsRef, (snapshot) => {
+        // Listener guard: ignore only during barrier
+        const { pendingBarrier } = get();
+        if (pendingBarrier) return;
         const data = snapshot.val();
         const textObjects = data ? Object.values(data) as TextObject[] : [];
         if (import.meta.env.DEV) {
@@ -178,6 +209,8 @@ export const useAdminConfigStore = create<AdminConfigStore>((set, get) => {
       // ImageObjects 리스너
       const imageObjectsRef = ref(database, 'imageObjects');
       const unsubscribeImageObjects = onValue(imageObjectsRef, (snapshot) => {
+        const { pendingBarrier } = get();
+        if (pendingBarrier) return;
         const data = snapshot.val();
         const imageObjects = data ? Object.values(data) as ImageObject[] : [];
         if (import.meta.env.DEV) {
@@ -193,6 +226,8 @@ export const useAdminConfigStore = create<AdminConfigStore>((set, get) => {
       // DrawObjects 리스너  
       const drawObjectsRef = ref(database, 'drawObjects');
       const unsubscribeDrawObjects = onValue(drawObjectsRef, (snapshot) => {
+        const { pendingBarrier } = get();
+        if (pendingBarrier) return;
         const data = snapshot.val();
         const drawObjects = data ? Object.values(data) as DrawObject[] : [];
         if (import.meta.env.DEV) {
@@ -208,6 +243,8 @@ export const useAdminConfigStore = create<AdminConfigStore>((set, get) => {
       // FloorImage 리스너
       const floorImageRef = ref(database, 'floorImage');
       const unsubscribeFloorImage = onValue(floorImageRef, (snapshot) => {
+        const { pendingBarrier } = get();
+        if (pendingBarrier) return;
         const floorImage = snapshot.val() as FloorImage | null;
         if (import.meta.env.DEV) {
           console.log(`🏠 Loaded floor image: ${floorImage ? 'YES' : 'NO'}`);
@@ -222,6 +259,8 @@ export const useAdminConfigStore = create<AdminConfigStore>((set, get) => {
       // Settings 리스너
       const settingsRef = ref(database, 'settings');
       const unsubscribeSettings = onValue(settingsRef, (snapshot) => {
+        const { pendingBarrier } = get();
+        if (pendingBarrier) return;
         const settings = snapshot.val() as Settings;
         if (settings) {
           set({ settings });
@@ -239,6 +278,36 @@ export const useAdminConfigStore = create<AdminConfigStore>((set, get) => {
     cleanupFirebaseListeners: () => {
       unsubscribeFunctions.forEach(unsubscribe => unsubscribe());
       unsubscribeFunctions = [];
+    },
+
+    // Flush barrier: write current document state to DB with rev/session meta
+    flushDocumentState: async (createSnapshot = false, onSnapshotCreated) => {
+      const state = get();
+      const nextRev = (state.serverRev || 0) + 1;
+      const timestamp = Date.now();
+      const rootUpdates: Record<string, any> = {};
+      for (const obj of state.textObjects) {
+        rootUpdates[`textObjects/${obj.id}`] = { ...obj };
+      }
+      for (const obj of state.imageObjects) {
+        rootUpdates[`imageObjects/${obj.id}`] = { ...obj };
+      }
+      rootUpdates['floorImage'] = state.floorImage ?? null;
+      rootUpdates['meta'] = { rev: nextRev, sessionId: state.sessionId, lastModifiedTs: timestamp };
+      set({ pendingBarrier: true });
+      const p = firebaseUpdate(ref(database), rootUpdates)
+        .then(() => {
+          set({ localRev: nextRev, serverRev: nextRev });
+          // Create snapshot after successful DB update if requested
+          if (createSnapshot && onSnapshotCreated) {
+            onSnapshotCreated();
+          }
+        })
+        .finally(() => {
+          set({ pendingBarrier: false, lastFlushPromise: null });
+        });
+      set({ lastFlushPromise: p });
+      await p;
     },
     
     addTextObject: async (obj) => {

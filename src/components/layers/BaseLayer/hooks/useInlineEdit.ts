@@ -1,5 +1,8 @@
 import { useState, useCallback } from 'react';
 import { TextObject } from '../../../../types';
+import { useAdminConfigStore } from '../../../../store/adminConfigStore';
+import { createCurrentSnapshot } from '../../../../utils/snapshot';
+import { useUndoRedoStore } from '../../../../store/undoRedoStore';
 
 export const useInlineEdit = (
   updateTextObject: (id: string, updates: Partial<TextObject>) => Promise<void>,
@@ -39,9 +42,13 @@ export const useInlineEdit = (
 
   const finishInlineEdit = useCallback(async () => {
     if (editingObjectId && editingText !== undefined) {
-      await updateTextObject(editingObjectId, { 
+      await updateTextObject(editingObjectId, {
         text: editingText,
-        isEditing: false 
+        isEditing: false
+      });
+      // 인라인 편집 확정 직후 통합 flush로 DB 저장과 스냅샷을 동시에 수행
+      await useAdminConfigStore.getState().flushDocumentState(true, () => {
+        useUndoRedoStore.getState().pushSnapshot(createCurrentSnapshot());
       });
       setEditingObjectId(null);
       setEditingText('');
