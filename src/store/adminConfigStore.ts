@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { ref, onValue, set as firebaseSet, update as firebaseUpdate, push, remove, Unsubscribe } from 'firebase/database';
+import { ref, onValue, set as firebaseSet, update as firebaseUpdate, push, remove, get as firebaseGet, Unsubscribe } from 'firebase/database';
 import { database, auth } from '../config/firebase';
 import { TextObject, ImageObject, DrawObject, FloorImage, Settings, AdminSettings, ViewSettings } from '../types';
 import { validateFirebaseUpdate } from '../utils/validation';
@@ -24,7 +24,7 @@ export interface AdminConfigStore {
   initializeFirebaseListeners: () => void;
   cleanupFirebaseListeners: () => void;
   // Barriered flush of document state with optional snapshot creation
-  flushDocumentState: (createSnapshot?: boolean, onSnapshotCreated?: () => void) => Promise<void>;
+  flushDocumentState: (createSnapshot?: boolean, onSnapshotCreated?: () => void, skipFirebaseSync?: boolean) => Promise<void>;
   
   // TextObject 관리
   addTextObject: (obj: Omit<TextObject, 'id'>) => Promise<string>;
@@ -193,11 +193,23 @@ export const useAdminConfigStore = create<AdminConfigStore>((set, get) => {
       const unsubscribeTextObjects = onValue(textObjectsRef, (snapshot) => {
         // Listener guard: ignore only during barrier
         const { pendingBarrier } = get();
-        if (pendingBarrier) return;
+        if (pendingBarrier) {
+          if (import.meta.env.DEV) {
+            console.log(`🚫 TextObjects 리스너: pendingBarrier로 인한 무시`);
+          }
+          return;
+        }
         const data = snapshot.val();
         const textObjects = data ? Object.values(data) as TextObject[] : [];
         if (import.meta.env.DEV) {
           console.log(`📝 Loaded ${textObjects.length} text objects`);
+          // Excel 그룹별로 로깅
+          const excelGroups = textObjects.filter(obj => obj.groupId?.startsWith('excel-input-'));
+          const groupStats = excelGroups.reduce((acc, obj) => {
+            acc[obj.groupId!] = (acc[obj.groupId!] || 0) + 1;
+            return acc;
+          }, {} as Record<string, number>);
+          console.log(`📊 Excel groups:`, groupStats);
         }
         set({ textObjects });
         checkSuccess();
@@ -281,19 +293,67 @@ export const useAdminConfigStore = create<AdminConfigStore>((set, get) => {
     },
 
     // Flush barrier: write current document state to DB with rev/session meta
-    flushDocumentState: async (createSnapshot = false, onSnapshotCreated) => {
+    flushDocumentState: async (createSnapshot = false, onSnapshotCreated, skipFirebaseSync = false) => {
       const state = get();
       const nextRev = (state.serverRev || 0) + 1;
       const timestamp = Date.now();
+
+      if (import.meta.env.DEV) {
+        console.log(`🔄 flushDocumentState 시작: textObjects=${state.textObjects.length}, imageObjects=${state.imageObjects.length}, skipFirebaseSync=${skipFirebaseSync}`);
+      }
+
+      let textObjectsToSave = state.textObjects;
+      let imageObjectsToSave = state.imageObjects;
+
+      // undo/redo가 아닌 경우에만 Firebase 상태 확인 (skipFirebaseSync = false)
+      if (!skipFirebaseSync) {
+        // Firebase의 최신 상태를 먼저 확인하여 메모리와 동기화
+        try {
+          const [textSnapshot, imageSnapshot] = await Promise.all([
+            firebaseGet(ref(database, 'textObjects')),
+            firebaseGet(ref(database, 'imageObjects'))
+          ]);
+
+          const firebaseTextObjects = textSnapshot.val() ? Object.values(textSnapshot.val()) as TextObject[] : [];
+          const firebaseImageObjects = imageSnapshot.val() ? Object.values(imageSnapshot.val()) as ImageObject[] : [];
+
+          if (import.meta.env.DEV) {
+            console.log(`🔍 Firebase 최신 상태: text=${firebaseTextObjects.length}, image=${firebaseImageObjects.length}`);
+          }
+
+          // 메모리 상태와 Firebase 상태를 동기화 (Firebase 상태를 우선)
+          textObjectsToSave = firebaseTextObjects.length > 0 ? firebaseTextObjects : state.textObjects;
+          imageObjectsToSave = firebaseImageObjects.length > 0 ? firebaseImageObjects : state.imageObjects;
+
+          // 메모리 상태 업데이트 (undo/redo가 아닐 때만)
+          set({
+            textObjects: textObjectsToSave,
+            imageObjects: imageObjectsToSave
+          });
+
+        } catch (error) {
+          if (import.meta.env.DEV) {
+            console.error('❌ Firebase 상태 확인 실패, 메모리 상태로 진행:', error);
+          }
+          // Firebase 상태 확인 실패 시 메모리 상태로 진행 (fallback)
+        }
+      } else {
+        if (import.meta.env.DEV) {
+          console.log(`⏭️ Firebase 상태 확인 생략 (undo/redo 모드)`);
+        }
+      }
+
       const rootUpdates: Record<string, any> = {};
-      for (const obj of state.textObjects) {
+
+      for (const obj of textObjectsToSave) {
         rootUpdates[`textObjects/${obj.id}`] = { ...obj };
       }
-      for (const obj of state.imageObjects) {
+      for (const obj of imageObjectsToSave) {
         rootUpdates[`imageObjects/${obj.id}`] = { ...obj };
       }
       rootUpdates['floorImage'] = state.floorImage ?? null;
       rootUpdates['meta'] = { rev: nextRev, sessionId: state.sessionId, lastModifiedTs: timestamp };
+
       set({ pendingBarrier: true });
       const p = firebaseUpdate(ref(database), rootUpdates)
         .then(() => {

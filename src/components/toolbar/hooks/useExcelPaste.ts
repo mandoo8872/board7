@@ -2,7 +2,7 @@ import { useCallback, useEffect } from 'react';
 import { TextObject } from '../../../types';
 import { parseExcelData, getExcelDataDimensions } from '../utils/toolbarHelpers';
 import { dispatchExcelPreviewEvent } from '../utils/fileHandlers';
-import { useUndoRedo } from '../../../hooks/useUndoRedo';
+import { useAdminConfigStore } from '../../../store/adminConfigStore';
 import type { SafeSettings } from '../types';
 
 interface UseExcelPasteProps {
@@ -26,8 +26,6 @@ export const useExcelPaste = ({
   onDataChange,
   onPreviewChange,
 }: UseExcelPasteProps) => {
-  // Undo/Redo hook
-  const { saveSnapshot } = useUndoRedo();
 
   // 엑셀 데이터의 차원 계산
   const dataDimensions = getExcelDataDimensions(excelPasteData);
@@ -111,12 +109,10 @@ export const useExcelPaste = ({
     try {
       // 모든 셀을 한 번에 일괄 생성 (성능 최적화)
       const cellIds = await addTextObjects(cells);
-      
-      // Excel 셀 일괄 생성 후 undo/redo 스냅샷 저장
-      setTimeout(() => {
-        saveSnapshot();
-      }, 100); // Firebase 동기화 완료 후 스냅샷 저장
-      
+
+      // Excel 셀 일괄 생성 후 DB 저장 (undo/redo 제외)
+      await useAdminConfigStore.getState().flushDocumentState(false);
+
       console.log(`📊 Excel 셀 일괄 생성 완료: ${cellIds.length}개 (${actualRows}x${actualCols})`);
       alert(`${actualRows}x${actualCols} 셀이 생성되었습니다.`);
       onDataChange('');
@@ -126,7 +122,7 @@ export const useExcelPaste = ({
       console.error('엑셀 셀 생성 실패:', error);
       alert('셀 생성 중 오류가 발생했습니다.');
     }
-  }, [excelPasteData, safeSettings.admin.excelPasteSettings, addTextObjects, onDataChange, onPreviewChange, saveSnapshot]);
+  }, [excelPasteData, safeSettings.admin.excelPasteSettings, addTextObjects, onDataChange, onPreviewChange]);
 
   // 엑셀 셀 그룹 삭제 함수
   const handleDeleteExcelCellGroups = useCallback(async () => {
@@ -150,19 +146,35 @@ export const useExcelPaste = ({
       // 모든 Excel 셀을 한 번에 일괄 삭제 (성능 최적화)
       const cellIds = excelCells.map(cell => cell.id);
       await deleteTextObjects(cellIds);
-      
-      // Excel 셀 일괄 삭제 후 undo/redo 스냅샷 저장
-      setTimeout(() => {
-        saveSnapshot();
-      }, 100); // Firebase 동기화 완료 후 스냅샷 저장
-      
+
+      // 삭제 완료 후 메모리 상태가 Firebase와 동기화될 때까지 대기
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      // 삭제된 셀들이 메모리에서 완전히 제거되었는지 확인
+      const adminStore = useAdminConfigStore.getState();
+      const remainingCells = adminStore.textObjects.filter(obj =>
+        cellIds.includes(obj.id)
+      );
+
+      if (remainingCells.length > 0) {
+        console.warn(`⚠️ 삭제된 셀들이 메모리에 남아있음:`, remainingCells);
+        // 강제로 메모리에서 제거
+        const updatedTextObjects = adminStore.textObjects.filter(obj =>
+          !cellIds.includes(obj.id)
+        );
+        useAdminConfigStore.setState({ textObjects: updatedTextObjects });
+      }
+
+      // Excel 셀 일괄 삭제 후 DB 저장 (undo/redo 제외)
+      await adminStore.flushDocumentState(false);
+
       console.log(`🗑️ Excel 셀 일괄 삭제 완료: ${cellIds.length}개 (${groupCount}개 그룹)`);
       alert(`${groupCount}개 그룹 (${excelCells.length}개 셀)이 삭제되었습니다.`);
     } catch (error) {
       console.error('엑셀 셀 삭제 실패:', error);
       alert('셀 삭제 중 오류가 발생했습니다.');
     }
-  }, [textObjects, deleteTextObjects, saveSnapshot]);
+  }, [textObjects, deleteTextObjects]);
 
   // 미리보기 업데이트
   useEffect(() => {

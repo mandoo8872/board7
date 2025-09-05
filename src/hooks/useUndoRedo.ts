@@ -4,31 +4,18 @@ import { useAdminConfigStore } from '../store/adminConfigStore';
 import { useEditorStore } from '../store/editorStore';
 import { useCellSelectionStore } from '../store/cellSelectionStore';
 import { CanvasSnapshot } from '../types';
-import { cancelQueuedSnapshotPush } from '../utils/snapshot';
+import { cancelQueuedSnapshotPush, createCurrentSnapshot } from '../utils/snapshot';
 
 export const useUndoRedo = () => {
   const { pushSnapshot, undo, redo, canUndo, canRedo, setInitialSnapshot, setRestoring } = useUndoRedoStore();
   const { flushDocumentState } = useAdminConfigStore.getState();
   
-  const {
-    textObjects,
-    imageObjects,
-    floorImage
-  } = useAdminConfigStore();
+  // useAdminConfigStore is used indirectly through createCurrentSnapshot
 
-  // 현재 캔버스 상태로 스냅샷 생성 (Draw 상태 제외)
+  // 현재 캔버스 상태로 스냅샷 생성 (엑셀 셀 제외)
   const createSnapshot = useCallback((): CanvasSnapshot => {
-    const selectedObjectId = useEditorStore.getState().selectedObjectId ?? null;
-    const selectedCells = useCellSelectionStore.getState().getSelectedCells();
-    return {
-      textObjects: JSON.parse(JSON.stringify(textObjects)),
-      imageObjects: JSON.parse(JSON.stringify(imageObjects)),
-      floorImage: floorImage ? JSON.parse(JSON.stringify(floorImage)) : null,
-      selectedObjectId,
-      selectedCellIds: selectedCells,
-      timestamp: Date.now()
-    };
-  }, [textObjects, imageObjects, floorImage]);
+    return createCurrentSnapshot();
+  }, []);
 
   // 스냅샷을 캔버스에 복원 (Draw 상태 유지)
   const restoreSnapshot = useCallback(async (snapshot: CanvasSnapshot) => {
@@ -42,15 +29,27 @@ export const useUndoRedo = () => {
 
       // Firebase 리스너를 일시적으로 중단하여 무한 루프 방지
       const adminConfigStore = useAdminConfigStore.getState();
-      
+
+      // 현재 메모리에 있는 엑셀 셀들을 유지
+      const currentExcelCells = adminConfigStore.textObjects.filter(obj =>
+        obj.groupId && obj.groupId.startsWith('excel-input-')
+      );
+
+      // 스냅샷의 일반 객체들과 현재 엑셀 셀들을 합쳐서 복원
+      const restoredTextObjects = [...safeSnapshot.textObjects, ...currentExcelCells];
+
+      if (import.meta.env.DEV) {
+        console.log(`🔄 Undo/Redo 복원: 일반객체=${safeSnapshot.textObjects.length}, 엑셀셀=${currentExcelCells.length}`);
+      }
+
       // Draw 상태를 제외한 객체 상태만 복원
-      adminConfigStore.textObjects = safeSnapshot.textObjects;
+      adminConfigStore.textObjects = restoredTextObjects;
       adminConfigStore.imageObjects = safeSnapshot.imageObjects;
       adminConfigStore.floorImage = safeSnapshot.floorImage;
-      
+
       // 상태 강제 업데이트 (Draw 상태 제외)
       useAdminConfigStore.setState({
-        textObjects: safeSnapshot.textObjects,
+        textObjects: restoredTextObjects,
         imageObjects: safeSnapshot.imageObjects,
         floorImage: safeSnapshot.floorImage
       });
@@ -85,8 +84,8 @@ export const useUndoRedo = () => {
       const snapshot = undo();
       if (snapshot) {
         await restoreSnapshot(snapshot);
-        // write barrier: flush doc state before allowing next gesture (no snapshot for undo/redo)
-        await flushDocumentState(false);
+        // write barrier: flush doc state before allowing next gesture (no snapshot for undo/redo, skip firebase sync)
+        await flushDocumentState(false, undefined, true);
         // flush 완료 직후 로컬 상태를 강제 set하여 구독자 렌더 보강
         const admin = useAdminConfigStore.getState();
         useAdminConfigStore.setState({
@@ -108,8 +107,8 @@ export const useUndoRedo = () => {
       const snapshot = redo();
       if (snapshot) {
         await restoreSnapshot(snapshot);
-        // write barrier: flush doc state (no snapshot for undo/redo)
-        await flushDocumentState(false);
+        // write barrier: flush doc state (no snapshot for undo/redo, skip firebase sync)
+        await flushDocumentState(false, undefined, true);
         const admin = useAdminConfigStore.getState();
         useAdminConfigStore.setState({
           textObjects: [...admin.textObjects],

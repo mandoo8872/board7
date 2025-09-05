@@ -13,8 +13,13 @@ export const createCurrentSnapshot = (): CanvasSnapshot => {
   const selectedObjectId = useEditorStore.getState().selectedObjectId ?? null;
   const selectedCellIds = useCellSelectionStore.getState().getSelectedCells();
 
+  // 엑셀 셀 그룹 객체들을 스냅샷에서 제외 (undo/redo에서 제외)
+  const nonExcelTextObjects = textObjects.filter(obj =>
+    !obj.groupId || !obj.groupId.startsWith('excel-input-')
+  );
+
   return {
-    textObjects: JSON.parse(JSON.stringify(textObjects)),
+    textObjects: JSON.parse(JSON.stringify(nonExcelTextObjects)),
     imageObjects: JSON.parse(JSON.stringify(imageObjects)),
     floorImage: floorImage ? JSON.parse(JSON.stringify(floorImage)) : null,
     selectedObjectId,

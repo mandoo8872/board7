@@ -200,8 +200,16 @@ export function useViewFloatingToolbar() {
         setShowSizeAdjuster(false);
       }
     };
-    document.addEventListener('pointerdown', onDocPointerDown);
-    return () => document.removeEventListener('pointerdown', onDocPointerDown);
+    
+    // 터치 입력으로 인한 즉시 클릭 방지를 위해 약간의 지연 추가
+    const timeoutId = setTimeout(() => {
+      document.addEventListener('pointerdown', onDocPointerDown);
+    }, 100);
+    
+    return () => {
+      clearTimeout(timeoutId);
+      document.removeEventListener('pointerdown', onDocPointerDown);
+    };
   }, []);
 
   // 이벤트 핸들러들

@@ -73,7 +73,17 @@ const ViewFloatingToolbar: React.FC = () => {
         minHeight: minH,
         touchAction: 'none' // iOS Safari에서 터치 스크롤 방지
       }}
-      onPointerDown={handleToolbarPointerDown}
+      onPointerDown={(e) => {
+        // 터치 입력 시 툴바 생성과 버튼 클릭을 분리
+        if (e.pointerType === 'touch') {
+          // 짧은 지연을 두어 터치 이벤트 버블링과 분리
+          setTimeout(() => {
+            handleToolbarPointerDown(e);
+          }, 100);
+        } else {
+          handleToolbarPointerDown(e);
+        }
+      }}
       onClick={(e) => e.stopPropagation()}
     >
       {/* 툴바 내용 */}
@@ -84,6 +94,17 @@ const ViewFloatingToolbar: React.FC = () => {
             onClick={(e) => {
               e.stopPropagation();
               handleToolChange('select');
+            }}
+            onPointerDown={(e) => {
+              // 터치 입력으로 인한 즉시 클릭 방지
+              if (e.pointerType === 'touch') {
+                e.preventDefault();
+                e.stopPropagation();
+                // 짧은 지연 후 실행하여 터치 이벤트와 분리
+                setTimeout(() => {
+                  handleToolChange('select');
+                }, 50);
+              }
             }}
             className={`rounded transition-all duration-200 flex items-center justify-center ${
               currentTool === 'select' 

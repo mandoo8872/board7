@@ -46,10 +46,28 @@ export const useInlineEdit = (
         text: editingText,
         isEditing: false
       });
-      // 인라인 편집 확정 직후 통합 flush로 DB 저장과 스냅샷을 동시에 수행
-      await useAdminConfigStore.getState().flushDocumentState(true, () => {
-        useUndoRedoStore.getState().pushSnapshot(createCurrentSnapshot());
-      });
+
+      // 현재 편집 중인 객체가 엑셀 셀인지 확인
+      const adminStore = useAdminConfigStore.getState();
+      const editingObject = adminStore.textObjects.find(obj => obj.id === editingObjectId);
+      const isExcelCell = editingObject && editingObject.groupId && editingObject.groupId.startsWith('excel-input-');
+
+      if (isExcelCell) {
+        // 엑셀 셀 편집: DB 저장만, undo/redo 제외
+        await adminStore.flushDocumentState(false);
+        if (import.meta.env.DEV) {
+          console.log(`📝 엑셀 셀 편집 완료: ${editingObjectId} (undo/redo 제외)`);
+        }
+      } else {
+        // 일반 객체 편집: DB 저장 + undo/redo 스냅샷 생성
+        await adminStore.flushDocumentState(true, () => {
+          useUndoRedoStore.getState().pushSnapshot(createCurrentSnapshot());
+        });
+        if (import.meta.env.DEV) {
+          console.log(`📝 일반 객체 편집 완료: ${editingObjectId} (undo/redo 포함)`);
+        }
+      }
+
       setEditingObjectId(null);
       setEditingText('');
     }
