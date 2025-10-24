@@ -183,6 +183,15 @@ const KeyboardLayout: React.FC<KeyboardLayoutProps> = ({
           {isKorean ? '한' : 'EN'}
         </button>
 
+        {/* 슬래시 키 */}
+        <button
+          onClick={() => onKeyPress('/')}
+          style={keyStyle}
+          className="bg-gray-600 hover:bg-gray-500 text-white rounded font-medium transition-colors"
+        >
+          /
+        </button>
+
         {/* 스페이스바 */}
         <button
           onClick={() => onKeyPress(' ')}

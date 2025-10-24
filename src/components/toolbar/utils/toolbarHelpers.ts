@@ -15,7 +15,7 @@ export const parseExcelData = (data: string): string[][] => {
  */
 export const DEFAULT_COLOR_PALETTE = [
   '#000000', '#ffffff', '#cccccc', '#ff0000', '#00ff00', '#0000ff',
-  '#ffff00', '#ff00ff', '#00ffff', '#ffa500', '#800080'
+  '#ffff00', '#ff00ff', '#00ffff', '#ffa500', '#800080', '#475059'
 ];
 
 /**
